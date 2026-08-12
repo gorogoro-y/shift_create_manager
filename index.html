@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト作成・管理アプリ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sticky-col-left {
+            position: sticky;
+            left: 0;
+            background-color: #ffffff;
+            z-index: 20;
+        }
+        .sticky-col-header {
+            position: sticky;
+            top: 0;
+            background-color: #f8fafc;
+            z-index: 30;
+        }
+        .sticky-col-corner {
+            position: sticky;
+            left: 0;
+            top: 0;
+            background-color: #e2e8f0;
+            z-index: 40;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col font-sans antialiased">
+
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg font-black text-xl tracking-wider">SHIFT</div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">シフト作成・管理システム</h1>
+                    <p class="text-xs text-slate-400">通し・単独・他・カラー指定 管理対応</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+                <button onclick="openStaffImportModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium transition flex items-center gap-1.5 text-xs">
+                    <span>📋</span> スタッフ取り込み
+                </button>
+                <button onclick="generateDummyMembers()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium transition text-xs">
+                    50名ダミー生成
+                </button>
+                <button onclick="exportData()" class="bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium transition text-xs">
+                    📥 保存
+                </button>
+                <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium cursor-pointer transition text-xs">
+                    📤 復元
+                    <input type="file" onchange="importData(event)" accept=".json" class="hidden">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-container" class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6 transition-all duration-300">
+
+        <!-- 年月・全体ツールバー -->
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前月</button>
+                <div id="current-month-display" class="text-xl sm:text-2xl font-black text-slate-800 min-w-[130px] text-center">2026年 8月</div>
+                <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 font-bold border border-slate-200 text-xs sm:text-sm">次月 ▶</button>
+            </div>
+
+            <!-- モード切替タブ -->
+            <div class="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold">
+                <button id="tab-btn-1" onclick="switchTab(1)" class="px-3 sm:px-4 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition font-bold">
+                    1. メンバー休み設定
+                </button>
+                <button id="tab-btn-2" onclick="switchTab(2)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
+                    2. 通し単独設定
+                </button>
+                <button id="tab-btn-3" onclick="switchTab(3)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
+                    3. シフト・カラー設定
+                </button>
+            </div>
+        </div>
+
+        <!-- モード1: メンバー休み設定 -->
+        <div id="view-mode-1" class="space-y-4">
+            <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500">休みスタンプ:</span>
+                    <button onclick="selectStamp('休')" id="stamp-btn-休" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-rose-100 border-rose-300 text-rose-800 shadow-xs ring-2 ring-indigo-500">休 (公休)</button>
+                    <button onclick="selectStamp('指')" id="stamp-btn-指" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-amber-50 border-amber-200 text-amber-700">指 (指定休)</button>
+                    <button onclick="selectStamp('有')" id="stamp-btn-有" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-emerald-50 border-emerald-200 text-emerald-700">有 (有給)</button>
+                    <button onclick="selectStamp('')" id="stamp-btn-clear" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-slate-50 border-slate-200 text-slate-600">解除</button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg text-xs">
+                        <span class="font-bold text-slate-600">デフォルト必要人数:</span>
+                        <input type="number" id="default-required-input" min="0" value="31" class="w-12 px-1 py-0.5 border rounded text-center font-bold bg-white">
+                        <button onclick="applyDefaultRequired()" class="px-2 py-0.5 bg-slate-800 text-white rounded font-bold hover:bg-slate-700">一括適用</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- マトリクス表 1 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-1">
+                    <!-- JSで動的生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- モード2: 通し単独設定 -->
+        <div id="view-mode-2" class="space-y-4 hidden">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                <!-- シフト属性スタンプ（必要人数カウントあり） -->
+                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container">
+                    <!-- JSで動的にシフトスタンプボタンを生成 -->
+                </div>
+
+                <!-- カラー属性スタンプ（必要人数カウントなし） -->
+                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container">
+                    <!-- JSで動的にカラー属性スタンプボタンを生成 -->
+                </div>
+
+                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex items-center gap-2">
+                    <span>💡</span>
+                    <span>シフトスタンプは必要人数をカウントします。「カラー属性」スタンプはマスに指定色・属性を適用しますが人数カウントには影響しません。</span>
+                </div>
+            </div>
+
+            <!-- マトリクス表 2 -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-2">
+                    <!-- JSで動的生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- モード3: シフト・カラー属性設定（マスター） -->
+        <div id="view-mode-3" class="space-y-6 hidden">
+            <!-- デフォルト設定保存・復元ツールバー -->
+            <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                        <span>⚙️</span> デフォルトマスター設定の管理
+                    </h3>
+                    <p class="text-xs text-slate-600 mt-0.5">現在設定中のシフト属性・カラー属性を標準（デフォルト）として保存・復元できます。</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="saveAsDefaultMaster()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                        <span>💾</span> 現在の設定をデフォルト保存
+                    </button>
+                    <button onclick="resetToDefaultMaster()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <span>🔄</span> デフォルト設定に戻す
+                    </button>
+                </div>
+            </div>
+
+            <!-- シフト属性一覧（目標人数あり） -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">シフト属性設定 <span class="text-xs font-normal text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">目標必要人数の集計あり</span></h2>
+                        <p class="text-xs text-slate-500">「通し」「単独」などの各シフト名、略称、目標人数、表示カラーを設定できます。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openShiftImportModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <span>📋</span> スプレッドシート取り込み
+                        </button>
+                        <button onclick="openShiftModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition">
+                            ＋ シフト属性を追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold">カラー</th>
+                                <th class="p-3 font-bold">シフト名</th>
+                                <th class="p-3 font-bold">略称</th>
+                                <th class="p-3 font-bold text-center">目標必要人数</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shift-types-table-body">
+                            <!-- JSで生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- カラー属性一覧（目標人数なし） -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">カラー属性設定 <span class="text-xs font-normal text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">目標人数なし（色マーカー用）</span></h2>
+                        <p class="text-xs text-slate-500">マスの背景色だけを変更するための属性です。人数のカウントや目標管理は行いません。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openColorImportModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <span>📋</span> スプレッドシート取り込み
+                        </button>
+                        <button onclick="openColorModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition">
+                            ＋ カラー属性を追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold">カラー</th>
+                                <th class="p-3 font-bold">カラー属性名</th>
+                                <th class="p-3 font-bold">略称/表示文字</th>
+                                <th class="p-3 font-bold text-slate-400">人数カウント</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="color-types-table-body">
+                            <!-- JSで生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- スタッフコピペ取り込みモーダル -->
+    <div id="staff-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <h3 class="font-bold text-lg text-slate-800">📋 スタッフ名コピペ一括取り込み</h3>
+            <p class="text-xs text-slate-500">スプレッドシートやExcelの名前列をコピーして、そのまま貼り付けてください。（改行区切り）</p>
+
+            <textarea id="staff-import-textarea" rows="8" placeholder="山田 太郎&#10;佐藤 花子&#10;鈴木 一郎" class="w-full p-3 border border-slate-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+
+            <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="staff-import-mode" value="replace" checked class="text-indigo-600">
+                    現在のメンバーを置き換える（上書き）
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="staff-import-mode" value="append" class="text-indigo-600">
+                    末尾に追加する
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeStaffImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="executeStaffImport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- シフト属性コピペ取り込みモーダル -->
+    <div id="shift-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <h3 class="font-bold text-lg text-slate-800">📋 シフト属性コピペ取り込み</h3>
+            <p class="text-xs text-slate-500">スプレッドシートの3列（「シフト名, 略称, 目標人数」）をコピーして貼り付けてください。（タブまたはカンマ区切り）</p>
+
+            <textarea id="shift-import-textarea" rows="7" placeholder="通し&#9;通&#9;14&#10;単独&#9;単&#9;17" class="w-full p-3 border border-slate-300 rounded-xs text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+
+            <p class="text-[11px] text-indigo-600 font-medium">※カラーは自動的に鮮やかな色がランダムに割り当てられます。</p>
+
+            <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="shift-import-mode" value="replace" checked class="text-indigo-600">
+                    上書き
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="shift-import-mode" value="append" class="text-indigo-600">
+                    追加
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeShiftImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="executeShiftImport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カラー属性コピペ取り込みモーダル -->
+    <div id="color-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <h3 class="font-bold text-lg text-slate-800">📋 カラー属性コピペ取り込み</h3>
+            <p class="text-xs text-slate-500">スプレッドシートの2列（「カラー属性名, 略称/表示文字」）をコピーして貼り付けてください。（タブまたはカンマ区切り）</p>
+
+            <textarea id="color-import-textarea" rows="7" placeholder="点呼&#9;点&#10;ナイト&#9;夜&#10;1t&#9;1t&#10;教育&#9;教&#10;臨時&#9;臨" class="w-full p-3 border border-slate-300 rounded-xs text-xs font-mono focus:ring-2 focus:ring-amber-500 outline-none"></textarea>
+
+            <p class="text-[11px] text-amber-700 font-medium">※表示カラーは自動的に鮮やかな色がランダムに割り当てられます。</p>
+
+            <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="color-import-mode" value="replace" checked class="text-amber-600">
+                    上書き
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="color-import-mode" value="append" class="text-amber-600">
+                    追加
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeColorImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="executeColorImport()" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700">取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- シフト属性 編集モーダル -->
+    <div id="shift-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="shift-modal-title" class="font-bold text-lg text-slate-800">シフト属性の編集</h3>
+            <input type="hidden" id="shift-modal-id">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">シフト名（例：通し、単独）</label>
+                <input type="text" id="shift-modal-name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">略称（例：通）</label>
+                    <input type="text" id="shift-modal-short" max="2" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">目標必要人数</label>
+                    <input type="number" id="shift-modal-count" min="0" value="14" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">表示カラー</label>
+                <input type="color" id="shift-modal-color" value="#3b82f6" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeShiftModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="saveShiftType()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カラー属性 編集モーダル -->
+    <div id="color-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="color-modal-title" class="font-bold text-lg text-slate-800">カラー属性の編集</h3>
+            <input type="hidden" id="color-modal-id">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">カラー属性名（例：点呼、ナイト、1t、教育、臨時）</label>
+                <input type="text" id="color-modal-name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">略称・表示文字（例：点、夜、1t、教、臨 ※空欄可）</label>
+                <input type="text" id="color-modal-short" max="2" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">表示カラー</label>
+                <input type="color" id="color-modal-color" value="#ef4444" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeColorModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="saveColorType()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カスタム メッセージモーダル -->
+    <div id="message-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-xl text-center space-y-3">
+            <div id="message-modal-text" class="text-sm font-bold text-slate-800"></div>
+            <button onclick="closeMessageModal()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl w-full">OK</button>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            currentYear: 2026,
+            currentMonth: 8,
+            members: [],
+            schedule: {},
+            // 新デフォルト：通し (14人), 単独 (17人)
+            shiftTypes: [
+                { id: 't1', name: '通し', shortName: '通', count: 14, color: '#3b82f6' },
+                { id: 't2', name: '単独', shortName: '単', count: 17, color: '#10b981' }
+            ],
+            // 新デフォルト：点呼, ナイト, 1t, 教育, 臨時
+            colorTypes: [
+                { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444' },
+                { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6' },
+                { id: 'c3', name: '1t', shortName: '1t', color: '#06b6d4' },
+                { id: 'c4', name: '教育', shortName: '教', color: '#10b981' },
+                { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b' }
+            ],
+            dailyRequired: {},
+            selectedStamp: '休',
+            selectedTool: { category: 'shift', id: 't1' },
+            activeTab: 1
+        };
+
+        function saveData() {
+            try {
+                localStorage.setItem('shift_app_state', JSON.stringify(state));
+            } catch (e) {
+                console.error('Failed to save state', e);
+            }
+        }
+
+        function renderAll() {
+            saveData();
+            renderMatrixMode1();
+            renderShiftStamps();
+            renderMatrixMode2();
+            renderMode3();
+        }
+
+        function getMonthDays() {
+            const days = [];
+            const numDays = new Date(state.currentYear, state.currentMonth, 0).getDate();
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            for (let d = 1; d <= numDays; d++) {
+                const date = new Date(state.currentYear, state.currentMonth - 1, d);
+                const dayOfWeekNum = date.getDay();
+                const dateStr = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                days.push({
+                    day: d,
+                    dayOfWeek: dayNames[dayOfWeekNum],
+                    dateStr: dateStr,
+                    isSunday: dayOfWeekNum === 0,
+                    isSaturday: dayOfWeekNum === 6
+                });
+            }
+            return days;
+        }
+
+        function changeMonth(delta) {
+            state.currentMonth += delta;
+            if (state.currentMonth > 12) {
+                state.currentMonth = 1;
+                state.currentYear++;
+            } else if (state.currentMonth < 1) {
+                state.currentMonth = 12;
+                state.currentYear--;
+            }
+            const monthDisplay = document.getElementById('current-month-display');
+            if (monthDisplay) {
+                monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+            }
+            renderAll();
+        }
+
+        function switchTab(tabNum) {
+            state.activeTab = tabNum;
+            [1, 2, 3].forEach(num => {
+                const view = document.getElementById(`view-mode-${num}`);
+                const btn = document.getElementById(`tab-btn-${num}`);
+                if (view && btn) {
+                    if (num === tabNum) {
+                        view.classList.remove('hidden');
+                        btn.className = "px-3 sm:px-4 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition font-bold";
+                    } else {
+                        view.classList.add('hidden');
+                        btn.className = "px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold";
+                    }
+                }
+            });
+            renderAll();
+        }
+
+        function getRandomColor() {
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#6366f1', '#d97706'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function getCellData(key) {
+            const raw = state.schedule[key];
+            if (!raw) return { shiftId: '', colorId: '' };
+            if (typeof raw === 'object' && raw !== null) {
+                return { shiftId: raw.shiftId || '', colorId: raw.colorId || '' };
+            }
+            if (['休', '指', '有'].includes(raw)) {
+                return { shiftId: raw, colorId: '' };
+            }
+            const isShift = state.shiftTypes.some(s => s.id === raw);
+            if (isShift) return { shiftId: raw, colorId: '' };
+            const isColor = state.colorTypes.some(c => c.id === raw);
+            if (isColor) return { shiftId: '', colorId: raw };
+            return { shiftId: raw, colorId: '' };
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('shift_app_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                    if (!state.colorTypes || state.colorTypes.length === 0) {
+                        state.colorTypes = [
+                            { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444' },
+                            { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6' },
+                            { id: 'c3', name: '1t', shortName: '1t', color: '#06b6d4' },
+                            { id: 'c4', name: '教育', shortName: '教', color: '#10b981' },
+                            { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b' }
+                        ];
+                    }
+                    if (!state.shiftTypes || state.shiftTypes.length === 0) {
+                        state.shiftTypes = [
+                            { id: 't1', name: '通し', shortName: '通', count: 14, color: '#3b82f6' },
+                            { id: 't2', name: '単独', shortName: '単', count: 17, color: '#10b981' }
+                        ];
+                    }
+                } catch (e) {
+                    console.error('Failed to load state', e);
+                }
+            } else {
+                const defShift = localStorage.getItem('shift_app_default_shift_types');
+                const defColor = localStorage.getItem('shift_app_default_color_types');
+                if (defShift) {
+                    try { state.shiftTypes = JSON.parse(defShift); } catch (e) {}
+                }
+                if (defColor) {
+                    try { state.colorTypes = JSON.parse(defColor); } catch (e) {}
+                }
+            }
+            if (!state.selectedTool) {
+                state.selectedTool = { category: 'shift', id: state.shiftTypes[0]?.id || '' };
+            }
+            if (!state.members || state.members.length === 0) {
+                generateDummyMembers();
+            }
+            const monthDisplay = document.getElementById('current-month-display');
+            if (monthDisplay) {
+                monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+            }
+        }
+
+        function saveAsDefaultMaster() {
+            try {
+                localStorage.setItem('shift_app_default_shift_types', JSON.stringify(state.shiftTypes));
+                localStorage.setItem('shift_app_default_color_types', JSON.stringify(state.colorTypes));
+                showMessageModal("現在のシフト属性・カラー属性を「デフォルト設定」として保存しました！");
+            } catch (e) {
+                console.error("Failed to save default master", e);
+                showMessageModal("デフォルト設定の保存に失敗しました。");
+            }
+        }
+
+        function resetToDefaultMaster() {
+            const defShift = localStorage.getItem('shift_app_default_shift_types');
+            const defColor = localStorage.getItem('shift_app_default_color_types');
+
+            if (!defShift && !defColor) {
+                showMessageModal("保存されたデフォルト設定がありません。先に「現在の設定をデフォルト保存」を実行してください。");
+                return;
+            }
+
+            try {
+                if (defShift) state.shiftTypes = JSON.parse(defShift);
+                if (defColor) state.colorTypes = JSON.parse(defColor);
+                renderAll();
+                showMessageModal("デフォルト設定を読み込み、属性一覧を復元しました。");
+            } catch (e) {
+                console.error("Failed to reset default master", e);
+                showMessageModal("デフォルト設定の読み込みに失敗しました。");
+            }
+        }
+
+        function renderMatrixMode1() {
+            const container = document.getElementById('matrix-container-1');
+            if (!container) return;
+            const days = getMonthDays();
+            
+            let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[140px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
+
+            days.forEach(d => {
+                const required = state.dailyRequired[d.dateStr] ?? 31;
+                let holidayCount = 0;
+                state.members.forEach(m => {
+                    const cell = getCellData(`${m.id}_${d.dateStr}`);
+                    if (['休', '指', '有'].includes(cell.shiftId)) holidayCount++;
+                });
+
+                const availableCount = state.members.length - holidayCount;
+                const diff = availableCount - required;
+                
+                let badgeClass = "bg-emerald-100 text-emerald-800 border-emerald-300";
+                let badgeText = "±0";
+                if (diff < 0) {
+                    badgeClass = "bg-rose-100 text-rose-800 border-rose-300";
+                    badgeText = `${Math.abs(diff)}不足`;
+                } else if (diff > 0) {
+                    badgeClass = "bg-sky-100 text-sky-800 border-sky-300";
+                    badgeText = `+${diff}余り`;
+                }
+
+                let headerBg = "bg-slate-50/60";
+                let dayTextClass = "text-slate-800";
+                if (d.isSunday) {
+                    headerBg = "bg-rose-50/90";
+                    dayTextClass = "text-rose-700 font-extrabold";
+                } else if (d.isSaturday) {
+                    headerBg = "bg-sky-50/90";
+                    dayTextClass = "text-sky-700 font-extrabold";
+                }
+
+                html += `
+                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[42px] sticky-col-header font-bold ${headerBg}">
+                        <div class="flex flex-col items-center gap-1">
+                            <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
+                            <div class="flex items-center gap-0.5 text-[10px] text-slate-500">
+                                <span>必要:</span>
+                                <input type="number" min="0" value="${required}" onchange="updateDailyRequired('${d.dateStr}', this.value)" class="w-8 px-0.5 py-0.5 border border-slate-300 rounded text-center font-bold bg-white text-slate-800">
+                            </div>
+                            <div class="font-extrabold text-sm ${dayTextClass}">
+                                ${d.day} <span class="text-[10px] font-bold">(${d.dayOfWeek})</span>
+                            </div>
+                        </div>
+                    </th>
+                `;
+            });
+            html += `<th class="p-2 border-l border-b border-slate-200 min-w-[70px] text-center font-bold bg-slate-100">稼働日数</th></tr></thead><tbody>`;
+
+            state.members.forEach(m => {
+                let totalHolidays = 0;
+                const allDays = getMonthDays();
+                allDays.forEach(ad => {
+                    const cell = getCellData(`${m.id}_${ad.dateStr}`);
+                    if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
+                });
+
+                const isAllHoliday = allDays.every(ad => getCellData(`${m.id}_${ad.dateStr}`).shiftId === '休');
+                const btnStyle = isAllHoliday 
+                    ? "bg-rose-600 text-white border-rose-600 shadow-xs" 
+                    : "bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-600 border-slate-300";
+
+                html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                html += `
+                    <td class="p-1.5 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs">
+                        <div class="flex items-center gap-1.5 justify-start">
+                            <button onclick="setMemberAllHoliday('${m.id}')" title="${isAllHoliday ? '全休を解除' : '全日を休みに設定'}" class="px-1.5 py-0.5 border rounded text-[10px] font-bold transition shrink-0 ${btnStyle}">
+                                ${isAllHoliday ? '済' : '全休'}
+                            </button>
+                            <span class="truncate max-w-[85px]" title="${m.name}">${m.name}</span>
+                        </div>
+                    </td>
+                `;
+
+                days.forEach(d => {
+                    const key = `${m.id}_${d.dateStr}`;
+                    const cell = getCellData(key);
+                    const val = cell.shiftId;
+                    
+                    let cellStyle = "bg-white hover:bg-slate-100 text-slate-300";
+                    if (d.isSunday) cellStyle = "bg-rose-50/40 hover:bg-rose-100/60 text-rose-300/60";
+                    if (d.isSaturday) cellStyle = "bg-sky-50/40 hover:bg-sky-100/60 text-sky-300/60";
+
+                    if (val === '休') cellStyle = "bg-rose-100 text-rose-800 font-extrabold border-rose-300 shadow-2xs";
+                    if (val === '指') cellStyle = "bg-amber-100 text-amber-800 font-extrabold border-amber-300 shadow-2xs";
+                    if (val === '有') cellStyle = "bg-emerald-100 text-emerald-800 font-extrabold border-emerald-300 shadow-2xs";
+
+                    html += `
+                        <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs ${cellStyle}">
+                            ${val || 'ー'}
+                        </td>
+                    `;
+                });
+
+                const workDays = allDays.length - totalHolidays;
+                html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-indigo-700 bg-indigo-50/50">${workDays}日</td></tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function renderShiftStamps() {
+            const shiftContainer = document.getElementById('shift-stamp-container');
+            const colorContainer = document.getElementById('color-stamp-container');
+            if (!shiftContainer || !colorContainer) return;
+
+            let shiftHtml = `
+                <div class="w-full text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                    <span class="flex items-center gap-1">📌 シフトスタンプ <span class="text-[10px] text-indigo-600 font-normal">(必要人数カウント対象)</span></span>
+                    ${state.selectedTool?.category === 'shift' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">選択中: シフト入力</span>' : ''}
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">`;
+
+            state.shiftTypes.forEach(st => {
+                const isSelected = state.selectedTool?.category === 'shift' && state.selectedTool?.id === st.id;
+                const activeStyle = isSelected ? 'ring-2 ring-indigo-600 ring-offset-1 scale-105 shadow-sm font-black' : 'opacity-85 hover:opacity-100';
+                shiftHtml += `
+                    <button onclick="selectTool('shift', '${st.id}')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-white shadow-2xs transition transform flex items-center gap-1 ${activeStyle}" style="background-color:${st.color}">
+                        <span>${st.shortName}</span>
+                        <span class="text-[10px] opacity-90 font-normal">(${st.name})</span>
+                    </button>
+                `;
+            });
+
+            const isShiftClear = state.selectedTool?.category === 'shift' && state.selectedTool?.id === '';
+            const shiftClearStyle = isShiftClear ? 'ring-2 ring-slate-600 ring-offset-1 scale-105 bg-slate-300 font-bold' : 'bg-slate-100 hover:bg-slate-200 text-slate-600';
+            shiftHtml += `
+                <button onclick="selectTool('shift', '')" class="px-3 py-1.5 rounded-lg border border-slate-300 font-bold text-xs transition transform ${shiftClearStyle}">
+                    シフト解除
+                </button>
+            </div>`;
+            shiftContainer.innerHTML = shiftHtml;
+
+            let colorHtml = `
+                <div class="w-full text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                    <span class="flex items-center gap-1">🎨 カラーマーカー <span class="text-[10px] text-amber-700 font-normal">(背景色のみ変更・スタンプと人数はそのまま保持)</span></span>
+                    ${state.selectedTool?.category === 'color' ? '<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">選択中: カラー塗り</span>' : ''}
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">`;
+
+            state.colorTypes.forEach(ct => {
+                const isSelected = state.selectedTool?.category === 'color' && state.selectedTool?.id === ct.id;
+                const activeStyle = isSelected ? 'ring-2 ring-amber-600 ring-offset-1 scale-105 shadow-sm font-black' : 'opacity-85 hover:opacity-100';
+                colorHtml += `
+                    <button onclick="selectTool('color', '${ct.id}')" class="px-3 py-1.5 rounded-lg font-bold text-xs text-white shadow-2xs transition transform flex items-center gap-1.5 ${activeStyle}" style="background-color:${ct.color}">
+                        <span class="w-2.5 h-2.5 rounded-full bg-white/40"></span>
+                        <span>${ct.name}</span>
+                    </button>
+                `;
+            });
+
+            const isColorClear = state.selectedTool?.category === 'color' && state.selectedTool?.id === '';
+            const colorClearStyle = isColorClear ? 'ring-2 ring-slate-600 ring-offset-1 scale-105 bg-slate-300 font-bold' : 'bg-slate-100 hover:bg-slate-200 text-slate-600';
+            colorHtml += `
+                <button onclick="selectTool('color', '')" class="px-3 py-1.5 rounded-lg border border-slate-300 font-bold text-xs transition transform ${colorClearStyle}">
+                    カラー解除
+                </button>
+            </div>`;
+            colorContainer.innerHTML = colorHtml;
+        }
+
+        function selectTool(category, id) {
+            state.selectedTool = { category, id };
+            renderShiftStamps();
+        }
+
+        function toggleShiftStamp(memberId, dateStr) {
+            const key = `${memberId}_${dateStr}`;
+            const cell = getCellData(key);
+            
+            if (['休', '指', '有'].includes(cell.shiftId)) {
+                return;
+            }
+
+            const tool = state.selectedTool || { category: 'shift', id: 't1' };
+
+            if (tool.category === 'shift') {
+                if (tool.id === '') {
+                    cell.shiftId = '';
+                } else if (cell.shiftId === tool.id) {
+                    cell.shiftId = '';
+                } else {
+                    cell.shiftId = tool.id;
+                }
+            } else if (tool.category === 'color') {
+                if (tool.id === '') {
+                    cell.colorId = '';
+                } else if (cell.colorId === tool.id) {
+                    cell.colorId = '';
+                } else {
+                    cell.colorId = tool.id;
+                }
+            }
+
+            if (!cell.shiftId && !cell.colorId) {
+                delete state.schedule[key];
+            } else {
+                state.schedule[key] = cell;
+            }
+
+            renderAll();
+        }
+
+        function renderMatrixMode2() {
+            const container = document.getElementById('matrix-container-2');
+            if (!container) return;
+            const days = getMonthDays();
+
+            let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[130px] sticky-col-corner font-bold align-middle">メンバー</th>`;
+
+            days.forEach(d => {
+                let shiftBadgesHTML = `<div class="flex flex-wrap gap-1 justify-center w-full my-1">`;
+                
+                state.shiftTypes.forEach(st => {
+                    let count = 0;
+                    state.members.forEach(m => {
+                        const cell = getCellData(`${m.id}_${d.dateStr}`);
+                        if (cell.shiftId === st.id) count++;
+                    });
+
+                    const isMet = count === st.count;
+                    const opacityClass = isMet ? 'opacity-100 ring-1 ring-emerald-400' : 'opacity-90';
+
+                    shiftBadgesHTML += `
+                        <span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold text-white shadow-2xs ${opacityClass}" style="background-color:${st.color}">
+                            <span>${st.shortName}:</span>
+                            <span class="font-black">${count}/${st.count}</span>
+                        </span>
+                    `;
+                });
+                shiftBadgesHTML += `</div>`;
+
+                let headerBg = "bg-slate-50/60";
+                let dayBadgeStyle = "bg-slate-200/70 text-slate-800";
+                if (d.isSunday) {
+                    headerBg = "bg-rose-50/90";
+                    dayBadgeStyle = "bg-rose-200/80 text-rose-900 font-extrabold";
+                } else if (d.isSaturday) {
+                    headerBg = "bg-sky-50/90";
+                    dayBadgeStyle = "bg-sky-200/80 text-sky-900 font-extrabold";
+                }
+
+                html += `
+                    <th class="p-1 border-r border-b border-slate-200 min-w-[75px] max-w-[95px] sticky-col-header font-bold align-top ${headerBg}">
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="font-black text-xs w-full py-0.5 rounded-md ${dayBadgeStyle}">
+                                ${d.day} <span class="text-[10px] font-bold">(${d.dayOfWeek})</span>
+                            </div>
+                            ${shiftBadgesHTML}
+                        </div>
+                    </th>
+                `;
+            });
+
+            html += `<th class="p-2 border-l border-b border-slate-200 min-w-[70px] text-center font-bold bg-slate-100 align-middle">休み数</th></tr></thead><tbody>`;
+
+            state.members.forEach(m => {
+                let totalHolidays = 0;
+                const allDays = getMonthDays();
+                allDays.forEach(ad => {
+                    const cell = getCellData(`${m.id}_${ad.dateStr}`);
+                    if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
+                });
+
+                html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                html += `<td class="p-2 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">${m.name}</td>`;
+
+                days.forEach(d => {
+                    const key = `${m.id}_${d.dateStr}`;
+                    const cell = getCellData(key);
+                    const val = cell.shiftId;
+                    
+                    if (['休', '指', '有'].includes(val)) {
+                        let bg = "bg-rose-100 text-rose-800 border-rose-200";
+                        if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
+                        if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                        html += `<td class="p-1 border-r border-b border-slate-200 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
+                    } else {
+                        const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
+                        const customColor = state.colorTypes.find(c => c.id === cell.colorId);
+                        
+                        let label = shift ? shift.shortName : 'ー';
+                        
+                        let styleColor = '';
+                        if (customColor) {
+                            styleColor = customColor.color;
+                        } else if (shift) {
+                            styleColor = shift.color;
+                        }
+
+                        let cellBgClass = "bg-white text-slate-300";
+                        if (d.isSunday) cellBgClass = "bg-rose-50/40 text-rose-300/60";
+                        if (d.isSaturday) cellBgClass = "bg-sky-50/40 text-sky-300/60";
+
+                        let style = cellBgClass;
+                        if (styleColor) {
+                            style = `font-extrabold text-white shadow-2xs transition transform active:scale-95`;
+                        }
+
+                        html += `
+                            <td onclick="toggleShiftStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs ${style}" style="${styleColor ? `background-color:${styleColor}` : ''}">
+                                ${label}
+                            </td>
+                        `;
+                    }
+                });
+
+                html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-slate-700 bg-slate-50">${totalHolidays}日</td></tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function renderMode3() {
+            const tableBody = document.getElementById('shift-types-table-body');
+            if (tableBody) {
+                tableBody.innerHTML = state.shiftTypes.map(st => {
+                    return `
+                        <tr class="border-b border-slate-200 hover:bg-slate-50">
+                            <td class="p-3">
+                                <span class="w-6 h-6 rounded-full inline-block align-middle border border-slate-300 shadow-2xs" style="background-color:${st.color}"></span>
+                            </td>
+                            <td class="p-3 font-bold text-slate-800">${st.name}</td>
+                            <td class="p-3 font-black text-slate-700">${st.shortName}</td>
+                            <td class="p-3 text-center font-bold text-slate-800">${st.count}人</td>
+                            <td class="p-3 text-right space-x-2">
+                                <button onclick="openShiftModal('${st.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                <button onclick="deleteShiftType('${st.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const colorTableBody = document.getElementById('color-types-table-body');
+            if (colorTableBody) {
+                colorTableBody.innerHTML = state.colorTypes.map(ct => {
+                    return `
+                        <tr class="border-b border-slate-200 hover:bg-slate-50">
+                            <td class="p-3">
+                                <span class="w-6 h-6 rounded-full inline-block align-middle border border-slate-300 shadow-2xs" style="background-color:${ct.color}"></span>
+                            </td>
+                            <td class="p-3 font-bold text-slate-800">${ct.name}</td>
+                            <td class="p-3 font-black text-slate-700">${ct.shortName || 'なし'}</td>
+                            <td class="p-3 text-xs text-slate-400 font-medium">カウント対象外</td>
+                            <td class="p-3 text-right space-x-2">
+                                <button onclick="openColorModal('${ct.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                <button onclick="deleteColorType('${ct.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        function selectStamp(stamp) {
+            state.selectedStamp = stamp;
+            document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('shadow-xs', 'ring-2', 'ring-indigo-500'));
+            const target = document.getElementById(`stamp-btn-${stamp || 'clear'}`);
+            if (target) target.classList.add('shadow-xs', 'ring-2', 'ring-indigo-500');
+        }
+
+        function toggleStamp(memberId, dateStr) {
+            const key = `${memberId}_${dateStr}`;
+            if (state.schedule[key] === state.selectedStamp) {
+                delete state.schedule[key];
+            } else {
+                state.schedule[key] = state.selectedStamp;
+            }
+            renderAll();
+        }
+
+        function setMemberAllHoliday(memberId) {
+            const days = getMonthDays();
+            const isAllHoliday = days.every(d => state.schedule[`${memberId}_${d.dateStr}`] === '休');
+
+            days.forEach(d => {
+                const key = `${memberId}_${d.dateStr}`;
+                if (isAllHoliday) {
+                    delete state.schedule[key];
+                } else {
+                    state.schedule[key] = '休';
+                }
+            });
+            renderAll();
+        }
+
+        function updateDailyRequired(dateStr, val) {
+            state.dailyRequired[dateStr] = parseInt(val) || 0;
+            renderAll();
+        }
+
+        function applyDefaultRequired() {
+            const val = parseInt(document.getElementById('default-required-input').value) || 0;
+            const days = getMonthDays();
+            days.forEach(d => {
+                state.dailyRequired[d.dateStr] = val;
+            });
+            renderAll();
+        }
+
+        function generateDummyMembers() {
+            state.members = [];
+            for (let i = 1; i <= 50; i++) {
+                state.members.push({
+                    id: 'm_' + i,
+                    name: 'スタッフ ' + (i < 10 ? '0' + i : i)
+                });
+            }
+            renderAll();
+            showMessageModal("50名のダミーメンバーを生成しました。");
+        }
+
+        function openStaffImportModal() {
+            document.getElementById('staff-import-textarea').value = '';
+            document.getElementById('staff-import-modal').classList.remove('hidden');
+        }
+
+        function closeStaffImportModal() {
+            document.getElementById('staff-import-modal').classList.add('hidden');
+        }
+
+        function executeStaffImport() {
+            const text = document.getElementById('staff-import-textarea').value.trim();
+            if (!text) return;
+
+            const mode = document.querySelector('input[name="staff-import-mode"]:checked').value;
+            const names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+
+            if (mode === 'replace') {
+                state.members = [];
+            }
+
+            names.forEach((name, idx) => {
+                state.members.push({
+                    id: 'm_' + Date.now() + '_' + idx,
+                    name: name
+                });
+            });
+
+            closeStaffImportModal();
+            renderAll();
+            showMessageModal(`${names.length}名のメンバーを取り込みました。`);
+        }
+
+        function openShiftImportModal() {
+            document.getElementById('shift-import-textarea').value = '';
+            document.getElementById('shift-import-modal').classList.remove('hidden');
+        }
+
+        function closeShiftImportModal() {
+            document.getElementById('shift-import-modal').classList.add('hidden');
+        }
+
+        function openColorImportModal() {
+            document.getElementById('color-import-textarea').value = '';
+            document.getElementById('color-import-modal').classList.remove('hidden');
+        }
+
+        function closeColorImportModal() {
+            document.getElementById('color-import-modal').classList.add('hidden');
+        }
+
+        function executeColorImport() {
+            const text = document.getElementById('color-import-textarea').value.trim();
+            if (!text) return;
+
+            const mode = document.querySelector('input[name="color-import-mode"]:checked').value;
+            if (mode === 'replace') {
+                state.colorTypes = [];
+            }
+
+            const lines = text.split('\n');
+            let count = 0;
+
+            lines.forEach((line, idx) => {
+                const parts = line.split(/[\t,]/).map(p => p.trim());
+                if (parts.length >= 1 && parts[0] !== '') {
+                    const colorName = parts[0];
+                    const shortName = parts[1] || '';
+
+                    state.colorTypes.push({
+                        id: 'c_' + Date.now() + '_' + idx,
+                        name: colorName,
+                        shortName: shortName,
+                        color: getRandomColor()
+                    });
+                    count++;
+                }
+            });
+
+            closeColorImportModal();
+            renderAll();
+            showMessageModal(`${count}件のカラー属性を取り込みました。`);
+        }
+
+        function executeShiftImport() {
+            const text = document.getElementById('shift-import-textarea').value.trim();
+            if (!text) return;
+
+            const mode = document.querySelector('input[name="shift-import-mode"]:checked').value;
+            if (mode === 'replace') {
+                state.shiftTypes = [];
+            }
+
+            const lines = text.split('\n');
+            let count = 0;
+
+            lines.forEach((line, idx) => {
+                const parts = line.split(/[\t,]/).map(p => p.trim());
+                if (parts.length >= 1 && parts[0] !== '') {
+                    const shiftName = parts[0];
+                    const shortName = parts[1] || shiftName.substring(0, 1);
+                    const targetCount = parseInt(parts[2]) || 1;
+
+                    state.shiftTypes.push({
+                        id: 's_' + Date.now() + '_' + idx,
+                        name: shiftName,
+                        shortName: shortName,
+                        count: targetCount,
+                        color: getRandomColor()
+                    });
+                    count++;
+                }
+            });
+
+            closeShiftImportModal();
+            renderAll();
+            showMessageModal(`${count}件のシフト属性を取り込みました。`);
+        }
+
+        function openShiftModal(id = null) {
+            document.getElementById('shift-modal-id').value = id || '';
+            document.getElementById('shift-modal-title').innerText = id ? 'シフト属性の編集' : 'シフト属性の追加';
+
+            if (id) {
+                const st = state.shiftTypes.find(s => s.id === id);
+                if (st) {
+                    document.getElementById('shift-modal-name').value = st.name;
+                    document.getElementById('shift-modal-short').value = st.shortName;
+                    document.getElementById('shift-modal-count').value = st.count;
+                    document.getElementById('shift-modal-color').value = st.color;
+                }
+            } else {
+                document.getElementById('shift-modal-name').value = '';
+                document.getElementById('shift-modal-short').value = '';
+                document.getElementById('shift-modal-count').value = 14;
+                document.getElementById('shift-modal-color').value = getRandomColor();
+            }
+            document.getElementById('shift-modal').classList.remove('hidden');
+        }
+
+        function closeShiftModal() {
+            document.getElementById('shift-modal').classList.add('hidden');
+        }
+
+        function saveShiftType() {
+            const id = document.getElementById('shift-modal-id').value;
+            const name = document.getElementById('shift-modal-name').value.trim();
+            const shortName = document.getElementById('shift-modal-short').value.trim() || name.substring(0, 1);
+            const count = parseInt(document.getElementById('shift-modal-count').value) || 0;
+            const color = document.getElementById('shift-modal-color').value;
+
+            if (!name) return;
+
+            if (id) {
+                const st = state.shiftTypes.find(s => s.id === id);
+                if (st) {
+                    st.name = name;
+                    st.shortName = shortName;
+                    st.count = count;
+                    st.color = color;
+                }
+            } else {
+                state.shiftTypes.push({
+                    id: 's_' + Date.now(),
+                    name: name,
+                    shortName: shortName,
+                    count: count,
+                    color: color
+                });
+            }
+
+            closeShiftModal();
+            renderAll();
+        }
+
+        function deleteShiftType(id) {
+            state.shiftTypes = state.shiftTypes.filter(s => s.id !== id);
+            renderAll();
+        }
+
+        function openColorModal(id = null) {
+            document.getElementById('color-modal-id').value = id || '';
+            document.getElementById('color-modal-title').innerText = id ? 'カラー属性の編集' : 'カラー属性の追加';
+
+            if (id) {
+                const ct = state.colorTypes.find(c => c.id === id);
+                if (ct) {
+                    document.getElementById('color-modal-name').value = ct.name;
+                    document.getElementById('color-modal-short').value = ct.shortName || '';
+                    document.getElementById('color-modal-color').value = ct.color;
+                }
+            } else {
+                document.getElementById('color-modal-name').value = '';
+                document.getElementById('color-modal-short').value = '';
+                document.getElementById('color-modal-color').value = getRandomColor();
+            }
+            document.getElementById('color-modal').classList.remove('hidden');
+        }
+
+        function closeColorModal() {
+            document.getElementById('color-modal').classList.add('hidden');
+        }
+
+        function saveColorType() {
+            const id = document.getElementById('color-modal-id').value;
+            const name = document.getElementById('color-modal-name').value.trim();
+            const shortName = document.getElementById('color-modal-short').value.trim();
+            const color = document.getElementById('color-modal-color').value;
+
+            if (!name) return;
+
+            if (id) {
+                const ct = state.colorTypes.find(c => c.id === id);
+                if (ct) {
+                    ct.name = name;
+                    ct.shortName = shortName;
+                    ct.color = color;
+                }
+            } else {
+                state.colorTypes.push({
+                    id: 'c_' + Date.now(),
+                    name: name,
+                    shortName: shortName,
+                    color: color
+                });
+            }
+
+            closeColorModal();
+            renderAll();
+        }
+
+        function deleteColorType(id) {
+            state.colorTypes = state.colorTypes.filter(c => c.id !== id);
+            renderAll();
+        }
+
+        function exportData() {
+            const jsonStr = JSON.stringify(state, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `shift_data_${state.currentYear}_${state.currentMonth}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    state = parsed;
+                    renderAll();
+                    showMessageModal("データを正常に復元しました。");
+                } catch (err) {
+                    showMessageModal("ファイルの読み込みに失敗しました。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function showMessageModal(msg) {
+            document.getElementById('message-modal-text').innerText = msg;
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            document.getElementById('message-modal').classList.add('hidden');
+        }
+
+        window.onload = function() {
+            loadData();
+            renderAll();
+        };
+    </script>
+</body>
+</html>
