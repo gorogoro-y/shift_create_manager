@@ -171,9 +171,6 @@
                     <span>💡</span>
                     <span><strong>月跨ぎ勤務間隔表示:</strong> 休みと休みの間にある連続勤務日数が自動計算されます（10日以上の場合は「ー」表示）。</span>
                 </div>
-                <div class="text-[11px] text-indigo-600 font-bold shrink-0">
-                    ↔️ マウスホイール（縦スクロール）でも左右に動きます
-                </div>
             </div>
         </div>
 
@@ -4166,23 +4163,6 @@
             }
         }
 
-        function attachHorizontalWheelScroll(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container || container.dataset.wheelBound) return;
-            container.dataset.wheelBound = "true";
-
-            container.addEventListener('wheel', (e) => {
-                // Shiftキーが押されていない通常の縦ホイール操作時、横スクロールへ変換
-                if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !e.shiftKey) {
-                    const isScrollableX = container.scrollWidth > container.clientWidth;
-                    if (isScrollableX) {
-                        e.preventDefault();
-                        container.scrollLeft += e.deltaY * 1.5;
-                    }
-                }
-            }, { passive: false });
-        }
-
         window.changeMonth = changeMonth;
         window.switchTab = switchTab;
         window.selectStamp = selectStamp;
@@ -4264,8 +4244,6 @@
             loadData();
             renderAll();
             initFirebase();
-            attachHorizontalWheelScroll('matrix-container-1');
-            attachHorizontalWheelScroll('matrix-container-2');
         };
     </script>
 </body>
