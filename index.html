@@ -28,19 +28,32 @@
             background-color: #e2e8f0;
             z-index: 40;
         }
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        
+        /* 横スクロールバーを常に鮮明に表示するスタイル */
+        .force-horizontal-scroll {
+            overflow-x: scroll !important;
+            overflow-y: auto !important;
+            scrollbar-width: auto;
+            scrollbar-color: #4f46e5 #e2e8f0;
+            -webkit-overflow-scrolling: touch;
         }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
+        .force-horizontal-scroll::-webkit-scrollbar {
+            width: 10px;
+            height: 14px !important;
+            display: block !important;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+        .force-horizontal-scroll::-webkit-scrollbar-track {
+            background: #e2e8f0 !important;
+            border-radius: 8px;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+        .force-horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #4f46e5 !important;
+            border-radius: 8px;
+            border: 3px solid #e2e8f0;
+        }
+        .force-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #4338ca !important;
         }
     </style>
 </head>
@@ -124,12 +137,19 @@
         <!-- タブ1: メンバー休み設定 -->
         <div id="view-mode-1" class="space-y-4">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-xs font-bold text-slate-500">休みスタンプ:</span>
                     <button onclick="selectStamp('休')" id="stamp-btn-休" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-rose-100 border-rose-300 text-rose-800 shadow-xs ring-2 ring-indigo-500">休 (公休)</button>
                     <button onclick="selectStamp('指')" id="stamp-btn-指" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-amber-50 border-amber-200 text-amber-700">指 (指定休)</button>
                     <button onclick="selectStamp('有')" id="stamp-btn-有" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-emerald-50 border-emerald-200 text-emerald-700">有 (有給)</button>
                     <button onclick="selectStamp('')" id="stamp-btn-clear" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-slate-50 border-slate-200 text-slate-600">解除</button>
+                    
+                    <div class="flex items-center gap-1.5 ml-2 pl-3 border-l border-slate-200 bg-slate-50 p-1 rounded-lg">
+                        <span class="text-[10px] text-slate-400 font-bold">スクロール:</span>
+                        <button onclick="scrollToPosition('matrix-container-1', 'start')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="1日側へ移動">◀ 1日〜</button>
+                        <button onclick="scrollToPosition('matrix-container-1', 'mid')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="16日側へ移動">16日〜</button>
+                        <button onclick="scrollToPosition('matrix-container-1', 'end')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="月末側へ移動">末日 ▶</button>
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -141,14 +161,19 @@
                 </div>
             </div>
 
-            <!-- マトリクス表 1 -->
+            <!-- マトリクス表 1 (常時スクロールバーを保持) -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-1"></div>
+                <div class="force-horizontal-scroll max-h-[620px] w-full" id="matrix-container-1"></div>
             </div>
 
-            <div class="text-xs text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-2">
-                <span>💡</span>
-                <span><strong>月跨ぎ勤務間隔表示:</strong> 休みと休みの間にある連続勤務日数（例:「2日勤務」）が自動計算されます。前月末や次月頭を跨ぐ勤務日数も自動で合算され、10日以上の場合は「ー」表示となります。</span>
+            <div class="text-xs text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span>💡</span>
+                    <span><strong>月跨ぎ勤務間隔表示:</strong> 休みと休みの間にある連続勤務日数が自動計算されます（10日以上の場合は「ー」表示）。</span>
+                </div>
+                <div class="text-[11px] text-indigo-600 font-bold shrink-0">
+                    ↔️ マウスホイール（縦スクロール）でも左右に動きます
+                </div>
             </div>
         </div>
 
@@ -159,6 +184,58 @@
                 <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
                 
                 <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        <span class="text-[10px] text-slate-400 font-bold">スクロール:</span>
+                        <button onclick="scrollToPosition('matrix-container-2', 'start')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="1日側へ移動">◀ 1日〜</button>
+                        <button onclick="scrollToPosition('matrix-container-2', 'mid')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="16日側へ移動">16日〜</button>
+                        <button onclick="scrollToPosition('matrix-container-2', 'end')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="月末側へ移動">末日 ▶</button>
+                    </div>
+
+                    <button onclick="openGeneratorModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-sm transition flex items-center gap-1.5 transform active:scale-95">
+                        <span>⚡</span>
+                        <span>シフト自動ジェネレート</span>
+                    </button>
+                    <button onclick="openRuleConfigModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1" title="自動ジェネレートのルール設定">
+                        <span>⚙️</span>
+                        <span class="hidden sm:inline">ルール設定</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                <!-- シフト属性スタンプ ＋ ピン留めツール -->
+                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container"></div>
+
+                <!-- カラー属性スタンプ -->
+                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container"></div>
+
+                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span>💡</span>
+                        <span>「📌 ピン留め」を選択してマスをクリックすると保護ロック（📌）され、自動ジェネレートで上書きされなくなります。コースが割り当てられている日は下部にコース名バッジが表示されます。</span>
+                    </div>
+                    <div id="pinned-stats-info" class="font-bold text-indigo-700"></div>
+                </div>
+            </div>
+
+            <!-- マトリクス表 2 (常時スクロールバーを保持) -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="force-horizontal-scroll max-h-[620px] w-full" id="matrix-container-2"></div>
+            </div>
+        </div>
+
+        <!-- タブ2: 属性設定 -->
+        <div id="view-mode-2" class="space-y-4 hidden">
+            <!-- スタッフ属性絞り込みフィルター & ジェネレーター実行バー -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                        <button onclick="scrollToPosition('matrix-container-2', 'start')" class="px-2 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-xs" title="1日側へ移動">◀ 1日〜</button>
+                        <button onclick="scrollToPosition('matrix-container-2', 'mid')" class="px-2 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-xs" title="16日側へ移動">16日〜 ▶</button>
+                    </div>
+
                     <button onclick="openGeneratorModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-sm transition flex items-center gap-1.5 transform active:scale-95">
                         <span>⚡</span>
                         <span>シフト自動ジェネレート</span>
@@ -1712,8 +1789,9 @@
             if (!container) return;
             const days = getMonthDays();
             
-            let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
+            // min-w-[1550px] を保証し、ブラウザ幅に関わらず確実にスクロール領域を確立
+            let html = `<table class="min-w-[1550px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
 
             days.forEach(d => {
                 const required = state.dailyRequired[d.dateStr] ?? 31;
@@ -1747,7 +1825,7 @@
                 }
 
                 html += `
-                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[44px] sticky-col-header font-bold ${headerBg}">
+                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[42px] sticky-col-header font-bold ${headerBg}">
                         <div class="flex flex-col items-center gap-1">
                             <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                             <div class="flex items-center gap-0.5 text-[10px] text-slate-500">
@@ -2112,13 +2190,14 @@
                 ? state.members.filter(m => m.attributes && m.attributes.includes(state.activeStaffFilter))
                 : state.members;
 
-            let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
+            // min-w-[2400px] を保証し、31日分の各シフト集計枠とコースバッジが潰れない幅を常時確保
+            let html = `<table class="min-w-[2400px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
             
             const filterNotice = state.activeStaffFilter 
                 ? `<span class="block text-[10px] text-indigo-600 font-bold">絞込中 (${displayMembers.length}/${state.members.length})</span>` 
                 : `<span class="block text-[10px] text-slate-500 font-normal">全員 (${state.members.length}名)</span>`;
 
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] sticky-col-corner font-bold align-middle">
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] w-[170px] sticky-col-corner font-bold align-middle">
                 <div>メンバー</div>
                 ${filterNotice}
             </th>`;
@@ -2176,7 +2255,7 @@
                 }
 
                 html += `
-                    <th class="p-1 border-r border-b border-slate-200 min-w-[75px] max-w-[95px] sticky-col-header font-bold align-top ${headerBg}">
+                    <th class="p-1 border-r border-b border-slate-200 min-w-[72px] sticky-col-header font-bold align-top ${headerBg}">
                         <div class="flex flex-col items-center gap-1">
                             <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                             <div class="font-black text-xs w-full py-0.5 rounded-md ${dayBadgeStyle}">
@@ -4073,6 +4152,37 @@
             document.getElementById('message-modal').classList.add('hidden');
         }
 
+        function scrollToPosition(containerId, pos) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (pos === 'start') {
+                container.scrollTo({ left: 0, behavior: 'smooth' });
+            } else if (pos === 'mid') {
+                // 15〜16日付近へスクロール
+                container.scrollTo({ left: (container.scrollWidth - container.clientWidth) * 0.48, behavior: 'smooth' });
+            } else if (pos === 'end') {
+                // 末日へスクロール
+                container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+            }
+        }
+
+        function attachHorizontalWheelScroll(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container || container.dataset.wheelBound) return;
+            container.dataset.wheelBound = "true";
+
+            container.addEventListener('wheel', (e) => {
+                // Shiftキーが押されていない通常の縦ホイール操作時、横スクロールへ変換
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && !e.shiftKey) {
+                    const isScrollableX = container.scrollWidth > container.clientWidth;
+                    if (isScrollableX) {
+                        e.preventDefault();
+                        container.scrollLeft += e.deltaY * 1.5;
+                    }
+                }
+            }, { passive: false });
+        }
+
         window.changeMonth = changeMonth;
         window.switchTab = switchTab;
         window.selectStamp = selectStamp;
@@ -4107,6 +4217,7 @@
         window.importData = importData;
         window.showMessageModal = showMessageModal;
         window.closeMessageModal = closeMessageModal;
+        window.scrollToPosition = scrollToPosition;
 
         window.showAuthLockOverlay = showAuthLockOverlay;
         window.hideAuthLockOverlay = hideAuthLockOverlay;
@@ -4153,6 +4264,8 @@
             loadData();
             renderAll();
             initFirebase();
+            attachHorizontalWheelScroll('matrix-container-1');
+            attachHorizontalWheelScroll('matrix-container-2');
         };
     </script>
 </body>
