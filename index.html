@@ -421,6 +421,36 @@
                 </div>
             </div>
 
+            <!-- コース選択グループ設定（いずれか選択枠） -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">🔀 コース選択グループ設定 <span class="text-xs font-normal text-violet-700 bg-violet-50 px-2 py-0.5 rounded border border-violet-200">いずれか選択枠 (<span id="course-group-count-badge">0</span>件)</span></h2>
+                        <p class="text-xs text-slate-500">「01便か02便のどちらか1便運行」「3コース中2コース運行」など、複数コースの中から一定枠数が割り当てられていれば充足とみなすルールを設定します。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openCourseGroupModal(null)" class="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                            ＋ 選択グループを追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="sticky top-0 bg-slate-50 z-10">
+                            <tr class="text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold w-12 text-center">No.</th>
+                                <th class="p-3 font-bold w-44">グループ名</th>
+                                <th class="p-3 font-bold w-28 text-center">必要枠数</th>
+                                <th class="p-3 font-bold">対象コース一覧</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-group-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- スタッフ属性マスター設定（1t, 点呼, ナイト等） -->
             <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
                 <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
@@ -544,6 +574,43 @@
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeCourseModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                 <button onclick="saveCourse()" class="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-bold hover:bg-sky-700">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- コース選択グループ（いずれか選択枠）モーダル -->
+    <div id="course-group-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="course-group-modal-title" class="font-bold text-lg text-slate-800">🔀 コース選択グループの編集</h3>
+                <button onclick="closeCourseGroupModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 flex-1">
+                <input type="hidden" id="course-group-modal-id">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">グループ名（例: 01/02便選択枠, 5-7コース枠）</label>
+                        <input type="text" id="course-group-modal-name" placeholder="グループ名を入力" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">必要枠数 (コース数)</label>
+                        <input type="number" id="course-group-modal-count" min="1" value="1" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-violet-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-600">対象コースの選択（グループに含めるコース）</label>
+                        <span class="text-[11px] text-violet-600 font-bold">※選択した中から必要枠数が運行されれば充足します</span>
+                    </div>
+                    <div id="course-group-modal-courses-container" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeCourseGroupModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="saveCourseGroup()" class="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-bold hover:bg-violet-700">保存</button>
             </div>
         </div>
     </div>
@@ -1026,6 +1093,7 @@
                 { id: 'c_30', order: 30, name: '30コース' },
                 { id: 'c_31', order: 31, name: '31コース' }
             ],
+            courseGroups: [],
             adjacentSchedules: {},
             adjacentCourseAssignments: {},
             shiftTypes: [
@@ -1211,6 +1279,7 @@
                     if (data.colorTypes && Array.isArray(data.colorTypes)) state.colorTypes = data.colorTypes;
                     if (data.staffAttributes && Array.isArray(data.staffAttributes)) state.staffAttributes = data.staffAttributes;
                     if (data.courses && Array.isArray(data.courses)) state.courses = data.courses;
+                    if (data.courseGroups && Array.isArray(data.courseGroups)) state.courseGroups = data.courseGroups;
                     if (data.generatorRules) state.generatorRules = { ...state.generatorRules, ...data.generatorRules };
                     renderAll(false);
                     isSyncingFromCloud = false;
@@ -1277,6 +1346,7 @@
                     colorTypes: state.colorTypes,
                     staffAttributes: state.staffAttributes,
                     courses: state.courses,
+                    courseGroups: state.courseGroups || [],
                     generatorRules: state.generatorRules,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
@@ -2556,10 +2626,38 @@
                 }
             });
 
-            // 必須コースと任意コースに分類
-            const unassignedRequiredList = state.courses.filter(c => c.isRequired !== false && !activeUsedCourses.has(c.id));
-            const unassignedOptionalList = state.courses.filter(c => c.isRequired === false && !activeUsedCourses.has(c.id));
-            const unassignedReqCount = unassignedRequiredList.length;
+            // コースグループの所属マップを作成
+            const courseToGroupMap = {};
+            (state.courseGroups || []).forEach(grp => {
+                (grp.courseIds || []).forEach(cid => {
+                    courseToGroupMap[cid] = grp;
+                });
+            });
+
+            // 各グループの判定
+            const groupStatusList = (state.courseGroups || []).map(grp => {
+                const targetCourseIds = grp.courseIds || [];
+                const activeInGroup = targetCourseIds.filter(cid => activeUsedCourses.has(cid));
+                const neededCount = grp.count || 1;
+                const shortfall = Math.max(0, neededCount - activeInGroup.length);
+                const isFulfilled = shortfall === 0;
+                return {
+                    group: grp,
+                    activeCourseIds: activeInGroup,
+                    shortfall: shortfall,
+                    neededCount: neededCount,
+                    isFulfilled: isFulfilled
+                };
+            });
+
+            const totalGroupShortfall = groupStatusList.reduce((sum, g) => sum + g.shortfall, 0);
+
+            // 単独必須コース（グループに属していない必須コース）
+            const standaloneRequiredList = state.courses.filter(c => c.isRequired !== false && !courseToGroupMap[c.id] && !activeUsedCourses.has(c.id));
+            const totalRequiredShortfall = standaloneRequiredList.length + totalGroupShortfall;
+
+            // 任意コース（グループに属さず、任意区分で未割り当てのコース）
+            const unassignedOptionalList = state.courses.filter(c => c.isRequired === false && !courseToGroupMap[c.id] && !activeUsedCourses.has(c.id));
 
             let workingMembersCount = 0;
             state.members.forEach(m => {
@@ -2575,7 +2673,7 @@
                     </div>
                     <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
                         <span class="text-slate-500">必須未割当:</span>
-                        <span class="${unassignedReqCount > 0 ? 'text-amber-600 font-black' : 'text-emerald-600 font-black'}">${unassignedReqCount}コース</span>
+                        <span class="${totalRequiredShortfall > 0 ? 'text-amber-600 font-black' : 'text-emerald-600 font-black'}">${totalRequiredShortfall}枠</span>
                     </div>
                     ${unassignedOptionalList.length > 0 ? `
                         <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg text-slate-500">
@@ -2586,29 +2684,61 @@
                 `;
             }
 
-            // 未割り当てコース一覧の表示（必須と任意を明確に分離）
+            // 未割り当てコース・グループ一覧の表示
             if (unassignedContainer) {
-                if (unassignedReqCount === 0 && unassignedOptionalList.length === 0) {
+                const unfulfilledGroups = groupStatusList.filter(g => !g.isFulfilled);
+                const fulfilledGroups = groupStatusList.filter(g => g.isFulfilled);
+
+                if (totalRequiredShortfall === 0 && unassignedOptionalList.length === 0) {
                     unassignedContainer.innerHTML = `
                         <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
                             <span>✅</span>
-                            <span>すべての運行コース（${state.courses.length}コース）が割り当て済みです！</span>
+                            <span>すべての運行コースおよびグループ選択枠が充足されています！</span>
                         </div>
                     `;
                 } else {
                     let htmlList = `<div class="space-y-2">`;
-                    if (unassignedReqCount > 0) {
+
+                    // 未充足グループがある場合
+                    if (unfulfilledGroups.length > 0) {
+                        htmlList += `
+                            <div class="space-y-1">
+                                <div class="text-xs font-bold text-amber-800 flex items-center gap-1">
+                                    <span>🔀</span>
+                                    <span>未充足のコース選択グループ:</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    ${unfulfilledGroups.map(ug => {
+                                        const groupCourses = (ug.group.courseIds || []).map(cid => state.courses.find(c => c.id === cid)?.name || cid).join(' / ');
+                                        const activeNames = ug.activeCourseIds.map(cid => state.courses.find(c => c.id === cid)?.name || cid).join(', ');
+                                        return `
+                                            <div class="bg-violet-50 border border-violet-300 rounded-lg p-2 text-xs text-violet-900 shadow-2xs">
+                                                <div class="font-bold flex items-center justify-between gap-2">
+                                                    <span>${ug.group.name}</span>
+                                                    <span class="text-rose-600 font-black">あと${ug.shortfall}枠不足</span>
+                                                </div>
+                                                <div class="text-[11px] text-slate-600 mt-0.5">対象: [ ${groupCourses} ] (必要: ${ug.neededCount}枠)</div>
+                                                ${activeNames ? `<div class="text-[10px] text-emerald-700 font-bold mt-0.5">現在運行中: ${activeNames}</div>` : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // 単独必須コースの未割当
+                    if (standaloneRequiredList.length > 0) {
                         htmlList += `
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between text-xs font-bold text-amber-800">
                                     <span class="flex items-center gap-1">
                                         <span>⚠️</span>
-                                        <span>必須・未割り当てコース (<span class="text-rose-600 font-black">${unassignedReqCount}件</span>):</span>
+                                        <span>必須・未割り当てコース (<span class="text-rose-600 font-black">${standaloneRequiredList.length}件</span>):</span>
                                     </span>
-                                    <span class="text-[11px] text-slate-400 font-normal">※運行が必要な未配車コースです</span>
                                 </div>
                                 <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-amber-50/50 border border-amber-200 rounded-lg">
-                                    ${unassignedRequiredList.map(crs => `
+                                    ${standaloneRequiredList.map(crs => `
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-white text-slate-700 border border-amber-300 shadow-2xs">
                                             <span class="text-[10px] text-amber-600 font-black">${crs.order}.</span>
                                             <span>${crs.name}</span>
@@ -2617,15 +2747,25 @@
                                 </div>
                             </div>
                         `;
-                    } else {
+                    }
+
+                    // 充足済みグループの参考表示
+                    if (fulfilledGroups.length > 0) {
                         htmlList += `
-                            <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                                <span>✅</span>
-                                <span>必須コースはすべて割り当て完了しています。</span>
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                ${fulfilledGroups.map(fg => {
+                                    const activeNames = fg.activeCourseIds.map(cid => state.courses.find(c => c.id === cid)?.name || cid).join(', ');
+                                    return `
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                                            <span>✔ ${fg.group.name}: 充足済 (${activeNames || '割当済'})</span>
+                                        </span>
+                                    `;
+                                }).join('')}
                             </div>
                         `;
                     }
 
+                    // 任意コース
                     if (unassignedOptionalList.length > 0) {
                         htmlList += `
                             <div class="space-y-1 pt-1">
@@ -2965,6 +3105,17 @@
                     const isReq = crs.isRequired !== false;
                     const isFirst = idx === 0;
                     const isLast = idx === state.courses.length - 1;
+
+                    const courseGroup = (state.courseGroups || []).find(g => (g.courseIds || []).includes(crs.id));
+                    let typeBadge = '';
+                    if (courseGroup) {
+                        typeBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-black bg-violet-50 text-violet-700 border border-violet-200" title="グループ「${courseGroup.name}」所属">🔀 ${courseGroup.name}</span>`;
+                    } else if (isReq) {
+                        typeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">必須</span>`;
+                    } else {
+                        typeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-black bg-amber-50 text-amber-700 border border-amber-200">任意</span>`;
+                    }
+
                     return `
                         <tr class="border-b border-slate-200 hover:bg-slate-50">
                             <td class="p-3 text-center">
@@ -2977,9 +3128,7 @@
                                 </div>
                             </td>
                             <td class="p-3 text-center">
-                                <span class="px-2 py-0.5 rounded text-[11px] font-black ${isReq ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
-                                    ${isReq ? '必須' : '任意'}
-                                </span>
+                                ${typeBadge}
                             </td>
                             <td class="p-3 font-bold text-slate-800">${crs.name}</td>
                             <td class="p-3 text-xs font-bold ${ngStaffCount > 0 ? 'text-rose-600' : 'text-slate-400'}">
@@ -2992,6 +3141,41 @@
                         </tr>
                     `;
                 }).join('');
+            }
+
+            const courseGroupCountBadge = document.getElementById('course-group-count-badge');
+            if (courseGroupCountBadge) courseGroupCountBadge.innerText = (state.courseGroups || []).length;
+
+            const courseGroupTableBody = document.getElementById('course-group-table-body');
+            if (courseGroupTableBody) {
+                if (!state.courseGroups || state.courseGroups.length === 0) {
+                    courseGroupTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="p-5 text-center text-slate-400 font-bold bg-slate-50">
+                                登録されているコース選択グループはありません。「＋ 選択グループを追加」から追加できます。
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    courseGroupTableBody.innerHTML = state.courseGroups.map((grp, idx) => {
+                        const courseNames = (grp.courseIds || []).map(cid => {
+                            const c = state.courses.find(x => x.id === cid);
+                            return c ? c.name : cid;
+                        }).join(', ');
+                        return `
+                            <tr class="border-b border-slate-200 hover:bg-slate-50">
+                                <td class="p-3 font-bold text-center text-xs text-slate-500">${idx + 1}</td>
+                                <td class="p-3 font-bold text-slate-800 text-xs">${grp.name}</td>
+                                <td class="p-3 font-black text-center text-xs text-violet-700 bg-violet-50/50">${grp.count || 1}枠</td>
+                                <td class="p-3 text-xs text-slate-600">${courseNames || '<span class="text-slate-400">なし</span>'}</td>
+                                <td class="p-3 text-right space-x-2">
+                                    <button onclick="openCourseGroupModal('${grp.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                    <button onclick="deleteCourseGroup('${grp.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
             }
 
             const staffAttrTableBody = document.getElementById('staff-attributes-table-body');
@@ -3116,6 +3300,89 @@
                     m.ngCourses = m.ngCourses.filter(cid => cid !== id);
                 }
             });
+            if (state.courseGroups) {
+                state.courseGroups.forEach(g => {
+                    if (g.courseIds) g.courseIds = g.courseIds.filter(cid => cid !== id);
+                });
+            }
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function openCourseGroupModal(id = null) {
+            document.getElementById('course-group-modal-id').value = id || '';
+            document.getElementById('course-group-modal-title').innerText = id ? '🔀 コース選択グループの編集' : '🔀 コース選択グループの追加';
+
+            const group = id ? (state.courseGroups || []).find(g => g.id === id) : null;
+            document.getElementById('course-group-modal-name').value = group ? group.name : '';
+            document.getElementById('course-group-modal-count').value = group ? (group.count || 1) : 1;
+
+            const coursesContainer = document.getElementById('course-group-modal-courses-container');
+            const selectedCourseIds = group ? (group.courseIds || []) : [];
+
+            if (coursesContainer) {
+                coursesContainer.innerHTML = state.courses.map(crs => {
+                    const isChecked = selectedCourseIds.includes(crs.id);
+                    return `
+                        <label class="flex items-center gap-1.5 p-1.5 rounded-md border text-xs cursor-pointer transition select-none ${isChecked ? 'bg-violet-50 border-violet-300 text-violet-900 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}">
+                            <input type="checkbox" value="${crs.id}" class="course-group-checkbox text-violet-600 rounded" ${isChecked ? 'checked' : ''}>
+                            <span class="truncate">${crs.order}. ${crs.name}</span>
+                        </label>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('course-group-modal').classList.remove('hidden');
+        }
+
+        function closeCourseGroupModal() {
+            document.getElementById('course-group-modal').classList.add('hidden');
+        }
+
+        function saveCourseGroup() {
+            const id = document.getElementById('course-group-modal-id').value;
+            const name = document.getElementById('course-group-modal-name').value.trim();
+            const count = parseInt(document.getElementById('course-group-modal-count').value) || 1;
+
+            if (!name) {
+                showMessageModal("グループ名を入力してください。");
+                return;
+            }
+
+            const cbs = document.querySelectorAll('.course-group-checkbox:checked');
+            const selectedCourseIds = Array.from(cbs).map(cb => cb.value);
+
+            if (selectedCourseIds.length === 0) {
+                showMessageModal("対象コースを1つ以上選択してください。");
+                return;
+            }
+
+            if (!state.courseGroups) state.courseGroups = [];
+
+            if (id) {
+                const group = state.courseGroups.find(g => g.id === id);
+                if (group) {
+                    group.name = name;
+                    group.count = count;
+                    group.courseIds = selectedCourseIds;
+                }
+            } else {
+                state.courseGroups.push({
+                    id: 'cg_' + Date.now(),
+                    name: name,
+                    count: count,
+                    courseIds: selectedCourseIds
+                });
+            }
+
+            closeCourseGroupModal();
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function deleteCourseGroup(id) {
+            if (!state.courseGroups) return;
+            state.courseGroups = state.courseGroups.filter(g => g.id !== id);
             renderAll();
             saveMasterToCloud(true);
         }
@@ -3613,6 +3880,7 @@
                 localStorage.setItem('shift_app_default_color_types', JSON.stringify(state.colorTypes));
                 localStorage.setItem('shift_app_default_staff_attributes', JSON.stringify(state.staffAttributes));
                 localStorage.setItem('shift_app_default_courses', JSON.stringify(state.courses));
+                localStorage.setItem('shift_app_default_course_groups', JSON.stringify(state.courseGroups || []));
                 saveMasterToCloud(true);
                 showMessageModal("現在の設定を「デフォルト設定」として保存しました！");
             } catch (e) {
@@ -3626,8 +3894,9 @@
             const defColor = localStorage.getItem('shift_app_default_color_types');
             const defStaffAttr = localStorage.getItem('shift_app_default_staff_attributes');
             const defCourses = localStorage.getItem('shift_app_default_courses');
+            const defCourseGroups = localStorage.getItem('shift_app_default_course_groups');
 
-            if (!defShift && !defColor && !defStaffAttr && !defCourses) {
+            if (!defShift && !defColor && !defStaffAttr && !defCourses && !defCourseGroups) {
                 showMessageModal("保存されたデフォルト設定がありません。");
                 return;
             }
@@ -3637,6 +3906,7 @@
                 if (defColor) state.colorTypes = JSON.parse(defColor);
                 if (defStaffAttr) state.staffAttributes = JSON.parse(defStaffAttr);
                 if (defCourses) state.courses = JSON.parse(defCourses);
+                if (defCourseGroups) state.courseGroups = JSON.parse(defCourseGroups);
                 renderAll();
                 saveMasterToCloud(true);
                 showMessageModal("デフォルト設定を読み込み、属性とコース一覧を復元しました。");
@@ -4229,6 +4499,10 @@
         window.closeCourseModal = closeCourseModal;
         window.saveCourse = saveCourse;
         window.deleteCourse = deleteCourse;
+        window.openCourseGroupModal = openCourseGroupModal;
+        window.closeCourseGroupModal = closeCourseGroupModal;
+        window.saveCourseGroup = saveCourseGroup;
+        window.deleteCourseGroup = deleteCourseGroup;
         window.openCourseImportModal = openCourseImportModal;
         window.closeCourseImportModal = closeCourseImportModal;
         window.executeCourseImport = executeCourseImport;
