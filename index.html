@@ -879,6 +879,8 @@
             doc, 
             getDoc, 
             setDoc, 
+            updateDoc,
+            deleteField,
             onSnapshot 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -1161,9 +1163,15 @@
                 isSyncingFromCloud = true;
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    state.schedule = data.schedule ? JSON.parse(data.schedule) : {};
-                    state.dailyRequired = data.dailyRequired ? JSON.parse(data.dailyRequired) : {};
-                    state.courseAssignments = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                    const cloudSchedule = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
+                    const cloudDailyRequired = data.dailyRequired ? (typeof data.dailyRequired === 'string' ? JSON.parse(data.dailyRequired) : data.dailyRequired) : {};
+                    const cloudCourseAssignments = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+
+                    // クラウド上の最新データをローカルに合成（相手の編集分を自動マージ）
+                    state.schedule = { ...cloudSchedule };
+                    state.dailyRequired = { ...cloudDailyRequired };
+                    state.courseAssignments = { ...cloudCourseAssignments };
+
                     updateCloudStatus('同期完了', 'success');
                 } else {
                     state.schedule = {};
@@ -1206,6 +1214,124 @@
             }
         }
 
+        // マス単位・セル単位のピンポイント送信（他のマスを上書きしない）
+        async function syncSingleCellToCloud(key, cellData) {
+            if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+
+            try {
+                updateCloudStatus('同期中...', 'syncing');
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+                // ドット記法で指定したマスのみをピンポイント更新
+                if (cellData === undefined || cellData === null) {
+                    await updateDoc(shiftRef, {
+                        [`schedule.${key}`]: deleteField(),
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    await setDoc(shiftRef, {
+                        schedule: {
+                            [key]: cellData
+                        },
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+
+                updateCloudStatus('同期完了', 'success');
+            } catch (err) {
+                console.error('Cell sync error:', err);
+                updateCloudStatus('同期エラー', 'error');
+            }
+        }
+
+        // コース割当のピンポイント送信（他の割当を上書きしない）
+        async function syncSingleCourseAssignmentToCloud(key, assignmentData) {
+            if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+
+            try {
+                updateCloudStatus('同期中...', 'syncing');
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+                if (assignmentData === undefined || assignmentData === null) {
+                    await updateDoc(shiftRef, {
+                        [`courseAssignments.${key}`]: deleteField(),
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    await setDoc(shiftRef, {
+                        courseAssignments: {
+                            [key]: assignmentData
+                        },
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+
+                updateCloudStatus('同期完了', 'success');
+            } catch (err) {
+                console.error('Course assignment sync error:', err);
+                updateCloudStatus('同期エラー', 'error');
+            }
+        }
+
+        // 日別必要人数のピンポイント送信
+        async function syncDailyRequiredToCloud(dateStr, val) {
+            if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+
+            try {
+                updateCloudStatus('同期中...', 'syncing');
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+                await setDoc(shiftRef, {
+                    dailyRequired: {
+                        [dateStr]: val
+                    },
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                updateCloudStatus('同期完了', 'success');
+            } catch (err) {
+                console.error('Daily required sync error:', err);
+                updateCloudStatus('同期エラー', 'error');
+            }
+        }
+
+        // 複数マスの一括更新（自動ジェネレート用：対象マスのみ更新し他を壊さない）
+        async function syncBatchCellsToCloud(cellUpdates) {
+            if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+
+            try {
+                updateCloudStatus('一括同期中...', 'syncing');
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+                const payload = {};
+                for (const [k, v] of Object.entries(cellUpdates)) {
+                    payload[`schedule.${k}`] = v;
+                }
+                payload.updatedAt = new Date().toISOString();
+
+                await updateDoc(shiftRef, payload);
+                updateCloudStatus('同期完了', 'success');
+            } catch (err) {
+                // 初回などでドキュメント自体がない場合はsetDocでフォールバック
+                try {
+                    const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                    const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+                    await setDoc(shiftRef, {
+                        schedule: cellUpdates,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                    updateCloudStatus('同期完了', 'success');
+                } catch (e2) {
+                    console.error('Batch sync error:', e2);
+                    updateCloudStatus('同期エラー', 'error');
+                }
+            }
+        }
+
         async function saveCurrentMonthShiftToCloud(isSilent = false) {
             if (!isCloudConnected || !currentUser || !db) return;
 
@@ -1217,9 +1343,9 @@
                 await setDoc(shiftRef, {
                     year: state.currentYear,
                     month: state.currentMonth,
-                    schedule: JSON.stringify(state.schedule),
-                    dailyRequired: JSON.stringify(state.dailyRequired),
-                    courseAssignments: JSON.stringify(state.courseAssignments),
+                    schedule: state.schedule,
+                    dailyRequired: state.dailyRequired,
+                    courseAssignments: state.courseAssignments,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
 
@@ -1919,6 +2045,7 @@
                 cell.isPinned = !cell.isPinned;
                 state.schedule[key] = cell;
                 renderAll();
+                syncSingleCellToCloud(key, cell);
                 return;
             }
 
@@ -1938,11 +2065,13 @@
 
             if (!cell.shiftId && !cell.colorId && !cell.isPinned) {
                 delete state.schedule[key];
+                renderAll();
+                syncSingleCellToCloud(key, null);
             } else {
                 state.schedule[key] = cell;
+                renderAll();
+                syncSingleCellToCloud(key, cell);
             }
-
-            renderAll();
         }
 
         function getCourseBadgeSummary(memberId, dateStr) {
@@ -2687,14 +2816,16 @@
 
             state.courseAssignments[key] = current;
             renderAll();
-            saveCurrentMonthShiftToCloud(true);
+            // 単一割当のピンポイント送信
+            syncSingleCourseAssignmentToCloud(key, current);
         }
 
         function clearCourseAssignment(memberId) {
             const key = `${state.selectedAssignmentDate}_${memberId}`;
             delete state.courseAssignments[key];
             renderAll();
-            saveCurrentMonthShiftToCloud(true);
+            // 単一割当の削除をピンポイント送信
+            syncSingleCourseAssignmentToCloud(key, null);
         }
 
         function renderMode4() {
@@ -2715,9 +2846,19 @@
                     staffTableBody.innerHTML = state.members.map((m, idx) => {
                         const badgesHTML = getMemberBadgesHTML(m);
                         const ngCount = (m.ngCourses || []).length;
+                        const isFirst = idx === 0;
+                        const isLast = idx === state.members.length - 1;
                         return `
                             <tr class="border-b border-slate-200 hover:bg-slate-50">
-                                <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
+                                <td class="p-3 text-center">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <div class="flex flex-col gap-0.5">
+                                            <button onclick="moveMember(${idx}, -1)" ${isFirst ? 'disabled class="text-slate-300 cursor-not-allowed text-[10px] leading-none px-1 py-0.5"' : 'class="text-slate-600 hover:text-indigo-600 hover:bg-slate-200 rounded text-[10px] leading-none font-black px-1 py-0.5 transition"'} title="上へ移動">▲</button>
+                                            <button onclick="moveMember(${idx}, 1)" ${isLast ? 'disabled class="text-slate-300 cursor-not-allowed text-[10px] leading-none px-1 py-0.5"' : 'class="text-slate-600 hover:text-indigo-600 hover:bg-slate-200 rounded text-[10px] leading-none font-black px-1 py-0.5 transition"'} title="下へ移動">▼</button>
+                                        </div>
+                                        <span class="font-bold text-slate-600 text-xs w-5 text-right">${idx + 1}</span>
+                                    </div>
+                                </td>
                                 <td class="p-3 font-bold text-slate-800">${m.name}</td>
                                 <td class="p-3">
                                     <div class="flex items-center gap-1 flex-wrap">
@@ -2743,12 +2884,22 @@
             const courseTableBody = document.getElementById('course-master-table-body');
             if (courseTableBody) {
                 state.courses.sort((a, b) => (a.order || 0) - (b.order || 0));
-                courseTableBody.innerHTML = state.courses.map(crs => {
+                courseTableBody.innerHTML = state.courses.map((crs, idx) => {
                     const ngStaffCount = state.members.filter(m => m.ngCourses && m.ngCourses.includes(crs.id)).length;
                     const isReq = crs.isRequired !== false;
+                    const isFirst = idx === 0;
+                    const isLast = idx === state.courses.length - 1;
                     return `
                         <tr class="border-b border-slate-200 hover:bg-slate-50">
-                            <td class="p-3 text-center font-black text-slate-700">${crs.order}</td>
+                            <td class="p-3 text-center">
+                                <div class="flex items-center justify-center gap-1">
+                                    <div class="flex flex-col gap-0.5">
+                                        <button onclick="moveCourse(${idx}, -1)" ${isFirst ? 'disabled class="text-slate-300 cursor-not-allowed text-[10px] leading-none px-1 py-0.5"' : 'class="text-slate-600 hover:text-sky-600 hover:bg-slate-200 rounded text-[10px] leading-none font-black px-1 py-0.5 transition"'} title="上へ移動">▲</button>
+                                        <button onclick="moveCourse(${idx}, 1)" ${isLast ? 'disabled class="text-slate-300 cursor-not-allowed text-[10px] leading-none px-1 py-0.5"' : 'class="text-slate-600 hover:text-sky-600 hover:bg-slate-200 rounded text-[10px] leading-none font-black px-1 py-0.5 transition"'} title="下へ移動">▼</button>
+                                    </div>
+                                    <span class="font-black text-slate-700 text-xs w-5 text-right">${crs.order}</span>
+                                </div>
+                            </td>
                             <td class="p-3 text-center">
                                 <span class="px-2 py-0.5 rounded text-[11px] font-black ${isReq ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
                                     ${isReq ? '必須' : '任意'}
@@ -3059,6 +3210,40 @@
             showMessageModal(`スタッフ「${target.name}」を削除しました。`);
         }
 
+        function moveMember(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= state.members.length) return;
+
+            // 配列の要素を入れ替え
+            const temp = state.members[index];
+            state.members[index] = state.members[newIndex];
+            state.members[newIndex] = temp;
+
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function moveCourse(index, direction) {
+            // 現在のソート順（order基準）を確実に反映
+            state.courses.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= state.courses.length) return;
+
+            // 配列の要素を入れ替え
+            const temp = state.courses[index];
+            state.courses[index] = state.courses[newIndex];
+            state.courses[newIndex] = temp;
+
+            // order番号を1から振り直す
+            state.courses.forEach((crs, i) => {
+                crs.order = i + 1;
+            });
+
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
         function generateSpanPattern(spanDays, rules, passThroughId, singleId) {
             if (spanDays <= 0) return [];
             if (spanDays === 1) return [singleId];
@@ -3183,6 +3368,7 @@
             const days = getMonthDays();
             let generatedCount = 0;
             let skippedPinnedCount = 0;
+            const updatedCellsMap = {};
 
             targetMembers.forEach(member => {
                 let currentSpanDays = [];
@@ -3221,11 +3407,13 @@
                             }
 
                             const targetShiftId = pattern[idx] || singleShift.id;
-                            state.schedule[key] = {
+                            const newCell = {
                                 shiftId: targetShiftId,
                                 colorId: cell.colorId || '',
                                 isPinned: false
                             };
+                            state.schedule[key] = newCell;
+                            updatedCellsMap[key] = newCell;
                             generatedCount++;
                         }
                     });
@@ -3234,7 +3422,8 @@
 
             closeGeneratorModal();
             renderAll();
-            saveCurrentMonthShiftToCloud(true);
+            // 自動生成されたマスだけをバッチ送信（他のマスを上書きしない）
+            syncBatchCellsToCloud(updatedCellsMap);
 
             let msg = `指定期間（${startDateStr} 〜 ${endDateStr}）のシフト自動生成が完了しました！\n・自動入力: ${generatedCount} 箇所`;
             if (skippedPinnedCount > 0) {
@@ -3281,32 +3470,48 @@
 
         function toggleStamp(memberId, dateStr) {
             const key = `${memberId}_${dateStr}`;
+            let cellData = null;
             if (state.schedule[key] === state.selectedStamp) {
                 delete state.schedule[key];
             } else {
                 state.schedule[key] = state.selectedStamp;
+                cellData = state.selectedStamp;
             }
             renderAll();
+            // 単一マスのピンポイント送信
+            syncSingleCellToCloud(key, cellData);
         }
 
         function setMemberAllHoliday(memberId) {
             const days = getMonthDays();
             const isAllHoliday = days.every(d => state.schedule[`${memberId}_${d.dateStr}`] === '休');
+            const batchUpdates = {};
 
             days.forEach(d => {
                 const key = `${memberId}_${d.dateStr}`;
                 if (isAllHoliday) {
                     delete state.schedule[key];
+                    batchUpdates[key] = null;
                 } else {
                     state.schedule[key] = '休';
+                    batchUpdates[key] = '休';
                 }
             });
             renderAll();
+
+            // 対象メンバーの日付のみを送信
+            if (isAllHoliday) {
+                days.forEach(d => syncSingleCellToCloud(`${memberId}_${d.dateStr}`, null));
+            } else {
+                syncBatchCellsToCloud(batchUpdates);
+            }
         }
 
         function updateDailyRequired(dateStr, val) {
-            state.dailyRequired[dateStr] = parseInt(val) || 0;
+            const num = parseInt(val) || 0;
+            state.dailyRequired[dateStr] = num;
             renderAll();
+            syncDailyRequiredToCloud(dateStr, num);
         }
 
         function applyDefaultRequired() {
@@ -3314,6 +3519,7 @@
             const days = getMonthDays();
             days.forEach(d => {
                 state.dailyRequired[d.dateStr] = val;
+                syncDailyRequiredToCloud(d.dateStr, val);
             });
             renderAll();
         }
@@ -3914,6 +4120,8 @@
         window.saveMemberEdit = saveMemberEdit;
         window.deleteCurrentMember = deleteCurrentMember;
         window.deleteStaffDirect = deleteStaffDirect;
+        window.moveMember = moveMember;
+        window.moveCourse = moveCourse;
         window.setStaffFilter = setStaffFilter;
         window.setAssignmentStaffFilter = setAssignmentStaffFilter;
         window.saveAllToCloud = saveAllToCloud;
