@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シフト作成・管理アプリ</title>
+    <title>2/3便シフト作成システム</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -51,25 +51,45 @@
             <div class="flex items-center gap-3">
                 <div class="bg-indigo-600 p-2 rounded-lg font-black text-xl tracking-wider">SHIFT</div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight">シフト作成・管理システム</h1>
-                    <p class="text-xs text-slate-400">通し・単独・他・カラー指定 管理対応</p>
+                    <h1 class="font-bold text-lg leading-tight">2/3便シフト作成システム</h1>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 text-sm">
-                <button onclick="openStaffImportModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium transition flex items-center gap-1.5 text-xs">
-                    <span>📋</span> スタッフ取り込み
-                </button>
-                <button onclick="generateDummyMembers()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium transition text-xs">
-                    50名ダミー生成
-                </button>
-                <button onclick="exportData()" class="bg-indigo-700 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium transition text-xs">
-                    📥 保存
-                </button>
-                <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-medium cursor-pointer transition text-xs">
-                    📤 復元
-                    <input type="file" onchange="importData(event)" accept=".json" class="hidden">
-                </label>
+                <!-- ログインユーザー情報 & ログアウト -->
+                <div id="auth-user-bar" class="hidden items-center gap-2 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                    <img id="user-avatar" src="" alt="avatar" class="w-6 h-6 rounded-full border border-slate-600 hidden">
+                    <span id="user-email-display" class="text-xs font-bold text-slate-200 max-w-[160px] sm:max-w-[200px] truncate"></span>
+                    <button onclick="logoutGoogle()" class="text-xs text-rose-300 hover:text-rose-100 hover:underline font-bold transition ml-1">
+                        ログアウト
+                    </button>
+                </div>
+
+                <!-- クラウド同期ステータス & 操作ボタン -->
+                <div class="flex items-center gap-1.5 bg-slate-800/90 px-2 py-1 rounded-lg border border-indigo-500/40">
+                    <span id="cloud-status-badge" class="text-[11px] px-2 py-0.5 rounded font-bold bg-amber-950 text-amber-300 border border-amber-700/60 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span>認証待ち...</span>
+                    </span>
+                    <button id="cloud-save-btn" onclick="saveAllToCloud()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-md font-bold transition text-xs flex items-center gap-1 shadow-xs">
+                        <span>☁️</span> <span>クラウド保存</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-1.5 bg-slate-800/80 p-1 rounded-lg border border-slate-700">
+                    <span id="linked-file-badge" class="text-[11px] text-slate-400 px-1.5 py-0.5 max-w-[110px] truncate hidden" title="連携中ファイル">未連携</span>
+
+                    <button id="save-file-btn" onclick="saveDirectToFile()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-md font-bold transition text-xs flex items-center gap-1">
+                        <span>💾</span> <span id="save-btn-text">保存</span>
+                    </button>
+                    <button onclick="setSaveFileAs()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded-md text-[11px] font-medium transition" title="保存先ファイルを変更して保存">
+                        別名保存
+                    </button>
+                    <button onclick="openDirectFile()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded-md text-[11px] font-medium transition flex items-center gap-1">
+                        <span>📤</span> 開く
+                    </button>
+                    <input type="file" id="legacy-file-input" onchange="importData(event)" accept=".json" class="hidden">
+                </div>
             </div>
         </div>
     </header>
@@ -80,25 +100,28 @@
         <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center gap-3">
                 <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前月</button>
-                <div id="current-month-display" class="text-xl sm:text-2xl font-black text-slate-800 min-w-[130px] text-center">2026年 8月</div>
+                <div id="current-month-display" class="text-xl sm:text-2xl font-black text-slate-800 min-w-[140px] text-center">2026年 9月</div>
                 <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 font-bold border border-slate-200 text-xs sm:text-sm">次月 ▶</button>
             </div>
 
-            <!-- モード切替タブ -->
-            <div class="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold">
+            <!-- モード切替タブ (4タブ構成) -->
+            <div class="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold flex-wrap gap-1">
                 <button id="tab-btn-1" onclick="switchTab(1)" class="px-3 sm:px-4 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition font-bold">
                     1. メンバー休み設定
                 </button>
                 <button id="tab-btn-2" onclick="switchTab(2)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
-                    2. 通し単独設定
+                    2. 属性設定
                 </button>
                 <button id="tab-btn-3" onclick="switchTab(3)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
-                    3. シフト・カラー設定
+                    3. シフト作成
+                </button>
+                <button id="tab-btn-4" onclick="switchTab(4)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
+                    4. 設定
                 </button>
             </div>
         </div>
 
-        <!-- モード1: メンバー休み設定 -->
+        <!-- タブ1: メンバー休み設定 -->
         <div id="view-mode-1" class="space-y-4">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center gap-2">
@@ -120,48 +143,133 @@
 
             <!-- マトリクス表 1 -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-1">
-                    <!-- JSで動的生成 -->
-                </div>
+                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-1"></div>
+            </div>
+
+            <div class="text-xs text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-2">
+                <span>💡</span>
+                <span><strong>月跨ぎ勤務間隔表示:</strong> 休みと休みの間にある連続勤務日数（例:「2日勤務」）が自動計算されます。前月末や次月頭を跨ぐ勤務日数も自動で合算され、10日以上の場合は「ー」表示となります。</span>
             </div>
         </div>
 
-        <!-- モード2: 通し単独設定 -->
+        <!-- タブ2: 属性設定 -->
         <div id="view-mode-2" class="space-y-4 hidden">
+            <!-- スタッフ属性絞り込みフィルター & ジェネレーター実行バー -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="openGeneratorModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-sm transition flex items-center gap-1.5 transform active:scale-95">
+                        <span>⚡</span>
+                        <span>シフト自動ジェネレート</span>
+                    </button>
+                    <button onclick="openRuleConfigModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1" title="自動ジェネレートのルール設定">
+                        <span>⚙️</span>
+                        <span class="hidden sm:inline">ルール設定</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-                <!-- シフト属性スタンプ（必要人数カウントあり） -->
-                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container">
-                    <!-- JSで動的にシフトスタンプボタンを生成 -->
-                </div>
+                <!-- シフト属性スタンプ ＋ ピン留めツール -->
+                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container"></div>
 
-                <!-- カラー属性スタンプ（必要人数カウントなし） -->
-                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container">
-                    <!-- JSで動的にカラー属性スタンプボタンを生成 -->
-                </div>
+                <!-- カラー属性スタンプ -->
+                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container"></div>
 
-                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <span>💡</span>
-                    <span>シフトスタンプは必要人数をカウントします。「カラー属性」スタンプはマスに指定色・属性を適用しますが人数カウントには影響しません。</span>
+                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span>💡</span>
+                        <span>「📌 ピン留め」を選択してマスをクリックすると保護ロック（📌）され、自動ジェネレートで上書きされなくなります。コースが割り当てられている日は下部にコース名バッジが表示されます。</span>
+                    </div>
+                    <div id="pinned-stats-info" class="font-bold text-indigo-700"></div>
                 </div>
             </div>
 
             <!-- マトリクス表 2 -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-2">
-                    <!-- JSで動的生成 -->
+                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-2"></div>
+            </div>
+        </div>
+
+        <!-- タブ3: シフト作成（日別コース配車 ＆ 前後シフト連動タイムライン） -->
+        <div id="view-mode-3" class="space-y-4 hidden">
+            <!-- 絞り込みフィルターバー -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap" id="assignment-attribute-filter-container"></div>
+                <div class="text-xs text-slate-500 font-bold" id="assignment-filter-status-info"></div>
+            </div>
+
+            <!-- 日付選択バー ＆ 配車サマリー -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <button onclick="changeAssignmentDay(-1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-2 border border-slate-300 rounded-lg font-bold text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+                        </div>
+                        <button onclick="changeAssignmentDay(1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
+                    </div>
+
+                    <div class="flex items-center gap-4 text-xs font-bold" id="daily-course-stats"></div>
+                </div>
+
+                <!-- 未割り当てコース詳細一覧エリア -->
+                <div id="unassigned-courses-container" class="pt-2 border-t border-slate-100"></div>
+            </div>
+
+            <!-- コース配車テーブル（前後3日のシフト・コース付き） -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold select-none">
+                                <th class="p-3 w-40 sticky-col-left shadow-2xs border-r border-slate-200">担当スタッフ</th>
+                                <!-- 前3日間 -->
+                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-prev-3"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-prev-2"></th>
+                                <th class="p-2 w-14 text-center border-r-2 border-indigo-300" id="th-prev-1"></th>
+
+                                <!-- 指定日（当日）：メイン配車枠 -->
+                                <th class="p-2.5 w-24 text-center bg-indigo-50/70 border-r border-indigo-200 text-indigo-900 font-extrabold">当日のシフト</th>
+                                <th class="p-2.5 w-28 text-center bg-indigo-50/70 border-r border-indigo-200 text-indigo-900 font-extrabold">割当形式</th>
+                                <th class="p-2.5 min-w-[340px] bg-indigo-50/70 border-r-2 border-indigo-300 text-indigo-900 font-extrabold">担当コース割り当て (本日)</th>
+
+                                <!-- 翌3日間 -->
+                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-1"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-2"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-3"></th>
+
+                                <th class="p-3 w-16 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-assignment-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="text-[11px] text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                    <span>💡</span>
+                    <span><strong>配車ヒント:</strong> 「🎓 教育・同乗」にチェックを入れると、他スタッフ割当済みコースの重複配置だけでなく、担当不可（NG）コースの選択も許可されます。</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="inline-block w-3 h-3 bg-indigo-50 border border-indigo-300 rounded"></span>
+                    <span class="font-bold text-slate-700">青枠が本日の指定日</span>
                 </div>
             </div>
         </div>
 
-        <!-- モード3: シフト・カラー属性設定（マスター） -->
-        <div id="view-mode-3" class="space-y-6 hidden">
+        <!-- タブ4: 設定（マスター設定・スタッフ管理・コース設定） -->
+        <div id="view-mode-4" class="space-y-6 hidden">
             <!-- デフォルト設定保存・復元ツールバー -->
             <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
                 <div>
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
                         <span>⚙️</span> デフォルトマスター設定の管理
                     </h3>
-                    <p class="text-xs text-slate-600 mt-0.5">現在設定中のシフト属性・カラー属性を標準（デフォルト）として保存・復元できます。</p>
+                    <p class="text-xs text-slate-600 mt-0.5">現在設定中のシフト属性・カラー属性・スタッフ属性・コースマスターを標準として保存・復元できます。</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="saveAsDefaultMaster()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
@@ -170,6 +278,102 @@
                     <button onclick="resetToDefaultMaster()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
                         <span>🔄</span> デフォルト設定に戻す
                     </button>
+                </div>
+            </div>
+
+            <!-- スタッフマスター管理 -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">スタッフマスター管理 <span class="text-xs font-normal text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">在籍メンバー (<span id="staff-count-badge">0</span>名)</span></h2>
+                        <p class="text-xs text-slate-500">スタッフの登録・編集、保有属性、担当不可NGコースの指定を行います。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openStaffImportModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <span>📋</span> スプレッドシート取り込み
+                        </button>
+                        <button onclick="openMemberEditModal(null)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            ＋ スタッフを追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-80">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="sticky top-0 bg-slate-50 z-10">
+                            <tr class="text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold w-12 text-center">No.</th>
+                                <th class="p-3 font-bold w-48">スタッフ名</th>
+                                <th class="p-3 font-bold">保有属性</th>
+                                <th class="p-3 font-bold">担当不可コース</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-master-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- コースマスター管理 (31コース対応) -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">コースマスター管理 <span class="text-xs font-normal text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">配車コース一覧 (<span id="course-count-badge">0</span>件)</span></h2>
+                        <p class="text-xs text-slate-500">配車で選択する運行コースを管理します。割り当てが必須の通常コースと、臨時便などの任意コースを区分できます。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openCourseImportModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            <span>📋</span> スプレッドシート取り込み
+                        </button>
+                        <button onclick="openCourseModal()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition">
+                            ＋ コースを追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-80">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="sticky top-0 bg-slate-50 z-10">
+                            <tr class="text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold w-16 text-center">順番</th>
+                                <th class="p-3 font-bold w-24 text-center">区分</th>
+                                <th class="p-3 font-bold">コース名</th>
+                                <th class="p-3 font-bold text-slate-400">担当不可スタッフ数</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="course-master-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- スタッフ属性マスター設定（1t, 点呼, ナイト等） -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">スタッフ属性マスター設定 <span class="text-xs font-normal text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">スキル・役職区分</span></h2>
+                        <p class="text-xs text-slate-500">スタッフに紐付ける属性（「1t」「点呼」「ナイト」等）を定義します。後から自由に追加・変更可能です。</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openStaffAttrModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
+                            ＋ スタッフ属性を追加
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <th class="p-3 font-bold">バッジ表示</th>
+                                <th class="p-3 font-bold">属性名</th>
+                                <th class="p-3 font-bold">略称</th>
+                                <th class="p-3 font-bold text-slate-500">該当人数</th>
+                                <th class="p-3 font-bold text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-attributes-table-body"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -201,9 +405,7 @@
                                 <th class="p-3 font-bold text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody id="shift-types-table-body">
-                            <!-- JSで生成 -->
-                        </tbody>
+                        <tbody id="shift-types-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -236,22 +438,246 @@
                                 <th class="p-3 font-bold text-right">操作</th>
                             </tr>
                         </thead>
-                        <tbody id="color-types-table-body">
-                            <!-- JSで生成 -->
-                        </tbody>
+                        <tbody id="color-types-table-body"></tbody>
                     </table>
                 </div>
             </div>
         </div>
     </main>
 
+    <!-- コース追加・編集モーダル -->
+    <div id="course-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="course-modal-title" class="font-bold text-lg text-slate-800">コースの追加</h3>
+            <input type="hidden" id="course-modal-id">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">表示順番（数字）</label>
+                    <input type="number" id="course-modal-order" min="1" value="1" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">運行区分</label>
+                    <select id="course-modal-required" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none bg-white">
+                        <option value="true">必須 (通常便)</option>
+                        <option value="false">任意 (臨時便など)</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">コース名（例: 01コース, 臨時01便, 幹線定期）</label>
+                <input type="text" id="course-modal-name" placeholder="コース名を入力" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeCourseModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="saveCourse()" class="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-bold hover:bg-sky-700">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- コースコピペ一括取り込みモーダル -->
+    <div id="course-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <h3 class="font-bold text-lg text-slate-800">📋 コース名コピペ一括取り込み</h3>
+            <p class="text-xs text-slate-500">スプレッドシートから貼り付けてください。「コース名」列のみ、または「順番, コース名, 区分(必須/任意)」の形式に対応しています。</p>
+            <textarea id="course-import-textarea" rows="8" placeholder="1コース&#9;必須&#10;2コース&#9;必須&#10;臨時01便&#9;任意&#10;..." class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-sky-500 outline-none"></textarea>
+            <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="course-import-mode" value="replace" checked class="text-sky-600"> 現在のコースを上書き置換
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="course-import-mode" value="append" class="text-sky-600"> 末尾に追加
+                </label>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeCourseImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="executeCourseImport()" class="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-bold hover:bg-sky-700">取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- スタッフ個別編集・新規追加モーダル（属性 ＆ NGコース指定） -->
+    <div id="member-edit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="member-edit-modal-title" class="font-bold text-lg text-slate-800">👤 スタッフ情報の編集</h3>
+                <button onclick="closeMemberEditModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 flex-1">
+                <input type="hidden" id="member-edit-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">スタッフ名</label>
+                    <input type="text" id="member-edit-name" placeholder="氏名を入力" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">保有属性（チェックで付与）</label>
+                    <div id="member-edit-attributes-container" class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"></div>
+                </div>
+
+                <div class="border-t pt-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-600">担当不可コース（NGコース指定）</label>
+                        <span class="text-[11px] text-rose-600 font-bold">※通常はグレーアウトしますが教育同乗時は選択可能です</span>
+                    </div>
+                    <div id="member-edit-ng-courses-container" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-44 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t">
+                <div id="member-edit-delete-container">
+                    <button onclick="deleteCurrentMember()" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-xl text-xs font-bold">
+                        このスタッフを削除
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="closeMemberEditModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                    <button onclick="saveMemberEdit()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- シフト自動ジェネレートモーダル -->
+    <div id="generator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-slate-100">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-600 text-white p-1.5 rounded-lg text-sm">⚡</div>
+                    <div>
+                        <h3 class="font-black text-slate-800 text-base">シフト自動ジェネレート</h3>
+                        <p class="text-[11px] text-slate-500">生成する期間を指定してください</p>
+                    </div>
+                </div>
+                <button onclick="closeGeneratorModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-600">クイック期間選択</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setGeneratorRange('full')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
+                        当月全日 (1〜末日)
+                    </button>
+                    <button onclick="setGeneratorRange('first_half')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
+                        前半 (1〜15日)
+                    </button>
+                    <button onclick="setGeneratorRange('second_half')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
+                        後半 (16〜末日)
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">開始日</label>
+                        <input type="date" id="generator-start-date" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">終了日</label>
+                        <input type="date" id="generator-end-date" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-2 text-[11px] text-slate-500 space-y-1">
+                    <p class="flex items-center gap-1.5">
+                        <span class="text-rose-600 font-bold">●</span> 休みマス（休・指・有）はスキップされます
+                    </p>
+                    <p class="flex items-center gap-1.5">
+                        <span class="text-indigo-600 font-bold">📌</span> ピン留めされたマスは上書きされず保護されます
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-xs font-bold text-slate-600">生成の対象スタッフ</label>
+                <div class="flex items-center gap-3 text-xs">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="generator-target-scope" value="all" checked class="text-indigo-600">
+                        <span>全スタッフ (<span id="gen-scope-all-count">0</span>名)</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer" id="gen-scope-filtered-label">
+                        <input type="radio" name="generator-target-scope" value="filtered" class="text-indigo-600">
+                        <span>絞り込み中のスタッフのみ</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closeGeneratorModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="executeShiftGeneration()" class="px-5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5">
+                    <span>⚡</span> <span>この期間で生成実行</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ルール設定モーダル -->
+    <div id="rule-config-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                    <span>⚙️</span> 自動生成ルールのカスタマイズ
+                </h3>
+                <button onclick="closeRuleConfigModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="space-y-3.5 text-xs text-slate-700">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <label class="flex items-center justify-between font-bold cursor-pointer">
+                        <span>1. 休み明け直後は必ず「単独」にする</span>
+                        <input type="checkbox" id="rule-holiday-next-single" checked class="w-4 h-4 text-indigo-600 rounded">
+                    </label>
+                    <p class="text-[11px] text-slate-500">休みの直後の勤務初日に必ず「単独」を配置します。</p>
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <label class="flex items-center justify-between font-bold cursor-pointer">
+                        <span>2. 通しの最大連続数</span>
+                        <select id="rule-max-consecutive-through" class="p-1 border rounded bg-white font-bold text-slate-800">
+                            <option value="2" selected>2日連続まで（原則）</option>
+                            <option value="1">1日のみ（連続不可）</option>
+                            <option value="3">3日連続まで</option>
+                        </select>
+                    </label>
+                    <p class="text-[11px] text-slate-500">「通しは2連続で続けるが3連続は続けない」制約を管理します。</p>
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <label class="flex items-center justify-between font-bold cursor-pointer">
+                        <span>3. 奇数日数スパンの余り</span>
+                        <select id="rule-odd-remainder-priority" class="p-1 border rounded bg-white font-bold text-slate-800">
+                            <option value="single" selected>単独を多めに配分</option>
+                            <option value="through">通しを多めに配分</option>
+                        </select>
+                    </label>
+                    <p class="text-[11px] text-slate-500">間隔が3日や5日などの奇数の場合、どちらを多めにするか指定します。</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closeRuleConfigModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">閉じる</button>
+                <button onclick="saveRuleConfig()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">設定を保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- スタッフコピペ取り込みモーダル -->
     <div id="staff-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
-            <h3 class="font-bold text-lg text-slate-800">📋 スタッフ名コピペ一括取り込み</h3>
-            <p class="text-xs text-slate-500">スプレッドシートやExcelの名前列をコピーして、そのまま貼り付けてください。（改行区切り）</p>
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-4">
+            <h3 class="font-bold text-lg text-slate-800">📋 スタッフ＆属性 コピペ一括取り込み</h3>
+            <div class="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <p class="font-bold text-slate-700">【貼り付け形式の例（スプレッドシートからそのままコピー）】</p>
+                <p class="font-mono text-[11px] text-slate-500">
+                    氏名　　　1t　　点呼　　ナイト<br>
+                    山田 太郎　〇　　〇<br>
+                    佐藤 花子　　　　〇　　　〇<br>
+                    鈴木 一郎　〇
+                </p>
+                <p class="text-[11px] text-indigo-600 mt-1">※1行目をヘッダーにすると属性を自動認識して付与します。</p>
+            </div>
 
-            <textarea id="staff-import-textarea" rows="8" placeholder="山田 太郎&#10;佐藤 花子&#10;鈴木 一郎" class="w-full p-3 border border-slate-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            <textarea id="staff-import-textarea" rows="8" placeholder="氏名&#9;1t&#9;点呼&#9;ナイト&#10;山田 太郎&#9;〇&#9;〇&#9;&#10;佐藤 花子&#9;&#9;〇&#9;〇&#10;鈴木 一郎&#9;〇&#9;&#9;" class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
 
             <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
                 <label class="flex items-center gap-1.5 cursor-pointer">
@@ -271,27 +697,45 @@
         </div>
     </div>
 
+    <!-- スタッフ属性マスター モーダル -->
+    <div id="staff-attr-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <h3 id="staff-attr-modal-title" class="font-bold text-lg text-slate-800">スタッフ属性の追加</h3>
+            <input type="hidden" id="staff-attr-modal-id">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">属性名（例: 1t, 点呼, ナイト）</label>
+                <input type="text" id="staff-attr-modal-name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">バッジ略称（例: 1t, 点, 夜）</label>
+                <input type="text" id="staff-attr-modal-short" max="3" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">バッジカラー</label>
+                <input type="color" id="staff-attr-modal-color" value="#0284c7" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeStaffAttrModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button onclick="saveStaffAttr()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700">保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- シフト属性コピペ取り込みモーダル -->
     <div id="shift-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
             <h3 class="font-bold text-lg text-slate-800">📋 シフト属性コピペ取り込み</h3>
-            <p class="text-xs text-slate-500">スプレッドシートの3列（「シフト名, 略称, 目標人数」）をコピーして貼り付けてください。（タブまたはカンマ区切り）</p>
-
+            <p class="text-xs text-slate-500">スプレッドシートの3列（「シフト名, 略称, 目標人数」）を貼り付けてください。</p>
             <textarea id="shift-import-textarea" rows="7" placeholder="通し&#9;通&#9;14&#10;単独&#9;単&#9;17" class="w-full p-3 border border-slate-300 rounded-xs text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-
-            <p class="text-[11px] text-indigo-600 font-medium">※カラーは自動的に鮮やかな色がランダムに割り当てられます。</p>
-
             <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
                 <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="shift-import-mode" value="replace" checked class="text-indigo-600">
-                    上書き
+                    <input type="radio" name="shift-import-mode" value="replace" checked class="text-indigo-600"> 上書き
                 </label>
                 <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="shift-import-mode" value="append" class="text-indigo-600">
-                    追加
+                    <input type="radio" name="shift-import-mode" value="append" class="text-indigo-600"> 追加
                 </label>
             </div>
-
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeShiftImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                 <button onclick="executeShiftImport()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">取り込む</button>
@@ -303,23 +747,16 @@
     <div id="color-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
             <h3 class="font-bold text-lg text-slate-800">📋 カラー属性コピペ取り込み</h3>
-            <p class="text-xs text-slate-500">スプレッドシートの2列（「カラー属性名, 略称/表示文字」）をコピーして貼り付けてください。（タブまたはカンマ区切り）</p>
-
+            <p class="text-xs text-slate-500">スプレッドシートの2列（「カラー属性名, 略称/表示文字」）を貼り付けてください。</p>
             <textarea id="color-import-textarea" rows="7" placeholder="点呼&#9;点&#10;ナイト&#9;夜&#10;1t&#9;1t&#10;教育&#9;教&#10;臨時&#9;臨" class="w-full p-3 border border-slate-300 rounded-xs text-xs font-mono focus:ring-2 focus:ring-amber-500 outline-none"></textarea>
-
-            <p class="text-[11px] text-amber-700 font-medium">※表示カラーは自動的に鮮やかな色がランダムに割り当てられます。</p>
-
             <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
                 <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="color-import-mode" value="replace" checked class="text-amber-600">
-                    上書き
+                    <input type="radio" name="color-import-mode" value="replace" checked class="text-amber-600"> 上書き
                 </label>
                 <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="color-import-mode" value="append" class="text-amber-600">
-                    追加
+                    <input type="radio" name="color-import-mode" value="append" class="text-amber-600"> 追加
                 </label>
             </div>
-
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeColorImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                 <button onclick="executeColorImport()" class="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700">取り込む</button>
@@ -350,7 +787,6 @@
                 <label class="block text-xs font-bold text-slate-600 mb-1">表示カラー</label>
                 <input type="color" id="shift-modal-color" value="#3b82f6" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
             </div>
-
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeShiftModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                 <button onclick="saveShiftType()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
@@ -364,18 +800,17 @@
             <h3 id="color-modal-title" class="font-bold text-lg text-slate-800">カラー属性の編集</h3>
             <input type="hidden" id="color-modal-id">
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">カラー属性名（例：点呼、ナイト、1t、教育、臨時）</label>
+                <label class="block text-xs font-bold text-slate-600 mb-1">カラー属性名（例：点呼、ナイト）</label>
                 <input type="text" id="color-modal-name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">略称・表示文字（例：点、夜、1t、教、臨 ※空欄可）</label>
+                <label class="block text-xs font-bold text-slate-600 mb-1">略称・表示文字（例：点、夜）</label>
                 <input type="text" id="color-modal-short" max="2" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
             </div>
             <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">表示カラー</label>
                 <input type="color" id="color-modal-color" value="#ef4444" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
             </div>
-
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeColorModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                 <button onclick="saveColorType()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
@@ -383,26 +818,144 @@
         </div>
     </div>
 
-    <!-- カスタム メッセージモーダル -->
+    <!-- メッセージモーダル -->
     <div id="message-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-xl text-center space-y-3">
-            <div id="message-modal-text" class="text-sm font-bold text-slate-800"></div>
+            <div id="message-modal-text" class="text-sm font-bold text-slate-800 whitespace-pre-line"></div>
             <button onclick="closeMessageModal()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl w-full">OK</button>
         </div>
     </div>
 
-    <script>
+    <!-- Googleアカウント認証モーダル（必要な時だけ開く任意モーダルに変更・全画面常時ロックを解除） -->
+    <div id="auth-lock-overlay" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[999] hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 text-center border border-slate-200">
+            <div class="flex justify-end">
+                <button onclick="hideAuthLockOverlay()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+            <div class="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto shadow-md">
+                ☁️
+            </div>
+
+            <div class="space-y-1">
+                <h2 class="text-lg font-black text-slate-800">クラウド同期用 Googleログイン</h2>
+                <p class="text-xs text-slate-500">クラウド自動同期を利用する場合のみログインしてください。<br>（未ログインのままでもローカル保存・JSON保存で全機能をご利用いただけます）</p>
+            </div>
+
+            <div id="auth-error-alert" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl text-left space-y-1">
+                <div class="font-bold flex items-center gap-1 text-rose-800">
+                    <span>⛔</span> <span>通知</span>
+                </div>
+                <div id="auth-error-message" class="text-[11px] leading-relaxed text-rose-600"></div>
+            </div>
+
+            <div class="space-y-2 pt-1">
+                <button id="google-login-btn" onclick="loginWithGoogle()" class="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    <span>Googleアカウントでログインして同期</span>
+                </button>
+                <button onclick="hideAuthLockOverlay()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">
+                    ログインせずにローカルで使う
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider,
+            signInWithPopup,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // アクセスを許可するGoogleアカウントのホワイトリスト
+        const ALLOWED_EMAILS = [
+            'y37y37@gmail.com',
+            'taihironaoya0116708@gmail.com'
+        ];
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5j7zz0EXn9a7m0wBV3B0Yb-nU3pUpaXg",
+            authDomain: "shift-manager-lq.firebaseapp.com",
+            projectId: "shift-manager-lq",
+            storageBucket: "shift-manager-lq.firebasestorage.app",
+            messagingSenderId: "98087663813",
+            appId: "1:98087663813:web:a79cf88693c15f0bb018ac"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+
+        let app = null;
+        let auth = null;
+        let db = null;
+        let currentUser = null;
+        let shiftDocUnsubscribe = null;
+        let masterDocUnsubscribe = null;
+        let isCloudConnected = false;
+        let isSyncingFromCloud = false;
+
+        const now = new Date();
+        const initialDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         let state = {
-            currentYear: 2026,
-            currentMonth: 8,
+            currentYear: now.getFullYear(),
+            currentMonth: now.getMonth() + 1,
+            selectedAssignmentDate: initialDateStr,
             members: [],
             schedule: {},
-            // 新デフォルト：通し (14人), 単独 (17人)
+            courseAssignments: {},
+            courses: [
+                { id: 'c_01', order: 1, name: '01コース' },
+                { id: 'c_02', order: 2, name: '02コース' },
+                { id: 'c_03', order: 3, name: '03コース' },
+                { id: 'c_04', order: 4, name: '04コース' },
+                { id: 'c_05', order: 5, name: '05コース' },
+                { id: 'c_06', order: 6, name: '06コース' },
+                { id: 'c_07', order: 7, name: '07コース' },
+                { id: 'c_08', order: 8, name: '08コース' },
+                { id: 'c_09', order: 9, name: '09コース' },
+                { id: 'c_10', order: 10, name: '10コース' },
+                { id: 'c_11', order: 11, name: '11コース' },
+                { id: 'c_12', order: 12, name: '12コース' },
+                { id: 'c_13', order: 13, name: '13コース' },
+                { id: 'c_14', order: 14, name: '14コース' },
+                { id: 'c_15', order: 15, name: '15コース' },
+                { id: 'c_16', order: 16, name: '16コース' },
+                { id: 'c_17', order: 17, name: '17コース' },
+                { id: 'c_18', order: 18, name: '18コース' },
+                { id: 'c_19', order: 19, name: '19コース' },
+                { id: 'c_20', order: 20, name: '20コース' },
+                { id: 'c_21', order: 21, name: '21コース' },
+                { id: 'c_22', order: 22, name: '22コース' },
+                { id: 'c_23', order: 23, name: '23コース' },
+                { id: 'c_24', order: 24, name: '24コース' },
+                { id: 'c_25', order: 25, name: '25コース' },
+                { id: 'c_26', order: 26, name: '26コース' },
+                { id: 'c_27', order: 27, name: '27コース' },
+                { id: 'c_28', order: 28, name: '28コース' },
+                { id: 'c_29', order: 29, name: '29コース' },
+                { id: 'c_30', order: 30, name: '30コース' },
+                { id: 'c_31', order: 31, name: '31コース' }
+            ],
+            adjacentSchedules: {},
+            adjacentCourseAssignments: {},
             shiftTypes: [
                 { id: 't1', name: '通し', shortName: '通', count: 14, color: '#3b82f6' },
                 { id: 't2', name: '単独', shortName: '単', count: 17, color: '#10b981' }
             ],
-            // 新デフォルト：点呼, ナイト, 1t, 教育, 臨時
             colorTypes: [
                 { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444' },
                 { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6' },
@@ -410,26 +963,398 @@
                 { id: 'c4', name: '教育', shortName: '教', color: '#10b981' },
                 { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b' }
             ],
+            staffAttributes: [
+                { id: 'attr_1t', name: '1t', shortName: '1t', color: '#0284c7' },
+                { id: 'attr_tenko', name: '点呼', shortName: '点', color: '#dc2626' },
+                { id: 'attr_night', name: 'ナイト', shortName: '夜', color: '#7c3aed' }
+            ],
+            generatorRules: {
+                holidayNextSingle: true,
+                maxConsecutiveThrough: 2,
+                oddRemainderPriority: 'single'
+            },
             dailyRequired: {},
             selectedStamp: '休',
             selectedTool: { category: 'shift', id: 't1' },
-            activeTab: 1
+            activeTab: 1,
+            activeStaffFilter: null,
+            activeAssignmentStaffFilter: null
         };
+
+        function updateCloudStatus(statusText, type = 'normal') {
+            const badge = document.getElementById('cloud-status-badge');
+            if (!badge) return;
+            if (type === 'success') {
+                badge.className = 'text-[11px] px-2 py-0.5 rounded font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/60 flex items-center gap-1 cursor-pointer';
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>${statusText}</span>`;
+            } else if (type === 'syncing') {
+                badge.className = 'text-[11px] px-2 py-0.5 rounded font-bold bg-sky-950 text-sky-300 border border-sky-700/60 flex items-center gap-1';
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-sky-400 animate-spin"></span><span>${statusText}</span>`;
+            } else if (type === 'error') {
+                badge.className = 'text-[11px] px-2 py-0.5 rounded font-bold bg-rose-950 text-rose-300 border border-rose-700/60 flex items-center gap-1 cursor-pointer';
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>${statusText}</span>`;
+            } else {
+                badge.className = 'text-[11px] px-2 py-0.5 rounded font-bold bg-slate-700 text-slate-300 border border-slate-600 flex items-center gap-1 cursor-pointer';
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>${statusText}</span>`;
+            }
+        }
+
+        async function initFirebase() {
+            try {
+                updateCloudStatus('ローカル運用中 (同期OFF)', 'normal');
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        const email = (user.email || '').toLowerCase().trim();
+                        if (ALLOWED_EMAILS.includes(email)) {
+                            // 許可されたユーザー
+                            currentUser = user;
+                            isCloudConnected = true;
+                            hideAuthLockOverlay();
+                            showAuthUserBar(user);
+                            updateCloudStatus('Google同期中', 'success');
+
+                            listenToMasterConfig();
+                            listenToCurrentMonthShift();
+                        } else {
+                            // 許可されていないアカウント
+                            currentUser = null;
+                            isCloudConnected = false;
+                            updateCloudStatus('アクセス拒否', 'error');
+                            showMessageModal(`ログインされたアカウント「${email}」は同期権限がありません。同期はOFFのままローカル保存で動作します。`);
+                            await signOut(auth);
+                        }
+                    } else {
+                        // 未ログイン状態：画面はロックせず、ローカル運用としてそのまま稼働
+                        currentUser = null;
+                        isCloudConnected = false;
+                        if (masterDocUnsubscribe) { masterDocUnsubscribe(); masterDocUnsubscribe = null; }
+                        if (shiftDocUnsubscribe) { shiftDocUnsubscribe(); shiftDocUnsubscribe = null; }
+                        hideAuthUserBar();
+                        updateCloudStatus('同期OFF (ローカル運用)', 'normal');
+                    }
+                });
+            } catch (err) {
+                console.warn('Firebase initialization skipped or failed:', err);
+                isCloudConnected = false;
+                updateCloudStatus('同期OFF (ローカル運用)', 'normal');
+            }
+        }
+
+        async function loginWithGoogle() {
+            if (!auth) return;
+            hideAuthError();
+            const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            try {
+                updateCloudStatus('Googleログイン中...', 'syncing');
+                await signInWithPopup(auth, provider);
+            } catch (err) {
+                console.warn('Google Sign-in error:', err);
+                showAuthError(`ログインがキャンセルされたか、ドメイン制限等により失敗しました。ローカル保存のままご利用いただけます。`);
+                updateCloudStatus('同期OFF (ローカル運用)', 'normal');
+            }
+        }
+
+        async function logoutGoogle() {
+            if (!auth) return;
+            try {
+                await signOut(auth);
+                currentUser = null;
+                isCloudConnected = false;
+                hideAuthUserBar();
+                updateCloudStatus('同期OFF (ローカル運用)', 'normal');
+                showMessageModal("ログアウトしました。以後はローカル保存（端末内）で動作します。");
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+        }
+
+        function showAuthLockOverlay() {
+            const overlay = document.getElementById('auth-lock-overlay');
+            if (overlay) overlay.classList.remove('hidden');
+        }
+
+        function hideAuthLockOverlay() {
+            const overlay = document.getElementById('auth-lock-overlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        function showAuthError(msg) {
+            const alertBox = document.getElementById('auth-error-alert');
+            const msgEl = document.getElementById('auth-error-message');
+            if (alertBox && msgEl) {
+                msgEl.innerText = msg;
+                alertBox.classList.remove('hidden');
+            }
+        }
+
+        function hideAuthError() {
+            const alertBox = document.getElementById('auth-error-alert');
+            if (alertBox) alertBox.classList.add('hidden');
+        }
+
+        function showAuthUserBar(user) {
+            const bar = document.getElementById('auth-user-bar');
+            const emailEl = document.getElementById('user-email-display');
+            const avatar = document.getElementById('user-avatar');
+            if (!bar || !emailEl) return;
+
+            emailEl.innerText = user.email || '管理者';
+            if (user.photoURL && avatar) {
+                avatar.src = user.photoURL;
+                avatar.classList.remove('hidden');
+            }
+            bar.classList.remove('hidden');
+            bar.classList.add('flex');
+        }
+
+        function hideAuthUserBar() {
+            const bar = document.getElementById('auth-user-bar');
+            if (bar) {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+        }
+
+        function listenToMasterConfig() {
+            if (!isCloudConnected || !currentUser || !db) return;
+
+            const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'master_config');
+            if (masterDocUnsubscribe) masterDocUnsubscribe();
+
+            masterDocUnsubscribe = onSnapshot(masterRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    isSyncingFromCloud = true;
+                    if (data.members && Array.isArray(data.members)) state.members = data.members;
+                    if (data.shiftTypes && Array.isArray(data.shiftTypes)) state.shiftTypes = data.shiftTypes;
+                    if (data.colorTypes && Array.isArray(data.colorTypes)) state.colorTypes = data.colorTypes;
+                    if (data.staffAttributes && Array.isArray(data.staffAttributes)) state.staffAttributes = data.staffAttributes;
+                    if (data.courses && Array.isArray(data.courses)) state.courses = data.courses;
+                    if (data.generatorRules) state.generatorRules = { ...state.generatorRules, ...data.generatorRules };
+                    renderAll(false);
+                    isSyncingFromCloud = false;
+                } else {
+                    saveMasterToCloud(true);
+                }
+            }, (error) => {
+                console.error('Master doc listener error:', error);
+                updateCloudStatus('同期エラー', 'error');
+            });
+        }
+
+        function listenToCurrentMonthShift() {
+            if (!isCloudConnected || !currentUser || !db) return;
+
+            const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+            const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+            if (shiftDocUnsubscribe) shiftDocUnsubscribe();
+
+            updateCloudStatus('シフト同期中...', 'syncing');
+
+            shiftDocUnsubscribe = onSnapshot(shiftRef, (docSnap) => {
+                isSyncingFromCloud = true;
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    state.schedule = data.schedule ? JSON.parse(data.schedule) : {};
+                    state.dailyRequired = data.dailyRequired ? JSON.parse(data.dailyRequired) : {};
+                    state.courseAssignments = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                    updateCloudStatus('同期完了', 'success');
+                } else {
+                    state.schedule = {};
+                    state.dailyRequired = {};
+                    state.courseAssignments = {};
+                    updateCloudStatus('新規月 (未保存)', 'normal');
+                }
+                
+                localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
+                localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
+                renderAll(false);
+                isSyncingFromCloud = false;
+
+                fetchAdjacentMonthSchedules();
+            }, (error) => {
+                console.error('Shift doc listener error:', error);
+                updateCloudStatus('シフト取得エラー', 'error');
+            });
+        }
+
+        async function saveMasterToCloud(isSilent = false) {
+            if (!isCloudConnected || !currentUser || !db) return;
+
+            try {
+                const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'master_config');
+                await setDoc(masterRef, {
+                    members: state.members,
+                    shiftTypes: state.shiftTypes,
+                    colorTypes: state.colorTypes,
+                    staffAttributes: state.staffAttributes,
+                    courses: state.courses,
+                    generatorRules: state.generatorRules,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                
+                if (!isSilent) updateCloudStatus('マスター保存済', 'success');
+            } catch (err) {
+                console.error('Save master error:', err);
+                updateCloudStatus('マスター保存失敗', 'error');
+            }
+        }
+
+        async function saveCurrentMonthShiftToCloud(isSilent = false) {
+            if (!isCloudConnected || !currentUser || !db) return;
+
+            try {
+                if (!isSilent) updateCloudStatus('クラウド保存中...', 'syncing');
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+                await setDoc(shiftRef, {
+                    year: state.currentYear,
+                    month: state.currentMonth,
+                    schedule: JSON.stringify(state.schedule),
+                    dailyRequired: JSON.stringify(state.dailyRequired),
+                    courseAssignments: JSON.stringify(state.courseAssignments),
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                updateCloudStatus('クラウド同期完了', 'success');
+            } catch (err) {
+                console.error('Save shift error:', err);
+                updateCloudStatus('保存エラー', 'error');
+            }
+        }
+
+        async function saveAllToCloud() {
+            if (!isCloudConnected) {
+                saveData();
+                showMessageModal("現在クラウド同期はOFF（ローカル運用）です。\nデータはブラウザ（ローカル）に自動保存されました。\n\nファイルとして保存する場合は上部の「💾 保存」ボタンをご利用ください。");
+                return;
+            }
+            updateCloudStatus('クラウド保存中...', 'syncing');
+            await saveMasterToCloud(true);
+            await saveCurrentMonthShiftToCloud(false);
+            showMessageModal(`【${state.currentYear}年${state.currentMonth}月】のシフトおよびマスター設定をクラウドへ保存しました！`);
+        }
 
         function saveData() {
             try {
                 localStorage.setItem('shift_app_state', JSON.stringify(state));
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
+                localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
             } catch (e) {
                 console.error('Failed to save state', e);
             }
         }
 
-        function renderAll() {
-            saveData();
-            renderMatrixMode1();
-            renderShiftStamps();
-            renderMatrixMode2();
-            renderMode3();
+        function loadData() {
+            const saved = localStorage.getItem('shift_app_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                    if (!state.courses || state.courses.length === 0) {
+                        initDefaultCourses();
+                    }
+                } catch (e) {
+                    console.error('Failed to load state', e);
+                }
+            }
+
+            state.currentYear = now.getFullYear();
+            state.currentMonth = now.getMonth() + 1;
+            ensureSelectedDateInMonth();
+
+            if (!state.members || state.members.length === 0) {
+                initDefaultMembers();
+            }
+
+            const monthDisplay = document.getElementById('current-month-display');
+            if (monthDisplay) {
+                monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+            }
+
+            fetchAdjacentMonthSchedules();
+        }
+
+        function initDefaultCourses() {
+            state.courses = [];
+            for (let i = 1; i <= 31; i++) {
+                const numStr = i < 10 ? '0' + i : String(i);
+                state.courses.push({
+                    id: 'c_' + numStr,
+                    order: i,
+                    name: `${numStr}コース`,
+                    isRequired: true
+                });
+            }
+        }
+
+        function getAdjacentMonthKeys(year, month) {
+            let prevY = year, prevM = month - 1;
+            if (prevM < 1) { prevM = 12; prevY--; }
+            const prevKey = `${prevY}-${String(prevM).padStart(2, '0')}`;
+
+            let nextY = year, nextM = month + 1;
+            if (nextM > 12) { nextM = 1; nextY++; }
+            const nextKey = `${nextY}-${String(nextM).padStart(2, '0')}`;
+
+            return { prevKey, nextKey };
+        }
+
+        async function fetchAdjacentMonthSchedules() {
+            const { prevKey, nextKey } = getAdjacentMonthKeys(state.currentYear, state.currentMonth);
+
+            [prevKey, nextKey].forEach(k => {
+                if (!state.adjacentSchedules[k]) {
+                    const cached = localStorage.getItem(`shift_app_month_${k}`);
+                    if (cached) {
+                        try { state.adjacentSchedules[k] = JSON.parse(cached); } catch(e){}
+                    }
+                }
+                if (!state.adjacentCourseAssignments[k]) {
+                    const cachedCourses = localStorage.getItem(`shift_app_courses_${k}`);
+                    if (cachedCourses) {
+                        try { state.adjacentCourseAssignments[k] = JSON.parse(cachedCourses); } catch(e){}
+                    }
+                }
+            });
+
+            if (isCloudConnected && currentUser && db) {
+                try {
+                    const prevRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', prevKey);
+                    const nextRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', nextKey);
+                    const [prevSnap, nextSnap] = await Promise.all([getDoc(prevRef), getDoc(nextRef)]);
+
+                    if (prevSnap.exists()) {
+                        const data = prevSnap.data();
+                        state.adjacentSchedules[prevKey] = data.schedule ? JSON.parse(data.schedule) : {};
+                        state.adjacentCourseAssignments[prevKey] = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                    }
+                    if (nextSnap.exists()) {
+                        const data = nextSnap.data();
+                        state.adjacentSchedules[nextKey] = data.schedule ? JSON.parse(data.schedule) : {};
+                        state.adjacentCourseAssignments[nextKey] = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                    }
+                    renderMatrixMode1();
+                    renderCourseAssignmentTab();
+                } catch(e) {
+                    console.warn('Adjacent months fetch failed:', e);
+                }
+            }
+        }
+
+        function ensureSelectedDateInMonth() {
+            const prefix = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+            if (!state.selectedAssignmentDate || !state.selectedAssignmentDate.startsWith(prefix)) {
+                state.selectedAssignmentDate = `${prefix}-01`;
+            }
         }
 
         function getMonthDays() {
@@ -464,12 +1389,19 @@
             if (monthDisplay) {
                 monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
             }
-            renderAll();
+            ensureSelectedDateInMonth();
+
+            if (isCloudConnected) {
+                listenToCurrentMonthShift();
+            } else {
+                fetchAdjacentMonthSchedules();
+                renderAll();
+            }
         }
 
         function switchTab(tabNum) {
             state.activeTab = tabNum;
-            [1, 2, 3].forEach(num => {
+            [1, 2, 3, 4].forEach(num => {
                 const view = document.getElementById(`view-mode-${num}`);
                 const btn = document.getElementById(`tab-btn-${num}`);
                 if (view && btn) {
@@ -492,95 +1424,159 @@
 
         function getCellData(key) {
             const raw = state.schedule[key];
-            if (!raw) return { shiftId: '', colorId: '' };
+            if (!raw) return { shiftId: '', colorId: '', isPinned: false };
             if (typeof raw === 'object' && raw !== null) {
-                return { shiftId: raw.shiftId || '', colorId: raw.colorId || '' };
+                return { shiftId: raw.shiftId || '', colorId: raw.colorId || '', isPinned: !!raw.isPinned };
             }
             if (['休', '指', '有'].includes(raw)) {
-                return { shiftId: raw, colorId: '' };
+                return { shiftId: raw, colorId: '', isPinned: false };
             }
             const isShift = state.shiftTypes.some(s => s.id === raw);
-            if (isShift) return { shiftId: raw, colorId: '' };
+            if (isShift) return { shiftId: raw, colorId: '', isPinned: false };
             const isColor = state.colorTypes.some(c => c.id === raw);
-            if (isColor) return { shiftId: '', colorId: raw };
-            return { shiftId: raw, colorId: '' };
+            if (isColor) return { shiftId: '', colorId: raw, isPinned: false };
+            return { shiftId: raw, colorId: '', isPinned: false };
         }
 
-        function loadData() {
-            const saved = localStorage.getItem('shift_app_state');
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    state = { ...state, ...parsed };
-                    if (!state.colorTypes || state.colorTypes.length === 0) {
-                        state.colorTypes = [
-                            { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444' },
-                            { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6' },
-                            { id: 'c3', name: '1t', shortName: '1t', color: '#06b6d4' },
-                            { id: 'c4', name: '教育', shortName: '教', color: '#10b981' },
-                            { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b' }
-                        ];
+        function getCellDataForAnyDate(memberId, dateStr) {
+            const key = `${memberId}_${dateStr}`;
+            const monthKey = dateStr.substring(0, 7);
+            const currentMonthKey = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+
+            if (monthKey === currentMonthKey) {
+                return getCellData(key);
+            }
+
+            if (state.adjacentSchedules[monthKey] && state.adjacentSchedules[monthKey][key]) {
+                const raw = state.adjacentSchedules[monthKey][key];
+                if (typeof raw === 'object' && raw !== null) {
+                    return { shiftId: raw.shiftId || '', colorId: raw.colorId || '', isPinned: !!raw.isPinned };
+                }
+                return { shiftId: raw, colorId: '', isPinned: false };
+            }
+            return { shiftId: '', colorId: '', isPinned: false };
+        }
+
+        function getCourseAssignment(memberId, dateStr) {
+            const key = `${dateStr}_${memberId}`;
+            const monthKey = dateStr.substring(0, 7);
+            const currentMonthKey = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+
+            let raw = null;
+            if (monthKey === currentMonthKey) {
+                raw = state.courseAssignments[key];
+            } else if (state.adjacentCourseAssignments[monthKey]) {
+                raw = state.adjacentCourseAssignments[monthKey][key];
+            }
+
+            if (!raw) {
+                return {
+                    isSplit: false,
+                    courseId: '',
+                    isTrainee: false,
+                    firstHalf: { courseId: '', isTrainee: false },
+                    secondHalf: { courseId: '', isTrainee: false }
+                };
+            }
+            return {
+                isSplit: !!raw.isSplit,
+                courseId: raw.courseId || '',
+                isTrainee: !!raw.isTrainee,
+                firstHalf: raw.firstHalf || { courseId: '', isTrainee: false },
+                secondHalf: raw.secondHalf || { courseId: '', isTrainee: false }
+            };
+        }
+
+        function getMemberBadgesHTML(member) {
+            if (!member.attributes || !Array.isArray(member.attributes) || member.attributes.length === 0) {
+                return '';
+            }
+            return member.attributes.map(attrId => {
+                const attr = state.staffAttributes.find(a => a.id === attrId);
+                if (!attr) return '';
+                return `
+                    <span class="text-[9px] px-1 py-0.2 rounded font-black text-white shrink-0 shadow-2xs" style="background-color: ${attr.color}" title="${attr.name}">
+                        ${attr.shortName || attr.name}
+                    </span>
+                `;
+            }).join('');
+        }
+
+        function updatePinnedStats() {
+            const info = document.getElementById('pinned-stats-info');
+            if (!info) return;
+            let count = 0;
+            Object.values(state.schedule).forEach(v => {
+                if (typeof v === 'object' && v !== null && v.isPinned) count++;
+            });
+            info.innerHTML = `<span>現在保護中のピン留め: <strong>${count}</strong> 箇所</span>`;
+        }
+
+        function renderAll(triggerSave = true) {
+            if (triggerSave && !isSyncingFromCloud) {
+                saveData();
+            }
+            renderMatrixMode1();
+            renderFilterToolbar();
+            renderShiftStamps();
+            renderMatrixMode2();
+            renderAssignmentFilterToolbar();
+            renderCourseAssignmentTab();
+            renderMode4();
+            updatePinnedStats();
+        }
+
+        function getMemberWorkSpans(memberId, currentDays) {
+            const timeline = [];
+            const formatDate = (dt) => {
+                const y = dt.getFullYear();
+                const m = String(dt.getMonth() + 1).padStart(2, '0');
+                const d = String(dt.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            };
+
+            const firstDateOfMonth = new Date(state.currentYear, state.currentMonth - 1, 1);
+            for (let i = 10; i >= 1; i--) {
+                const dt = new Date(firstDateOfMonth);
+                dt.setDate(dt.getDate() - i);
+                timeline.push({ dateStr: formatDate(dt), isCurrentMonth: false });
+            }
+
+            currentDays.forEach(d => {
+                timeline.push({ dateStr: d.dateStr, isCurrentMonth: true });
+            });
+
+            const lastDateOfMonth = new Date(state.currentYear, state.currentMonth, 0);
+            for (let i = 1; i <= 10; i++) {
+                const dt = new Date(lastDateOfMonth);
+                dt.setDate(dt.getDate() + i);
+                timeline.push({ dateStr: formatDate(dt), isCurrentMonth: false });
+            }
+
+            const holidayIndices = [];
+            timeline.forEach((item, idx) => {
+                const cell = getCellDataForAnyDate(memberId, item.dateStr);
+                if (['休', '指', '有'].includes(cell.shiftId)) {
+                    holidayIndices.push(idx);
+                }
+            });
+
+            const spanMap = {};
+            for (let i = 0; i < holidayIndices.length - 1; i++) {
+                const startIdx = holidayIndices[i];
+                const endIdx = holidayIndices[i + 1];
+                const spanLength = endIdx - startIdx - 1;
+
+                if (spanLength > 0 && spanLength < 10) {
+                    for (let k = startIdx + 1; k < endIdx; k++) {
+                        const target = timeline[k];
+                        if (target.isCurrentMonth) {
+                            spanMap[target.dateStr] = spanLength;
+                        }
                     }
-                    if (!state.shiftTypes || state.shiftTypes.length === 0) {
-                        state.shiftTypes = [
-                            { id: 't1', name: '通し', shortName: '通', count: 14, color: '#3b82f6' },
-                            { id: 't2', name: '単独', shortName: '単', count: 17, color: '#10b981' }
-                        ];
-                    }
-                } catch (e) {
-                    console.error('Failed to load state', e);
-                }
-            } else {
-                const defShift = localStorage.getItem('shift_app_default_shift_types');
-                const defColor = localStorage.getItem('shift_app_default_color_types');
-                if (defShift) {
-                    try { state.shiftTypes = JSON.parse(defShift); } catch (e) {}
-                }
-                if (defColor) {
-                    try { state.colorTypes = JSON.parse(defColor); } catch (e) {}
                 }
             }
-            if (!state.selectedTool) {
-                state.selectedTool = { category: 'shift', id: state.shiftTypes[0]?.id || '' };
-            }
-            if (!state.members || state.members.length === 0) {
-                generateDummyMembers();
-            }
-            const monthDisplay = document.getElementById('current-month-display');
-            if (monthDisplay) {
-                monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
-            }
-        }
-
-        function saveAsDefaultMaster() {
-            try {
-                localStorage.setItem('shift_app_default_shift_types', JSON.stringify(state.shiftTypes));
-                localStorage.setItem('shift_app_default_color_types', JSON.stringify(state.colorTypes));
-                showMessageModal("現在のシフト属性・カラー属性を「デフォルト設定」として保存しました！");
-            } catch (e) {
-                console.error("Failed to save default master", e);
-                showMessageModal("デフォルト設定の保存に失敗しました。");
-            }
-        }
-
-        function resetToDefaultMaster() {
-            const defShift = localStorage.getItem('shift_app_default_shift_types');
-            const defColor = localStorage.getItem('shift_app_default_color_types');
-
-            if (!defShift && !defColor) {
-                showMessageModal("保存されたデフォルト設定がありません。先に「現在の設定をデフォルト保存」を実行してください。");
-                return;
-            }
-
-            try {
-                if (defShift) state.shiftTypes = JSON.parse(defShift);
-                if (defColor) state.colorTypes = JSON.parse(defColor);
-                renderAll();
-                showMessageModal("デフォルト設定を読み込み、属性一覧を復元しました。");
-            } catch (e) {
-                console.error("Failed to reset default master", e);
-                showMessageModal("デフォルト設定の読み込みに失敗しました。");
-            }
+            return spanMap;
         }
 
         function renderMatrixMode1() {
@@ -589,7 +1585,7 @@
             const days = getMonthDays();
             
             let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[140px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
 
             days.forEach(d => {
                 const required = state.dailyRequired[d.dateStr] ?? 31;
@@ -623,7 +1619,7 @@
                 }
 
                 html += `
-                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[42px] sticky-col-header font-bold ${headerBg}">
+                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[44px] sticky-col-header font-bold ${headerBg}">
                         <div class="flex flex-col items-center gap-1">
                             <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                             <div class="flex items-center gap-0.5 text-[10px] text-slate-500">
@@ -652,14 +1648,22 @@
                     ? "bg-rose-600 text-white border-rose-600 shadow-xs" 
                     : "bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-600 border-slate-300";
 
+                const badgesHTML = getMemberBadgesHTML(m);
+                const workSpans = getMemberWorkSpans(m.id, days);
+
                 html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
                 html += `
-                    <td class="p-1.5 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs">
+                    <td class="p-1.5 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">
                         <div class="flex items-center gap-1.5 justify-start">
                             <button onclick="setMemberAllHoliday('${m.id}')" title="${isAllHoliday ? '全休を解除' : '全日を休みに設定'}" class="px-1.5 py-0.5 border rounded text-[10px] font-bold transition shrink-0 ${btnStyle}">
                                 ${isAllHoliday ? '済' : '全休'}
                             </button>
-                            <span class="truncate max-w-[85px]" title="${m.name}">${m.name}</span>
+                            <div class="flex flex-col min-w-0 flex-1 cursor-pointer" onclick="openMemberEditModal('${m.id}')" title="クリックして属性や担当不可コースを編集">
+                                <span class="truncate text-xs font-bold hover:text-indigo-600">${m.name}</span>
+                                <div class="flex items-center gap-1 mt-0.5 overflow-hidden">
+                                    ${badgesHTML || '<span class="text-[9px] text-slate-300 font-normal">属性なし</span>'}
+                                </div>
+                            </div>
                         </div>
                     </td>
                 `;
@@ -673,13 +1677,35 @@
                     if (d.isSunday) cellStyle = "bg-rose-50/40 hover:bg-rose-100/60 text-rose-300/60";
                     if (d.isSaturday) cellStyle = "bg-sky-50/40 hover:bg-sky-100/60 text-sky-300/60";
 
-                    if (val === '休') cellStyle = "bg-rose-100 text-rose-800 font-extrabold border-rose-300 shadow-2xs";
-                    if (val === '指') cellStyle = "bg-amber-100 text-amber-800 font-extrabold border-amber-300 shadow-2xs";
-                    if (val === '有') cellStyle = "bg-emerald-100 text-emerald-800 font-extrabold border-emerald-300 shadow-2xs";
+                    let displayContent = 'ー';
+
+                    if (val === '休') {
+                        cellStyle = "bg-rose-100 text-rose-800 font-extrabold border-rose-300 shadow-2xs";
+                        displayContent = '休';
+                    } else if (val === '指') {
+                        cellStyle = "bg-amber-100 text-amber-800 font-extrabold border-amber-300 shadow-2xs";
+                        displayContent = '指';
+                    } else if (val === '有') {
+                        cellStyle = "bg-emerald-100 text-emerald-800 font-extrabold border-emerald-300 shadow-2xs";
+                        displayContent = '有';
+                    } else if (workSpans[d.dateStr]) {
+                        const span = workSpans[d.dateStr];
+                        let badgeColor = "text-slate-600 bg-slate-100/90 border-slate-300/80";
+                        if (span >= 7) {
+                            badgeColor = "text-rose-700 bg-rose-50/90 border-rose-300 font-extrabold";
+                        } else if (span >= 5) {
+                            badgeColor = "text-amber-700 bg-amber-50/90 border-amber-300 font-bold";
+                        }
+                        displayContent = `
+                            <span class="inline-block px-1 py-0.5 rounded text-[9px] border shadow-2xs leading-none ${badgeColor}" title="連続${span}日勤務">
+                                ${span}日勤務
+                            </span>
+                        `;
+                    }
 
                     html += `
                         <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs ${cellStyle}">
-                            ${val || 'ー'}
+                            ${displayContent}
                         </td>
                     `;
                 });
@@ -692,15 +1718,125 @@
             container.innerHTML = html;
         }
 
+        function renderFilterToolbar() {
+            const container = document.getElementById('attribute-filter-container');
+            if (!container) return;
+
+            const isAllSelected = state.activeStaffFilter === null;
+
+            let html = `
+                <span class="text-xs font-bold text-slate-600 flex items-center gap-1 mr-1">
+                    <span>🔍</span>
+                    <span>絞込:</span>
+                </span>
+                <button onclick="setStaffFilter(null)" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    isAllSelected 
+                        ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-500 ring-offset-1' 
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                }">
+                    <span>全員</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAllSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'}">${state.members.length}</span>
+                </button>
+            `;
+
+            state.staffAttributes.forEach(attr => {
+                const isSelected = state.activeStaffFilter === attr.id;
+                const count = state.members.filter(m => m.attributes && m.attributes.includes(attr.id)).length;
+                
+                const activeClasses = isSelected
+                    ? 'ring-2 ring-offset-1 ring-slate-800 text-white font-extrabold shadow-xs scale-105'
+                    : 'opacity-85 hover:opacity-100 text-white font-bold';
+
+                html += `
+                    <button onclick="setStaffFilter('${attr.id}')" class="px-2.5 py-1 rounded-lg text-xs transition transform flex items-center gap-1.5 shadow-2xs ${activeClasses}" style="background-color: ${attr.color}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white/70"></span>
+                        <span>${attr.name}</span>
+                        <span class="px-1 py-0.2 rounded text-[10px] bg-black/20 text-white">${count}</span>
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function setStaffFilter(attrId) {
+            state.activeStaffFilter = attrId;
+            renderAll(false);
+        }
+
+        function renderAssignmentFilterToolbar() {
+            const container = document.getElementById('assignment-attribute-filter-container');
+            const statusInfo = document.getElementById('assignment-filter-status-info');
+            if (!container) return;
+
+            const isAllSelected = state.activeAssignmentStaffFilter === null;
+
+            let html = `
+                <span class="text-xs font-bold text-slate-600 flex items-center gap-1 mr-1">
+                    <span>🔍</span>
+                    <span>スタッフ絞込:</span>
+                </span>
+                <button onclick="setAssignmentStaffFilter(null)" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    isAllSelected 
+                        ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-500 ring-offset-1' 
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                }">
+                    <span>全員</span>
+                    <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isAllSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'}">${state.members.length}</span>
+                </button>
+            `;
+
+            state.staffAttributes.forEach(attr => {
+                const isSelected = state.activeAssignmentStaffFilter === attr.id;
+                const count = state.members.filter(m => m.attributes && m.attributes.includes(attr.id)).length;
+                
+                const activeClasses = isSelected
+                    ? 'ring-2 ring-offset-1 ring-slate-800 text-white font-extrabold shadow-xs scale-105'
+                    : 'opacity-85 hover:opacity-100 text-white font-bold';
+
+                html += `
+                    <button onclick="setAssignmentStaffFilter('${attr.id}')" class="px-2.5 py-1 rounded-lg text-xs transition transform flex items-center gap-1.5 shadow-2xs ${activeClasses}" style="background-color: ${attr.color}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white/70"></span>
+                        <span>${attr.name}</span>
+                        <span class="px-1 py-0.2 rounded text-[10px] bg-black/20 text-white">${count}</span>
+                    </button>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            if (statusInfo) {
+                if (state.activeAssignmentStaffFilter) {
+                    const matchedAttr = state.staffAttributes.find(a => a.id === state.activeAssignmentStaffFilter);
+                    statusInfo.innerHTML = `
+                        <span class="text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-md flex items-center gap-1">
+                            <span>「${matchedAttr?.name || ''}」で絞り込み中</span>
+                            <button onclick="setAssignmentStaffFilter(null)" class="text-slate-400 hover:text-slate-600 font-bold ml-1">✕ 解除</button>
+                        </span>
+                    `;
+                } else {
+                    statusInfo.innerText = `全 ${state.members.length} 名を表示中`;
+                }
+            }
+        }
+
+        function setAssignmentStaffFilter(attrId) {
+            state.activeAssignmentStaffFilter = attrId;
+            renderCourseAssignmentTab();
+            renderAssignmentFilterToolbar();
+        }
+
         function renderShiftStamps() {
             const shiftContainer = document.getElementById('shift-stamp-container');
             const colorContainer = document.getElementById('color-stamp-container');
             if (!shiftContainer || !colorContainer) return;
 
+            const isPinningSelected = state.selectedTool?.category === 'pin';
+
             let shiftHtml = `
                 <div class="w-full text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                    <span class="flex items-center gap-1">📌 シフトスタンプ <span class="text-[10px] text-indigo-600 font-normal">(必要人数カウント対象)</span></span>
-                    ${state.selectedTool?.category === 'shift' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">選択中: シフト入力</span>' : ''}
+                    <span class="flex items-center gap-1">📌 シフトスタンプ & 保護ツール</span>
+                    ${isPinningSelected ? '<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-black flex items-center gap-1 animate-pulse"><span>📌</span> ピン留めモード稼働中</span>' : ''}
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">`;
 
@@ -721,12 +1857,22 @@
                 <button onclick="selectTool('shift', '')" class="px-3 py-1.5 rounded-lg border border-slate-300 font-bold text-xs transition transform ${shiftClearStyle}">
                     シフト解除
                 </button>
+            `;
+
+            const pinBtnStyle = isPinningSelected 
+                ? 'bg-amber-500 text-white ring-2 ring-amber-600 ring-offset-1 font-black shadow-sm' 
+                : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold';
+            shiftHtml += `
+                <button onclick="selectTool('pin', 'toggle')" class="px-3 py-1.5 rounded-lg transition transform flex items-center gap-1 text-xs shadow-2xs ml-auto ${pinBtnStyle}" title="セルをクリックしてピン留め（上書き保護）を設定・解除">
+                    <span>📌</span>
+                    <span>ピン留めモード</span>
+                </button>
             </div>`;
             shiftContainer.innerHTML = shiftHtml;
 
             let colorHtml = `
                 <div class="w-full text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                    <span class="flex items-center gap-1">🎨 カラーマーカー <span class="text-[10px] text-amber-700 font-normal">(背景色のみ変更・スタンプと人数はそのまま保持)</span></span>
+                    <span class="flex items-center gap-1">🎨 カラーマーカー <span class="text-[10px] text-amber-700 font-normal">(背景色のみ変更)</span></span>
                     ${state.selectedTool?.category === 'color' ? '<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">選択中: カラー塗り</span>' : ''}
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">`;
@@ -767,25 +1913,28 @@
 
             const tool = state.selectedTool || { category: 'shift', id: 't1' };
 
+            if (tool.category === 'pin') {
+                cell.isPinned = !cell.isPinned;
+                state.schedule[key] = cell;
+                renderAll();
+                return;
+            }
+
             if (tool.category === 'shift') {
-                if (tool.id === '') {
-                    cell.shiftId = '';
-                } else if (cell.shiftId === tool.id) {
+                if (tool.id === '' || cell.shiftId === tool.id) {
                     cell.shiftId = '';
                 } else {
                     cell.shiftId = tool.id;
                 }
             } else if (tool.category === 'color') {
-                if (tool.id === '') {
-                    cell.colorId = '';
-                } else if (cell.colorId === tool.id) {
+                if (tool.id === '' || cell.colorId === tool.id) {
                     cell.colorId = '';
                 } else {
                     cell.colorId = tool.id;
                 }
             }
 
-            if (!cell.shiftId && !cell.colorId) {
+            if (!cell.shiftId && !cell.colorId && !cell.isPinned) {
                 delete state.schedule[key];
             } else {
                 state.schedule[key] = cell;
@@ -794,13 +1943,54 @@
             renderAll();
         }
 
+        function getCourseBadgeSummary(memberId, dateStr) {
+            const ca = getCourseAssignment(memberId, dateStr);
+            if (!ca) return '';
+
+            const findName = (cid) => {
+                const c = state.courses.find(item => item.id === cid);
+                return c ? c.name.replace('コース', '') : '';
+            };
+
+            if (ca.isSplit) {
+                const c1 = findName(ca.firstHalf?.courseId);
+                const c2 = findName(ca.secondHalf?.courseId);
+                if (!c1 && !c2) return '';
+                return `
+                    <div class="mt-0.5 text-[8px] bg-sky-950/80 text-sky-200 px-1 py-0.2 rounded font-black tracking-tight flex items-center justify-center gap-0.5" title="前半: ${c1 || '未定'} / 後半: ${c2 || '未定'}">
+                        <span>${c1 || 'ー'}</span>/<span>${c2 || 'ー'}</span>
+                    </div>
+                `;
+            } else {
+                const c = findName(ca.courseId);
+                if (!c) return '';
+                return `
+                    <div class="mt-0.5 text-[9px] bg-slate-900/80 text-white px-1 py-0.2 rounded font-black tracking-tight" title="コース: ${c}">
+                        ${c}
+                    </div>
+                `;
+            }
+        }
+
         function renderMatrixMode2() {
             const container = document.getElementById('matrix-container-2');
             if (!container) return;
             const days = getMonthDays();
 
+            const displayMembers = state.activeStaffFilter 
+                ? state.members.filter(m => m.attributes && m.attributes.includes(state.activeStaffFilter))
+                : state.members;
+
             let html = `<table class="w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[130px] sticky-col-corner font-bold align-middle">メンバー</th>`;
+            
+            const filterNotice = state.activeStaffFilter 
+                ? `<span class="block text-[10px] text-indigo-600 font-bold">絞込中 (${displayMembers.length}/${state.members.length})</span>` 
+                : `<span class="block text-[10px] text-slate-500 font-normal">全員 (${state.members.length}名)</span>`;
+
+            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] sticky-col-corner font-bold align-middle">
+                <div>メンバー</div>
+                ${filterNotice}
+            </th>`;
 
             days.forEach(d => {
                 const required = state.dailyRequired[d.dateStr] ?? 31;
@@ -869,68 +2059,736 @@
 
             html += `<th class="p-2 border-l border-b border-slate-200 min-w-[70px] text-center font-bold bg-slate-100 align-middle">休み数</th></tr></thead><tbody>`;
 
-            state.members.forEach(m => {
-                let totalHolidays = 0;
-                const allDays = getMonthDays();
-                allDays.forEach(ad => {
-                    const cell = getCellData(`${m.id}_${ad.dateStr}`);
-                    if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
-                });
+            if (displayMembers.length === 0) {
+                html += `
+                    <tr>
+                        <td colspan="${days.length + 2}" class="p-8 text-center text-slate-400 font-bold bg-slate-50">
+                            選択された属性に該当するスタッフがいません。<br>
+                            <button onclick="setStaffFilter(null)" class="mt-2 text-xs text-indigo-600 underline font-bold">全員表示に戻す</button>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                displayMembers.forEach(m => {
+                    let totalHolidays = 0;
+                    const allDays = getMonthDays();
+                    allDays.forEach(ad => {
+                        const cell = getCellData(`${m.id}_${ad.dateStr}`);
+                        if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
+                    });
 
-                html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
-                html += `<td class="p-2 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">${m.name}</td>`;
+                    const badgesHTML = getMemberBadgesHTML(m);
 
-                days.forEach(d => {
-                    const key = `${m.id}_${d.dateStr}`;
-                    const cell = getCellData(key);
-                    const val = cell.shiftId;
-                    
-                    if (['休', '指', '有'].includes(val)) {
-                        let bg = "bg-rose-100 text-rose-800 border-rose-200";
-                        if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
-                        if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                        html += `<td class="p-1 border-r border-b border-slate-200 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
-                    } else {
-                        const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
-                        const customColor = state.colorTypes.find(c => c.id === cell.colorId);
+                    html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                    html += `
+                        <td class="p-2 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left cursor-pointer" onclick="openMemberEditModal('${m.id}')" title="クリックして属性や担当不可コースを編集">
+                            <div class="flex flex-col">
+                                <span class="truncate text-xs font-bold hover:text-indigo-600">${m.name}</span>
+                                <div class="flex items-center gap-1 mt-0.5 overflow-hidden">
+                                    ${badgesHTML || '<span class="text-[9px] text-slate-300 font-normal">属性なし</span>'}
+                                </div>
+                            </div>
+                        </td>
+                    `;
+
+                    days.forEach(d => {
+                        const key = `${m.id}_${d.dateStr}`;
+                        const cell = getCellData(key);
+                        const val = cell.shiftId;
+                        const isPinned = cell.isPinned;
+                        const courseBadge = getCourseBadgeSummary(m.id, d.dateStr);
                         
-                        let label = shift ? shift.shortName : 'ー';
-                        
-                        let styleColor = '';
-                        if (customColor) {
-                            styleColor = customColor.color;
-                        } else if (shift) {
-                            styleColor = shift.color;
+                        if (['休', '指', '有'].includes(val)) {
+                            let bg = "bg-rose-100 text-rose-800 border-rose-200";
+                            if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
+                            if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                            html += `<td class="p-1 border-r border-b border-slate-200 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
+                        } else {
+                            const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
+                            const customColor = state.colorTypes.find(c => c.id === cell.colorId);
+                            
+                            let label = shift ? shift.shortName : 'ー';
+                            
+                            let styleColor = '';
+                            if (customColor) {
+                                styleColor = customColor.color;
+                            } else if (shift) {
+                                styleColor = shift.color;
+                            }
+
+                            let cellBgClass = "bg-white text-slate-300";
+                            if (d.isSunday) cellBgClass = "bg-rose-50/40 text-rose-300/60";
+                            if (d.isSaturday) cellBgClass = "bg-sky-50/40 text-sky-300/60";
+
+                            let style = cellBgClass;
+                            if (styleColor) {
+                                style = `font-extrabold text-white shadow-2xs transition transform active:scale-95`;
+                            }
+
+                            const pinBadge = isPinned 
+                                ? `<span class="absolute top-0.5 right-0.5 text-[9px] leading-none drop-shadow-xs" title="ピン留め保護中（自動生成で上書きされません）">📌</span>` 
+                                : '';
+
+                            html += `
+                                <td onclick="toggleShiftStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs relative ${style}" style="${styleColor ? `background-color:${styleColor}` : ''}">
+                                    ${pinBadge}
+                                    <div class="leading-tight">${label}</div>
+                                    ${courseBadge}
+                                </td>
+                            `;
                         }
+                    });
 
-                        let cellBgClass = "bg-white text-slate-300";
-                        if (d.isSunday) cellBgClass = "bg-rose-50/40 text-rose-300/60";
-                        if (d.isSaturday) cellBgClass = "bg-sky-50/40 text-sky-300/60";
-
-                        let style = cellBgClass;
-                        if (styleColor) {
-                            style = `font-extrabold text-white shadow-2xs transition transform active:scale-95`;
-                        }
-
-                        html += `
-                            <td onclick="toggleShiftStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs ${style}" style="${styleColor ? `background-color:${styleColor}` : ''}">
-                                ${label}
-                            </td>
-                        `;
-                    }
+                    html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-slate-700 bg-slate-50">${totalHolidays}日</td></tr>`;
                 });
-
-                html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-slate-700 bg-slate-50">${totalHolidays}日</td></tr>`;
-            });
+            }
 
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
 
-        function renderMode3() {
-            const tableBody = document.getElementById('shift-types-table-body');
-            if (tableBody) {
-                tableBody.innerHTML = state.shiftTypes.map(st => {
+        function onAssignmentDateChange(newDateStr) {
+            state.selectedAssignmentDate = newDateStr;
+            const dt = new Date(newDateStr);
+            if (!isNaN(dt.getTime())) {
+                state.currentYear = dt.getFullYear();
+                state.currentMonth = dt.getMonth() + 1;
+                document.getElementById('current-month-display').innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+            }
+            renderAll();
+        }
+
+        function changeAssignmentDay(delta) {
+            const dt = new Date(state.selectedAssignmentDate);
+            if (isNaN(dt.getTime())) return;
+            dt.setDate(dt.getDate() + delta);
+
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const newDateStr = `${y}-${m}-${d}`;
+
+            state.selectedAssignmentDate = newDateStr;
+            state.currentYear = dt.getFullYear();
+            state.currentMonth = dt.getMonth() + 1;
+            document.getElementById('current-month-display').innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+
+            renderAll();
+        }
+
+        function getAssignedCoursesMapForDate(dateStr) {
+            const map = {};
+            state.courses.forEach(c => {
+                map[c.id] = { full: [], first: [], second: [] };
+            });
+
+            state.members.forEach(m => {
+                const ca = getCourseAssignment(m.id, dateStr);
+                if (!ca) return;
+                if (!ca.isSplit) {
+                    if (ca.courseId && map[ca.courseId]) {
+                        map[ca.courseId].full.push({ memberId: m.id, memberName: m.name, isTrainee: ca.isTrainee });
+                    }
+                } else {
+                    if (ca.firstHalf?.courseId && map[ca.firstHalf.courseId]) {
+                        map[ca.firstHalf.courseId].first.push({ memberId: m.id, memberName: m.name, isTrainee: ca.firstHalf.isTrainee });
+                    }
+                    if (ca.secondHalf?.courseId && map[ca.secondHalf.courseId]) {
+                        map[ca.secondHalf.courseId].second.push({ memberId: m.id, memberName: m.name, isTrainee: ca.secondHalf.isTrainee });
+                    }
+                }
+            });
+
+            return map;
+        }
+
+        function getTimelineDayInfo(baseDateStr, offset) {
+            const dt = new Date(baseDateStr);
+            dt.setDate(dt.getDate() + offset);
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const dayOfWeekNum = dt.getDay();
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            return {
+                dateStr: `${y}-${m}-${d}`,
+                day: dt.getDate(),
+                month: dt.getMonth() + 1,
+                dayOfWeek: dayNames[dayOfWeekNum],
+                isSunday: dayOfWeekNum === 0,
+                isSaturday: dayOfWeekNum === 6
+            };
+        }
+
+        function renderTimelineMiniCell(memberId, dateInfo) {
+            const cell = getCellDataForAnyDate(memberId, dateInfo.dateStr);
+            const shiftId = cell.shiftId;
+            const ca = getCourseAssignment(memberId, dateInfo.dateStr);
+
+            const findName = (cid) => {
+                const c = state.courses.find(item => item.id === cid);
+                return c ? c.name.replace('コース', '') : '';
+            };
+
+            let courseText = '';
+            if (ca) {
+                if (ca.isSplit) {
+                    const c1 = findName(ca.firstHalf?.courseId);
+                    const c2 = findName(ca.secondHalf?.courseId);
+                    if (c1 || c2) courseText = `${c1 || '-'}/${c2 || '-'}`;
+                } else if (ca.courseId) {
+                    courseText = findName(ca.courseId);
+                }
+            }
+
+            if (['休', '指', '有'].includes(shiftId)) {
+                let badgeClass = "bg-rose-100 text-rose-800 border-rose-200";
+                if (shiftId === '指') badgeClass = "bg-amber-100 text-amber-800 border-amber-200";
+                if (shiftId === '有') badgeClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                return `
+                    <div class="w-full py-1 text-center">
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black border ${badgeClass}">
+                            ${shiftId}
+                        </span>
+                    </div>
+                `;
+            }
+
+            const shift = state.shiftTypes.find(s => s.id === shiftId);
+            const color = state.colorTypes.find(c => c.id === cell.colorId);
+
+            if (!shift && !color && !courseText) {
+                return `<div class="text-center text-slate-300 text-[11px] py-1">ー</div>`;
+            }
+
+            let bgStyle = '';
+            let label = shift ? shift.shortName : '';
+            if (color) {
+                bgStyle = `background-color: ${color.color}`;
+            } else if (shift) {
+                bgStyle = `background-color: ${shift.color}`;
+            }
+
+            return `
+                <div class="flex flex-col items-center justify-center gap-0.5 py-0.5">
+                    ${label ? `
+                        <span class="inline-block px-1 py-0.2 rounded text-[9px] font-black text-white shadow-2xs leading-tight" style="${bgStyle}">
+                            ${label}
+                        </span>
+                    ` : ''}
+                    ${courseText ? `
+                        <span class="text-[8px] font-black bg-slate-800 text-white px-1 py-0.2 rounded leading-none" title="割当コース: ${courseText}">
+                            ${courseText}
+                        </span>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderCourseAssignmentTab() {
+            const targetDateInput = document.getElementById('assignment-target-date');
+            const dayBadge = document.getElementById('assignment-day-badge');
+            const statsContainer = document.getElementById('daily-course-stats');
+            const unassignedContainer = document.getElementById('unassigned-courses-container');
+            const tableBody = document.getElementById('course-assignment-table-body');
+
+            if (!targetDateInput || !tableBody) return;
+
+            targetDateInput.value = state.selectedAssignmentDate;
+            const dateObj = new Date(state.selectedAssignmentDate);
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            const dayOfWeek = dayNames[dateObj.getDay()] || '';
+            dayBadge.innerText = `${dayOfWeek}曜日`;
+
+            if (dateObj.getDay() === 0) {
+                dayBadge.className = "px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-200";
+            } else if (dateObj.getDay() === 6) {
+                dayBadge.className = "px-2.5 py-1 rounded-lg text-xs font-black bg-sky-50 text-sky-700 border border-sky-200";
+            } else {
+                dayBadge.className = "px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200";
+            }
+
+            const offsets = [-3, -2, -1, 1, 2, 3];
+            const timelineDays = {};
+            offsets.forEach(off => {
+                timelineDays[off] = getTimelineDayInfo(state.selectedAssignmentDate, off);
+            });
+
+            const updateHeaderCell = (elemId, dayInfo) => {
+                const el = document.getElementById(elemId);
+                if (!el) return;
+                let colorClass = "text-slate-700";
+                if (dayInfo.isSunday) colorClass = "text-rose-600 font-extrabold";
+                else if (dayInfo.isSaturday) colorClass = "text-sky-600 font-extrabold";
+                
+                el.innerHTML = `
+                    <div class="flex flex-col items-center cursor-pointer hover:bg-slate-100 py-0.5 rounded transition" onclick="onAssignmentDateChange('${dayInfo.dateStr}')" title="${dayInfo.dateStr} へ移動">
+                        <span class="text-[10px] text-slate-400 font-medium">${dayInfo.month}/${dayInfo.day}</span>
+                        <span class="text-xs ${colorClass}">(${dayInfo.dayOfWeek})</span>
+                    </div>
+                `;
+            };
+
+            updateHeaderCell('th-prev-3', timelineDays[-3]);
+            updateHeaderCell('th-prev-2', timelineDays[-2]);
+            updateHeaderCell('th-prev-1', timelineDays[-1]);
+            updateHeaderCell('th-next-1', timelineDays[1]);
+            updateHeaderCell('th-next-2', timelineDays[2]);
+            updateHeaderCell('th-next-3', timelineDays[3]);
+
+            const assignedMap = getAssignedCoursesMapForDate(state.selectedAssignmentDate);
+
+            // 未割り当てコースの正確な洗い出し
+            let activeUsedCourses = new Set();
+            state.members.forEach(m => {
+                const ca = getCourseAssignment(m.id, state.selectedAssignmentDate);
+                if (!ca.isSplit && ca.courseId) activeUsedCourses.add(ca.courseId);
+                if (ca.isSplit) {
+                    if (ca.firstHalf?.courseId) activeUsedCourses.add(ca.firstHalf.courseId);
+                    if (ca.secondHalf?.courseId) activeUsedCourses.add(ca.secondHalf.courseId);
+                }
+            });
+
+            // 必須コースと任意コースに分類
+            const unassignedRequiredList = state.courses.filter(c => c.isRequired !== false && !activeUsedCourses.has(c.id));
+            const unassignedOptionalList = state.courses.filter(c => c.isRequired === false && !activeUsedCourses.has(c.id));
+            const unassignedReqCount = unassignedRequiredList.length;
+
+            let workingMembersCount = 0;
+            state.members.forEach(m => {
+                const cell = getCellData(`${m.id}_${state.selectedAssignmentDate}`);
+                if (!['休', '指', '有'].includes(cell.shiftId)) workingMembersCount++;
+            });
+
+            if (statsContainer) {
+                statsContainer.innerHTML = `
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                        <span class="text-slate-500">出勤予定:</span>
+                        <span class="text-indigo-700 font-black">${workingMembersCount}名</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                        <span class="text-slate-500">必須未割当:</span>
+                        <span class="${unassignedReqCount > 0 ? 'text-amber-600 font-black' : 'text-emerald-600 font-black'}">${unassignedReqCount}コース</span>
+                    </div>
+                    ${unassignedOptionalList.length > 0 ? `
+                        <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg text-slate-500">
+                            <span>任意空き:</span>
+                            <span class="text-slate-700 font-bold">${unassignedOptionalList.length}</span>
+                        </div>
+                    ` : ''}
+                `;
+            }
+
+            // 未割り当てコース一覧の表示（必須と任意を明確に分離）
+            if (unassignedContainer) {
+                if (unassignedReqCount === 0 && unassignedOptionalList.length === 0) {
+                    unassignedContainer.innerHTML = `
+                        <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                            <span>✅</span>
+                            <span>すべての運行コース（${state.courses.length}コース）が割り当て済みです！</span>
+                        </div>
+                    `;
+                } else {
+                    let htmlList = `<div class="space-y-2">`;
+                    if (unassignedReqCount > 0) {
+                        htmlList += `
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between text-xs font-bold text-amber-800">
+                                    <span class="flex items-center gap-1">
+                                        <span>⚠️</span>
+                                        <span>必須・未割り当てコース (<span class="text-rose-600 font-black">${unassignedReqCount}件</span>):</span>
+                                    </span>
+                                    <span class="text-[11px] text-slate-400 font-normal">※運行が必要な未配車コースです</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-amber-50/50 border border-amber-200 rounded-lg">
+                                    ${unassignedRequiredList.map(crs => `
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-white text-slate-700 border border-amber-300 shadow-2xs">
+                                            <span class="text-[10px] text-amber-600 font-black">${crs.order}.</span>
+                                            <span>${crs.name}</span>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        htmlList += `
+                            <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
+                                <span>✅</span>
+                                <span>必須コースはすべて割り当て完了しています。</span>
+                            </div>
+                        `;
+                    }
+
+                    if (unassignedOptionalList.length > 0) {
+                        htmlList += `
+                            <div class="space-y-1 pt-1">
+                                <div class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                    <span>📦</span>
+                                    <span>任意・臨時便（未配車: ${unassignedOptionalList.length}件）:</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                                    ${unassignedOptionalList.map(crs => `
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-white text-slate-600 border border-slate-300">
+                                            <span class="text-[10px] text-slate-400">${crs.order}.</span>
+                                            <span>${crs.name}</span>
+                                            <span class="text-[9px] px-1 bg-slate-100 text-slate-500 rounded">任意</span>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    htmlList += `</div>`;
+                    unassignedContainer.innerHTML = htmlList;
+                }
+            }
+
+            const displayMembers = state.activeAssignmentStaffFilter
+                ? state.members.filter(m => m.attributes && m.attributes.includes(state.activeAssignmentStaffFilter))
+                : state.members;
+
+            if (displayMembers.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="p-8 text-center text-slate-400 font-bold bg-slate-50">
+                            選択された属性に該当するスタッフがいません。<br>
+                            <button onclick="setAssignmentStaffFilter(null)" class="mt-2 text-xs text-indigo-600 underline font-bold">全員表示に戻す</button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let tbodyHtml = '';
+            displayMembers.forEach(member => {
+                const cell = getCellData(`${member.id}_${state.selectedAssignmentDate}`);
+                const isHoliday = ['休', '指', '有'].includes(cell.shiftId);
+                const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
+                const shiftLabel = shiftObj ? shiftObj.name : (cell.shiftId || '未定');
+                const shiftColor = shiftObj ? shiftObj.color : '#64748b';
+                const memberBadges = getMemberBadgesHTML(member);
+                const ca = getCourseAssignment(member.id, state.selectedAssignmentDate);
+
+                const prevCell3 = renderTimelineMiniCell(member.id, timelineDays[-3]);
+                const prevCell2 = renderTimelineMiniCell(member.id, timelineDays[-2]);
+                const prevCell1 = renderTimelineMiniCell(member.id, timelineDays[-1]);
+                const nextCell1 = renderTimelineMiniCell(member.id, timelineDays[1]);
+                const nextCell2 = renderTimelineMiniCell(member.id, timelineDays[2]);
+                const nextCell3 = renderTimelineMiniCell(member.id, timelineDays[3]);
+
+                if (isHoliday) {
+                    tbodyHtml += `
+                        <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-400 hover:bg-slate-100/50 transition">
+                            <td class="p-3 font-bold sticky-col-left shadow-2xs border-r border-slate-200">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="line-through">${member.name}</span>
+                                    <div class="opacity-50">${memberBadges}</div>
+                                </div>
+                            </td>
+                            <!-- 前3日 -->
+                            <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${prevCell3}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${prevCell2}</td>
+                            <td class="p-1 border-r-2 border-indigo-300 align-middle bg-white/40">${prevCell1}</td>
+
+                            <!-- 指定日（当日）：休み表示 -->
+                            <td class="p-2.5 text-center bg-rose-50/50 border-r border-indigo-200">
+                                <span class="px-2 py-1 bg-rose-100 text-rose-800 rounded font-black text-xs border border-rose-200">
+                                    🔒 休み (${cell.shiftId})
+                                </span>
+                            </td>
+                            <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/30 border-r border-indigo-200">ー</td>
+                            <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">公休・指定休のためコース割当対象外です</td>
+
+                            <!-- 翌3日 -->
+                            <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell1}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell2}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell3}</td>
+
+                            <td class="p-2 text-center text-xs text-slate-400">ー</td>
+                        </tr>
+                    `;
+                } else {
+                    const ngCourses = member.ngCourses || [];
+
+                    // コース選択肢の生成ロジック（教育・同乗チェック時はNGコースも選択可能）
+                    const renderCourseOptions = (selectedCourseId, slotType, isTrainee) => {
+                        let optHtml = `<option value="">-- コースを選択 --</option>`;
+                        state.courses.forEach(crs => {
+                            const isSelected = crs.id === selectedCourseId;
+                            const isNG = ngCourses.includes(crs.id);
+                            const isOptional = crs.isRequired === false;
+
+                            let conflictReason = '';
+                            const assigned = assignedMap[crs.id] || { full: [], first: [], second: [] };
+
+                            if (slotType === 'full') {
+                                const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
+                                const conflictFirst = assigned.first.find(a => a.memberId !== member.id && !a.isTrainee);
+                                const conflictSecond = assigned.second.find(a => a.memberId !== member.id && !a.isTrainee);
+                                if (conflictFull) conflictReason = `${conflictFull.memberName}割当済`;
+                                else if (conflictFirst) conflictReason = `${conflictFirst.memberName}(前)割当済`;
+                                else if (conflictSecond) conflictReason = `${conflictSecond.memberName}(後)割当済`;
+                            } else if (slotType === 'first') {
+                                const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
+                                const conflictFirst = assigned.first.find(a => a.memberId !== member.id && !a.isTrainee);
+                                if (conflictFull) conflictReason = `${conflictFull.memberName}(終)割当済`;
+                                else if (conflictFirst) conflictReason = `${conflictFirst.memberName}割当済`;
+                            } else if (slotType === 'second') {
+                                const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
+                                const conflictSecond = assigned.second.find(a => a.memberId !== member.id && !a.isTrainee);
+                                if (conflictFull) conflictReason = `${conflictFull.memberName}(終)割当済`;
+                                else if (conflictSecond) conflictReason = `${conflictSecond.memberName}割当済`;
+                            }
+
+                            let disabledAttr = '';
+                            let labelSuffix = '';
+
+                            if (isOptional) {
+                                labelSuffix += ' [任意]';
+                            }
+
+                            if (isNG) {
+                                if (isTrainee) {
+                                    // 教育・同乗時はNGコースでも選択可能にロック解除
+                                    labelSuffix += ' ⚠️NG(教育許可)';
+                                } else {
+                                    disabledAttr = 'disabled';
+                                    labelSuffix += ' ⚠️担当不可NG';
+                                }
+                            } else if (conflictReason) {
+                                if (isTrainee) {
+                                    // 教育・同乗時は他者重複も選択可能にロック解除
+                                    labelSuffix += ` 🎓(${conflictReason})`;
+                                } else {
+                                    disabledAttr = 'disabled';
+                                    labelSuffix += ` 🔒(${conflictReason})`;
+                                }
+                            }
+
+                            optHtml += `<option value="${crs.id}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${crs.order}. ${crs.name}${labelSuffix}</option>`;
+                        });
+                        return optHtml;
+                    };
+
+                    let assignmentControls = '';
+                    if (!ca.isSplit) {
+                        assignmentControls = `
+                            <div class="flex items-center gap-2">
+                                <select onchange="updateCourseAssignment('${member.id}', 'courseId', this.value)" class="w-56 p-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-sky-500 shrink-0">
+                                    ${renderCourseOptions(ca.courseId, 'full', ca.isTrainee)}
+                                </select>
+                                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition select-none shrink-0 ${ca.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-2xs ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
+                                    <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'isTrainee', this.checked)" ${ca.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
+                                    <span>🎓 教育・同乗</span>
+                                </label>
+                            </div>
+                        `;
+                    } else {
+                        assignmentControls = `
+                            <div class="space-y-1.5 py-0.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 w-8 text-center shrink-0">前半</span>
+                                    <select onchange="updateCourseAssignment('${member.id}', 'firstHalf.courseId', this.value)" class="w-48 p-1 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-sky-500 shrink-0">
+                                        ${renderCourseOptions(ca.firstHalf?.courseId, 'first', ca.firstHalf?.isTrainee)}
+                                    </select>
+                                    <label class="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer select-none shrink-0 ${ca.firstHalf?.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
+                                        <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'firstHalf.isTrainee', this.checked)" ${ca.firstHalf?.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
+                                        <span>🎓教育</span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-300 w-8 text-center shrink-0">後半</span>
+                                    <select onchange="updateCourseAssignment('${member.id}', 'secondHalf.courseId', this.value)" class="w-48 p-1 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
+                                        ${renderCourseOptions(ca.secondHalf?.courseId, 'second', ca.secondHalf?.isTrainee)}
+                                    </select>
+                                    <label class="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer select-none shrink-0 ${ca.secondHalf?.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
+                                        <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'secondHalf.isTrainee', this.checked)" ${ca.secondHalf?.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
+                                        <span>🎓教育</span>
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    tbodyHtml += `
+                        <tr class="border-b border-slate-200 hover:bg-slate-50 transition">
+                            <td class="p-3 font-bold text-slate-800 sticky-col-left shadow-2xs border-r border-slate-200">
+                                <div class="flex flex-col cursor-pointer" onclick="openMemberEditModal('${member.id}')" title="クリックして属性・NGコースを編集">
+                                    <span class="truncate text-xs sm:text-sm hover:text-indigo-600">${member.name}</span>
+                                    <div class="flex items-center gap-1 mt-0.5 overflow-hidden">
+                                        ${memberBadges || '<span class="text-[9px] text-slate-300 font-normal">属性なし</span>'}
+                                    </div>
+                                </div>
+                            </td>
+                            <!-- 前3日 -->
+                            <td class="p-1 border-r border-slate-200 align-middle bg-slate-50/30">${prevCell3}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-slate-50/30">${prevCell2}</td>
+                            <td class="p-1 border-r-2 border-indigo-300 align-middle bg-slate-50/30">${prevCell1}</td>
+
+                            <!-- 当日の指定日：メイン配車コントロール -->
+                            <td class="p-2.5 text-center bg-indigo-50/40 border-r border-indigo-200 align-middle">
+                                <span class="px-2.5 py-1 rounded-md text-xs font-black text-white shadow-2xs inline-block" style="background-color: ${shiftColor}">
+                                    ${shiftLabel}
+                                </span>
+                            </td>
+                            <td class="p-2.5 text-center bg-indigo-50/40 border-r border-indigo-200 align-middle">
+                                <div class="inline-flex rounded-lg border border-slate-300 p-0.5 bg-white text-[11px] font-bold shadow-2xs">
+                                    <button onclick="updateCourseAssignment('${member.id}', 'isSplit', false)" class="px-2 py-0.5 rounded-md transition ${!ca.isSplit ? 'bg-indigo-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}">
+                                        終日
+                                    </button>
+                                    <button onclick="updateCourseAssignment('${member.id}', 'isSplit', true)" class="px-2 py-0.5 rounded-md transition ${ca.isSplit ? 'bg-indigo-600 text-white shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'}">
+                                        分割
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="p-2.5 bg-indigo-50/40 border-r-2 border-indigo-300 align-middle">
+                                ${assignmentControls}
+                            </td>
+
+                            <!-- 翌3日 -->
+                            <td class="p-1 border-r border-slate-200 align-middle bg-slate-50/30">${nextCell1}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-slate-50/30">${nextCell2}</td>
+                            <td class="p-1 border-r border-slate-200 align-middle bg-slate-50/30">${nextCell3}</td>
+
+                            <td class="p-2 text-center align-middle">
+                                <button onclick="clearCourseAssignment('${member.id}')" class="px-2 py-1 bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 rounded text-xs font-bold transition" title="この日の割当をクリア">
+                                    クリア
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+
+            tableBody.innerHTML = tbodyHtml;
+        }
+
+        function updateCourseAssignment(memberId, fieldPath, value) {
+            const key = `${state.selectedAssignmentDate}_${memberId}`;
+            const current = getCourseAssignment(memberId, state.selectedAssignmentDate);
+
+            if (fieldPath === 'isSplit') {
+                current.isSplit = value;
+            } else if (fieldPath === 'courseId') {
+                current.courseId = value;
+            } else if (fieldPath === 'isTrainee') {
+                current.isTrainee = value;
+            } else if (fieldPath === 'firstHalf.courseId') {
+                current.firstHalf.courseId = value;
+            } else if (fieldPath === 'firstHalf.isTrainee') {
+                current.firstHalf.isTrainee = value;
+            } else if (fieldPath === 'secondHalf.courseId') {
+                current.secondHalf.courseId = value;
+            } else if (fieldPath === 'secondHalf.isTrainee') {
+                current.secondHalf.isTrainee = value;
+            }
+
+            state.courseAssignments[key] = current;
+            renderAll();
+            saveCurrentMonthShiftToCloud(true);
+        }
+
+        function clearCourseAssignment(memberId) {
+            const key = `${state.selectedAssignmentDate}_${memberId}`;
+            delete state.courseAssignments[key];
+            renderAll();
+            saveCurrentMonthShiftToCloud(true);
+        }
+
+        function renderMode4() {
+            const staffCountBadge = document.getElementById('staff-count-badge');
+            if (staffCountBadge) staffCountBadge.innerText = state.members.length;
+
+            const staffTableBody = document.getElementById('staff-master-table-body');
+            if (staffTableBody) {
+                if (state.members.length === 0) {
+                    staffTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="p-6 text-center text-slate-400 font-bold bg-slate-50">
+                                登録されているスタッフがいません。「＋ スタッフを追加」または「📋 スプレッドシート取り込み」から追加してください。
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    staffTableBody.innerHTML = state.members.map((m, idx) => {
+                        const badgesHTML = getMemberBadgesHTML(m);
+                        const ngCount = (m.ngCourses || []).length;
+                        return `
+                            <tr class="border-b border-slate-200 hover:bg-slate-50">
+                                <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
+                                <td class="p-3 font-bold text-slate-800">${m.name}</td>
+                                <td class="p-3">
+                                    <div class="flex items-center gap-1 flex-wrap">
+                                        ${badgesHTML || '<span class="text-xs text-slate-400">なし</span>'}
+                                    </div>
+                                </td>
+                                <td class="p-3 text-xs font-bold ${ngCount > 0 ? 'text-rose-600' : 'text-slate-400'}">
+                                    ${ngCount > 0 ? `⚠️ ${ngCount}コースNG` : 'NGなし'}
+                                </td>
+                                <td class="p-3 text-right space-x-2">
+                                    <button onclick="openMemberEditModal('${m.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                    <button onclick="deleteStaffDirect('${m.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const courseCountBadge = document.getElementById('course-count-badge');
+            if (courseCountBadge) courseCountBadge.innerText = state.courses.length;
+
+            const courseTableBody = document.getElementById('course-master-table-body');
+            if (courseTableBody) {
+                state.courses.sort((a, b) => (a.order || 0) - (b.order || 0));
+                courseTableBody.innerHTML = state.courses.map(crs => {
+                    const ngStaffCount = state.members.filter(m => m.ngCourses && m.ngCourses.includes(crs.id)).length;
+                    const isReq = crs.isRequired !== false;
+                    return `
+                        <tr class="border-b border-slate-200 hover:bg-slate-50">
+                            <td class="p-3 text-center font-black text-slate-700">${crs.order}</td>
+                            <td class="p-3 text-center">
+                                <span class="px-2 py-0.5 rounded text-[11px] font-black ${isReq ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
+                                    ${isReq ? '必須' : '任意'}
+                                </span>
+                            </td>
+                            <td class="p-3 font-bold text-slate-800">${crs.name}</td>
+                            <td class="p-3 text-xs font-bold ${ngStaffCount > 0 ? 'text-rose-600' : 'text-slate-400'}">
+                                ${ngStaffCount > 0 ? `⚠️ ${ngStaffCount}名が担当不可` : '担当不可なし'}
+                            </td>
+                            <td class="p-3 text-right space-x-2">
+                                <button onclick="openCourseModal('${crs.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                <button onclick="deleteCourse('${crs.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const staffAttrTableBody = document.getElementById('staff-attributes-table-body');
+            if (staffAttrTableBody) {
+                staffAttrTableBody.innerHTML = state.staffAttributes.map(attr => {
+                    const count = state.members.filter(m => m.attributes && m.attributes.includes(attr.id)).length;
+                    return `
+                        <tr class="border-b border-slate-200 hover:bg-slate-50">
+                            <td class="p-3">
+                                <span class="text-xs px-2 py-0.5 rounded font-black text-white shadow-2xs" style="background-color:${attr.color}">${attr.shortName || attr.name}</span>
+                            </td>
+                            <td class="p-3 font-bold text-slate-800">${attr.name}</td>
+                            <td class="p-3 font-black text-slate-700">${attr.shortName || attr.name}</td>
+                            <td class="p-3 text-xs font-bold text-slate-600">${count}名</td>
+                            <td class="p-3 text-right space-x-2">
+                                <button onclick="openStaffAttrModal('${attr.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                                <button onclick="deleteStaffAttr('${attr.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const shiftTableBody = document.getElementById('shift-types-table-body');
+            if (shiftTableBody) {
+                shiftTableBody.innerHTML = state.shiftTypes.map(st => {
                     return `
                         <tr class="border-b border-slate-200 hover:bg-slate-50">
                             <td class="p-3">
@@ -967,6 +2825,449 @@
                     `;
                 }).join('');
             }
+        }
+
+        function openCourseModal(id = null) {
+            document.getElementById('course-modal-id').value = id || '';
+            document.getElementById('course-modal-title').innerText = id ? 'コースの編集' : 'コースの追加';
+
+            if (id) {
+                const crs = state.courses.find(c => c.id === id);
+                if (crs) {
+                    document.getElementById('course-modal-order').value = crs.order || 1;
+                    document.getElementById('course-modal-name').value = crs.name;
+                    document.getElementById('course-modal-required').value = crs.isRequired !== false ? 'true' : 'false';
+                }
+            } else {
+                const nextOrder = state.courses.length > 0 ? Math.max(...state.courses.map(c => c.order || 0)) + 1 : 1;
+                document.getElementById('course-modal-order').value = nextOrder;
+                document.getElementById('course-modal-name').value = '';
+                document.getElementById('course-modal-required').value = 'true';
+            }
+            document.getElementById('course-modal').classList.remove('hidden');
+        }
+
+        function closeCourseModal() {
+            document.getElementById('course-modal').classList.add('hidden');
+        }
+
+        function saveCourse() {
+            const id = document.getElementById('course-modal-id').value;
+            const order = parseInt(document.getElementById('course-modal-order').value) || 1;
+            const name = document.getElementById('course-modal-name').value.trim();
+            const isRequired = document.getElementById('course-modal-required').value === 'true';
+
+            if (!name) return;
+
+            if (id) {
+                const crs = state.courses.find(c => c.id === id);
+                if (crs) {
+                    crs.order = order;
+                    crs.name = name;
+                    crs.isRequired = isRequired;
+                }
+            } else {
+                state.courses.push({
+                    id: 'c_' + Date.now(),
+                    order: order,
+                    name: name,
+                    isRequired: isRequired
+                });
+            }
+
+            closeCourseModal();
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function deleteCourse(id) {
+            state.courses = state.courses.filter(c => c.id !== id);
+            state.members.forEach(m => {
+                if (m.ngCourses) {
+                    m.ngCourses = m.ngCourses.filter(cid => cid !== id);
+                }
+            });
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function openCourseImportModal() {
+            document.getElementById('course-import-textarea').value = '';
+            document.getElementById('course-import-modal').classList.remove('hidden');
+        }
+
+        function closeCourseImportModal() {
+            document.getElementById('course-import-modal').classList.add('hidden');
+        }
+
+        function executeCourseImport() {
+            const text = document.getElementById('course-import-textarea').value.trim();
+            if (!text) return;
+
+            const mode = document.querySelector('input[name="course-import-mode"]:checked').value;
+            if (mode === 'replace') {
+                state.courses = [];
+            }
+
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let addedCount = 0;
+
+            lines.forEach((line, idx) => {
+                const parts = line.split(/[\t,]/).map(p => p.trim());
+                let order = (state.courses.length + 1);
+                let name = '';
+                let isRequired = true;
+
+                if (parts.length >= 3 && !isNaN(parseInt(parts[0]))) {
+                    order = parseInt(parts[0]);
+                    name = parts[1];
+                    if (['任意', '臨時', '予備', 'false', '0'].includes(parts[2])) {
+                        isRequired = false;
+                    }
+                } else if (parts.length === 2) {
+                    if (!isNaN(parseInt(parts[0]))) {
+                        order = parseInt(parts[0]);
+                        name = parts[1];
+                    } else {
+                        name = parts[0];
+                        if (['任意', '臨時', '予備', 'false', '0'].includes(parts[1])) {
+                            isRequired = false;
+                        }
+                    }
+                } else {
+                    name = parts[0];
+                }
+
+                if (name) {
+                    state.courses.push({
+                        id: 'c_' + Date.now() + '_' + idx,
+                        order: order,
+                        name: name,
+                        isRequired: isRequired
+                    });
+                    addedCount++;
+                }
+            });
+
+            closeCourseImportModal();
+            renderAll();
+            saveMasterToCloud(true);
+            showMessageModal(`${addedCount}件のコースを取り込みました！`);
+        }
+
+        function openMemberEditModal(memberId = null) {
+            const titleEl = document.getElementById('member-edit-modal-title');
+            const deleteContainer = document.getElementById('member-edit-delete-container');
+            const member = memberId ? state.members.find(m => m.id === memberId) : null;
+
+            document.getElementById('member-edit-id').value = memberId || '';
+
+            if (member) {
+                titleEl.innerText = '👤 スタッフ情報の編集';
+                document.getElementById('member-edit-name').value = member.name;
+                deleteContainer.classList.remove('hidden');
+            } else {
+                titleEl.innerText = '👤 スタッフの新規追加';
+                document.getElementById('member-edit-name').value = '';
+                deleteContainer.classList.add('hidden');
+            }
+
+            const attrContainer = document.getElementById('member-edit-attributes-container');
+            const currentAttrs = member ? (member.attributes || []) : [];
+            attrContainer.innerHTML = state.staffAttributes.map(attr => {
+                const isChecked = currentAttrs.includes(attr.id);
+                return `
+                    <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-xs">
+                        <input type="checkbox" value="${attr.id}" class="member-attr-checkbox text-indigo-600 rounded" ${isChecked ? 'checked' : ''}>
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${attr.color}"></span>
+                        <span class="font-bold text-slate-700 truncate">${attr.name}</span>
+                    </label>
+                `;
+            }).join('');
+
+            const ngContainer = document.getElementById('member-edit-ng-courses-container');
+            const currentNG = member ? (member.ngCourses || []) : [];
+            ngContainer.innerHTML = state.courses.map(crs => {
+                const isNG = currentNG.includes(crs.id);
+                return `
+                    <label class="flex items-center gap-1.5 p-1.5 rounded-md border text-xs cursor-pointer transition select-none ${isNG ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'}">
+                        <input type="checkbox" value="${crs.id}" class="member-ng-checkbox text-rose-600 rounded" ${isNG ? 'checked' : ''}>
+                        <span class="truncate">${crs.order}. ${crs.name}</span>
+                    </label>
+                `;
+            }).join('');
+
+            document.getElementById('member-edit-modal').classList.remove('hidden');
+        }
+
+        function closeMemberEditModal() {
+            document.getElementById('member-edit-modal').classList.add('hidden');
+        }
+
+        function saveMemberEdit() {
+            const memberId = document.getElementById('member-edit-id').value;
+            const newName = document.getElementById('member-edit-name').value.trim();
+            if (!newName) {
+                showMessageModal("スタッフ名を入力してください。");
+                return;
+            }
+
+            const attrCbs = document.querySelectorAll('.member-attr-checkbox:checked');
+            const selectedAttrs = Array.from(attrCbs).map(cb => cb.value);
+
+            const ngCbs = document.querySelectorAll('.member-ng-checkbox:checked');
+            const selectedNGs = Array.from(ngCbs).map(cb => cb.value);
+
+            if (memberId) {
+                const member = state.members.find(m => m.id === memberId);
+                if (member) {
+                    member.name = newName;
+                    member.attributes = selectedAttrs;
+                    member.ngCourses = selectedNGs;
+                }
+            } else {
+                state.members.push({
+                    id: 'm_' + Date.now(),
+                    name: newName,
+                    attributes: selectedAttrs,
+                    ngCourses: selectedNGs
+                });
+            }
+
+            closeMemberEditModal();
+            renderAll();
+            saveMasterToCloud(true);
+        }
+
+        function deleteCurrentMember() {
+            const memberId = document.getElementById('member-edit-id').value;
+            if (!memberId) return;
+
+            deleteStaffDirect(memberId);
+            closeMemberEditModal();
+        }
+
+        function deleteStaffDirect(memberId) {
+            const target = state.members.find(m => m.id === memberId);
+            if (!target) return;
+
+            state.members = state.members.filter(m => m.id !== memberId);
+            renderAll();
+            saveMasterToCloud(true);
+            showMessageModal(`スタッフ「${target.name}」を削除しました。`);
+        }
+
+        function generateSpanPattern(spanDays, rules, passThroughId, singleId) {
+            if (spanDays <= 0) return [];
+            if (spanDays === 1) return [singleId];
+
+            const pattern = [];
+            if (rules.holidayNextSingle) {
+                pattern.push(singleId);
+            }
+
+            const remaining = spanDays - pattern.length;
+            if (remaining <= 0) return pattern;
+
+            const maxThroughConsecutive = rules.maxConsecutiveThrough || 2;
+            let currentThroughStreak = 0;
+
+            let targetThroughCount = Math.floor(spanDays / 2);
+            if (spanDays % 2 !== 0 && rules.oddRemainderPriority === 'single') {
+                targetThroughCount = Math.floor(spanDays / 2);
+            }
+
+            let assignedThrough = 0;
+            for (let i = 0; i < remaining; i++) {
+                if (assignedThrough < targetThroughCount && currentThroughStreak < maxThroughConsecutive) {
+                    pattern.push(passThroughId);
+                    assignedThrough++;
+                    currentThroughStreak++;
+                } else {
+                    pattern.push(singleId);
+                    currentThroughStreak = 0;
+                }
+            }
+
+            return pattern;
+        }
+
+        function openGeneratorModal() {
+            const days = getMonthDays();
+            if (days.length === 0) return;
+
+            const startDateEl = document.getElementById('generator-start-date');
+            const endDateEl = document.getElementById('generator-end-date');
+            if (startDateEl && endDateEl) {
+                startDateEl.value = days[0].dateStr;
+                endDateEl.value = days[days.length - 1].dateStr;
+            }
+
+            const allCountEl = document.getElementById('gen-scope-all-count');
+            if (allCountEl) allCountEl.innerText = state.members.length;
+
+            const filteredLabel = document.getElementById('gen-scope-filtered-label');
+            if (filteredLabel) {
+                if (state.activeStaffFilter) {
+                    const matchCount = state.members.filter(m => m.attributes && m.attributes.includes(state.activeStaffFilter)).length;
+                    filteredLabel.innerHTML = `<input type="radio" name="generator-target-scope" value="filtered" class="text-indigo-600"> <span>絞り込み中のスタッフのみ (${matchCount}名)</span>`;
+                    filteredLabel.classList.remove('hidden');
+                } else {
+                    filteredLabel.classList.add('hidden');
+                }
+            }
+
+            document.getElementById('generator-modal').classList.remove('hidden');
+        }
+
+        function closeGeneratorModal() {
+            document.getElementById('generator-modal').classList.add('hidden');
+        }
+
+        function setGeneratorRange(rangeType) {
+            const days = getMonthDays();
+            if (days.length === 0) return;
+
+            const startDateEl = document.getElementById('generator-start-date');
+            const endDateEl = document.getElementById('generator-end-date');
+            if (!startDateEl || !endDateEl) return;
+
+            if (rangeType === 'full') {
+                startDateEl.value = days[0].dateStr;
+                endDateEl.value = days[days.length - 1].dateStr;
+            } else if (rangeType === 'first_half') {
+                startDateEl.value = days[0].dateStr;
+                const mid = days.find(d => d.day === 15) || days[Math.min(14, days.length - 1)];
+                endDateEl.value = mid.dateStr;
+            } else if (rangeType === 'second_half') {
+                const mid = days.find(d => d.day === 16) || days[Math.min(15, days.length - 1)];
+                startDateEl.value = mid.dateStr;
+                endDateEl.value = days[days.length - 1].dateStr;
+            }
+        }
+
+        function executeShiftGeneration() {
+            const startDateStr = document.getElementById('generator-start-date').value;
+            const endDateStr = document.getElementById('generator-end-date').value;
+
+            if (!startDateStr || !endDateStr) {
+                showMessageModal("開始日と終了日を正しく選択してください。");
+                return;
+            }
+            if (startDateStr > endDateStr) {
+                showMessageModal("開始日は終了日以前の日付を指定してください。");
+                return;
+            }
+
+            const scope = document.querySelector('input[name="generator-target-scope"]:checked')?.value || 'all';
+            let targetMembers = state.members;
+            if (scope === 'filtered' && state.activeStaffFilter) {
+                targetMembers = state.members.filter(m => m.attributes && m.attributes.includes(state.activeStaffFilter));
+            }
+
+            if (targetMembers.length === 0) {
+                showMessageModal("生成対象となるスタッフがいません。");
+                return;
+            }
+
+            const throughShift = state.shiftTypes.find(s => s.name.includes('通') || s.shortName.includes('通')) || state.shiftTypes[0];
+            const singleShift = state.shiftTypes.find(s => s.name.includes('単') || s.shortName.includes('単')) || state.shiftTypes[1] || state.shiftTypes[0];
+
+            if (!throughShift || !singleShift) {
+                showMessageModal("シフト属性に「通し」および「単独」が登録されている必要があります。");
+                return;
+            }
+
+            const days = getMonthDays();
+            let generatedCount = 0;
+            let skippedPinnedCount = 0;
+
+            targetMembers.forEach(member => {
+                let currentSpanDays = [];
+
+                days.forEach(d => {
+                    const key = `${member.id}_${d.dateStr}`;
+                    const cell = getCellData(key);
+
+                    if (['休', '指', '有'].includes(cell.shiftId)) {
+                        if (currentSpanDays.length > 0) {
+                            processSpan(currentSpanDays);
+                            currentSpanDays = [];
+                        }
+                    } else {
+                        currentSpanDays.push(d);
+                    }
+                });
+
+                if (currentSpanDays.length > 0) {
+                    processSpan(currentSpanDays);
+                }
+
+                function processSpan(span) {
+                    const pattern = generateSpanPattern(span.length, state.generatorRules, throughShift.id, singleShift.id);
+
+                    span.forEach((dayObj, idx) => {
+                        if (dayObj.dateStr >= startDateStr && dayObj.dateStr <= endDateStr) {
+                            const key = `${member.id}_${dayObj.dateStr}`;
+                            const cell = getCellData(key);
+
+                            if (['休', '指', '有'].includes(cell.shiftId)) return;
+
+                            if (cell.isPinned) {
+                                skippedPinnedCount++;
+                                return;
+                            }
+
+                            const targetShiftId = pattern[idx] || singleShift.id;
+                            state.schedule[key] = {
+                                shiftId: targetShiftId,
+                                colorId: cell.colorId || '',
+                                isPinned: false
+                            };
+                            generatedCount++;
+                        }
+                    });
+                }
+            });
+
+            closeGeneratorModal();
+            renderAll();
+            saveCurrentMonthShiftToCloud(true);
+
+            let msg = `指定期間（${startDateStr} 〜 ${endDateStr}）のシフト自動生成が完了しました！\n・自動入力: ${generatedCount} 箇所`;
+            if (skippedPinnedCount > 0) {
+                msg += `\n・ピン留め保護によりスキップ: ${skippedPinnedCount} 箇所`;
+            }
+            showMessageModal(msg);
+        }
+
+        function openRuleConfigModal() {
+            const r1 = document.getElementById('rule-holiday-next-single');
+            const r2 = document.getElementById('rule-max-consecutive-through');
+            const r3 = document.getElementById('rule-odd-remainder-priority');
+
+            if (r1) r1.checked = state.generatorRules.holidayNextSingle;
+            if (r2) r2.value = state.generatorRules.maxConsecutiveThrough || 2;
+            if (r3) r3.value = state.generatorRules.oddRemainderPriority || 'single';
+
+            document.getElementById('rule-config-modal').classList.remove('hidden');
+        }
+
+        function closeRuleConfigModal() {
+            document.getElementById('rule-config-modal').classList.add('hidden');
+        }
+
+        function saveRuleConfig() {
+            state.generatorRules = {
+                holidayNextSingle: document.getElementById('rule-holiday-next-single').checked,
+                maxConsecutiveThrough: parseInt(document.getElementById('rule-max-consecutive-through').value) || 2,
+                oddRemainderPriority: document.getElementById('rule-odd-remainder-priority').value
+            };
+
+            closeRuleConfigModal();
+            saveData();
+            saveMasterToCloud(true);
+            showMessageModal("自動生成ルール設定を更新・保存しました。");
         }
 
         function selectStamp(stamp) {
@@ -1015,16 +3316,259 @@
             renderAll();
         }
 
-        function generateDummyMembers() {
-            state.members = [];
-            for (let i = 1; i <= 50; i++) {
-                state.members.push({
-                    id: 'm_' + i,
-                    name: 'スタッフ ' + (i < 10 ? '0' + i : i)
+        function initDefaultMembers() {
+            state.members = [
+                { id: 'm_1', name: 'スタッフ 01', attributes: ['attr_1t', 'attr_tenko'], ngCourses: [] },
+                { id: 'm_2', name: 'スタッフ 02', attributes: ['attr_night'], ngCourses: ['c_01'] }
+            ];
+        }
+
+        function saveAsDefaultMaster() {
+            try {
+                localStorage.setItem('shift_app_default_shift_types', JSON.stringify(state.shiftTypes));
+                localStorage.setItem('shift_app_default_color_types', JSON.stringify(state.colorTypes));
+                localStorage.setItem('shift_app_default_staff_attributes', JSON.stringify(state.staffAttributes));
+                localStorage.setItem('shift_app_default_courses', JSON.stringify(state.courses));
+                saveMasterToCloud(true);
+                showMessageModal("現在の設定を「デフォルト設定」として保存しました！");
+            } catch (e) {
+                console.error("Failed to save default master", e);
+                showMessageModal("デフォルト設定の保存に失敗しました。");
+            }
+        }
+
+        function resetToDefaultMaster() {
+            const defShift = localStorage.getItem('shift_app_default_shift_types');
+            const defColor = localStorage.getItem('shift_app_default_color_types');
+            const defStaffAttr = localStorage.getItem('shift_app_default_staff_attributes');
+            const defCourses = localStorage.getItem('shift_app_default_courses');
+
+            if (!defShift && !defColor && !defStaffAttr && !defCourses) {
+                showMessageModal("保存されたデフォルト設定がありません。");
+                return;
+            }
+
+            try {
+                if (defShift) state.shiftTypes = JSON.parse(defShift);
+                if (defColor) state.colorTypes = JSON.parse(defColor);
+                if (defStaffAttr) state.staffAttributes = JSON.parse(defStaffAttr);
+                if (defCourses) state.courses = JSON.parse(defCourses);
+                renderAll();
+                saveMasterToCloud(true);
+                showMessageModal("デフォルト設定を読み込み、属性とコース一覧を復元しました。");
+            } catch (e) {
+                console.error("Failed to reset default master", e);
+                showMessageModal("デフォルト設定の読み込みに失敗しました。");
+            }
+        }
+
+        let currentFileHandle = null;
+
+        function updateFileStatusUI() {
+            const badge = document.getElementById('linked-file-badge');
+            const saveBtnText = document.getElementById('save-btn-text');
+            if (!badge || !saveBtnText) return;
+
+            if (currentFileHandle && currentFileHandle.name) {
+                badge.innerText = `📄 ${currentFileHandle.name}`;
+                badge.classList.remove('hidden');
+                badge.classList.add('text-emerald-400', 'font-bold');
+                saveBtnText.innerText = '上書き保存';
+            } else {
+                badge.classList.add('hidden');
+                saveBtnText.innerText = '保存';
+            }
+        }
+
+        async function saveDirectToFile() {
+            const jsonStr = JSON.stringify(state, null, 2);
+
+            if ('showSaveFilePicker' in window) {
+                try {
+                    if (!currentFileHandle) {
+                        const options = {
+                            suggestedName: `shift_data_${state.currentYear}_${state.currentMonth}.json`,
+                            types: [{
+                                description: 'JSONファイル',
+                                accept: { 'application/json': ['.json'] }
+                            }]
+                        };
+                        currentFileHandle = await window.showSaveFilePicker(options);
+                    }
+
+                    const writable = await currentFileHandle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+
+                    updateFileStatusUI();
+                    showMessageModal(`ファイル「${currentFileHandle.name}」に保存しました！`);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('File save error:', err);
+                        fallbackDownloadSave(jsonStr);
+                    }
+                }
+            } else {
+                fallbackDownloadSave(jsonStr);
+            }
+        }
+
+        async function setSaveFileAs() {
+            const jsonStr = JSON.stringify(state, null, 2);
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const options = {
+                        suggestedName: `shift_data_${state.currentYear}_${state.currentMonth}.json`,
+                        types: [{
+                            description: 'JSONファイル',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    };
+                    const handle = await window.showSaveFilePicker(options);
+                    currentFileHandle = handle;
+                    const writable = await currentFileHandle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+
+                    updateFileStatusUI();
+                    showMessageModal(`「${currentFileHandle.name}」として新しく保存しました！`);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Save As error:', err);
+                        fallbackDownloadSave(jsonStr);
+                    }
+                }
+            } else {
+                fallbackDownloadSave(jsonStr);
+            }
+        }
+
+        async function openDirectFile() {
+            if ('showOpenFilePicker' in window) {
+                try {
+                    const [fileHandle] = await window.showOpenFilePicker({
+                        types: [{
+                            description: 'JSONファイル',
+                            accept: { 'application/json': ['.json'] }
+                        }],
+                        multiple: false
+                    });
+
+                    const file = await fileHandle.getFile();
+                    const contents = await file.text();
+                    state = JSON.parse(contents);
+                    currentFileHandle = fileHandle;
+                    updateFileStatusUI();
+                    renderAll();
+                    showMessageModal(`「${fileHandle.name}」を開いて復元しました。`);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('File open error:', err);
+                        document.getElementById('legacy-file-input').click();
+                    }
+                }
+            } else {
+                document.getElementById('legacy-file-input').click();
+            }
+        }
+
+        function fallbackDownloadSave(jsonStr) {
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `shift_data_${state.currentYear}_${state.currentMonth}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessageModal("ダウンロードフォルダに保存しました。");
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    state = JSON.parse(e.target.result);
+                    currentFileHandle = null;
+                    updateFileStatusUI();
+                    renderAll();
+                    showMessageModal("データを復元しました。");
+                } catch (err) {
+                    showMessageModal("ファイルの読み込みに失敗しました。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function openStaffAttrModal(id = null) {
+            document.getElementById('staff-attr-modal-id').value = id || '';
+            document.getElementById('staff-attr-modal-title').innerText = id ? 'スタッフ属性の編集' : 'スタッフ属性の追加';
+
+            if (id) {
+                const attr = state.staffAttributes.find(a => a.id === id);
+                if (attr) {
+                    document.getElementById('staff-attr-modal-name').value = attr.name;
+                    document.getElementById('staff-attr-modal-short').value = attr.shortName || '';
+                    document.getElementById('staff-attr-modal-color').value = attr.color;
+                }
+            } else {
+                document.getElementById('staff-attr-modal-name').value = '';
+                document.getElementById('staff-attr-modal-short').value = '';
+                document.getElementById('staff-attr-modal-color').value = getRandomColor();
+            }
+            document.getElementById('staff-attr-modal').classList.remove('hidden');
+        }
+
+        function closeStaffAttrModal() {
+            document.getElementById('staff-attr-modal').classList.add('hidden');
+        }
+
+        function saveStaffAttr() {
+            const id = document.getElementById('staff-attr-modal-id').value;
+            const name = document.getElementById('staff-attr-modal-name').value.trim();
+            const shortName = document.getElementById('staff-attr-modal-short').value.trim() || name.substring(0, 2);
+            const color = document.getElementById('staff-attr-modal-color').value;
+
+            if (!name) return;
+
+            if (id) {
+                const attr = state.staffAttributes.find(a => a.id === id);
+                if (attr) {
+                    attr.name = name;
+                    attr.shortName = shortName;
+                    attr.color = color;
+                }
+            } else {
+                state.staffAttributes.push({
+                    id: 'attr_' + Date.now(),
+                    name: name,
+                    shortName: shortName,
+                    color: color
                 });
             }
+
+            closeStaffAttrModal();
             renderAll();
-            showMessageModal("50名のダミーメンバーを生成しました。");
+            saveMasterToCloud(true);
+        }
+
+        function deleteStaffAttr(id) {
+            state.staffAttributes = state.staffAttributes.filter(a => a.id !== id);
+            state.members.forEach(m => {
+                if (m.attributes) {
+                    m.attributes = m.attributes.filter(attrId => attrId !== id);
+                }
+            });
+            if (state.activeStaffFilter === id) {
+                state.activeStaffFilter = null;
+            }
+            if (state.activeAssignmentStaffFilter === id) {
+                state.activeAssignmentStaffFilter = null;
+            }
+            renderAll();
+            saveMasterToCloud(true);
         }
 
         function openStaffImportModal() {
@@ -1041,22 +3585,70 @@
             if (!text) return;
 
             const mode = document.querySelector('input[name="staff-import-mode"]:checked').value;
-            const names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length === 0) return;
 
             if (mode === 'replace') {
                 state.members = [];
             }
 
-            names.forEach((name, idx) => {
+            const firstLineParts = lines[0].split(/[\t,]/).map(p => p.trim());
+            const hasHeader = firstLineParts.length > 1;
+
+            let startIndex = 0;
+            let attrColMap = [];
+
+            if (hasHeader) {
+                startIndex = 1;
+                for (let col = 1; col < firstLineParts.length; col++) {
+                    const colName = firstLineParts[col];
+                    if (!colName) continue;
+
+                    let existingAttr = state.staffAttributes.find(a => a.name === colName || a.shortName === colName);
+                    if (!existingAttr) {
+                        existingAttr = {
+                            id: 'attr_' + Date.now() + '_' + col,
+                            name: colName,
+                            shortName: colName.substring(0, 2),
+                            color: getRandomColor()
+                        };
+                        state.staffAttributes.push(existingAttr);
+                    }
+                    attrColMap.push({ colIndex: col, attrId: existingAttr.id });
+                }
+            }
+
+            let importedCount = 0;
+            for (let i = startIndex; i < lines.length; i++) {
+                const parts = lines[i].split(/[\t,]/).map(p => p.trim());
+                const name = parts[0];
+                if (!name) continue;
+
+                const assignedAttrs = [];
+
+                if (hasHeader) {
+                    attrColMap.forEach(map => {
+                        const cellVal = parts[map.colIndex] || '';
+                        if (['〇', '○', '1', '有', 'true', 'TRUE', 'ok', 'OK', 'レ'].includes(cellVal) || cellVal.length > 0) {
+                            assignedAttrs.push(map.attrId);
+                        }
+                    });
+                }
+
                 state.members.push({
-                    id: 'm_' + Date.now() + '_' + idx,
-                    name: name
+                    id: 'm_' + Date.now() + '_' + i,
+                    name: name,
+                    attributes: assignedAttrs,
+                    ngCourses: []
                 });
-            });
+                importedCount++;
+            }
 
             closeStaffImportModal();
             renderAll();
-            showMessageModal(`${names.length}名のメンバーを取り込みました。`);
+            saveMasterToCloud(true);
+            showMessageModal(`${importedCount}名のスタッフを取り込みました！`);
         }
 
         function openShiftImportModal() {
@@ -1068,56 +3660,12 @@
             document.getElementById('shift-import-modal').classList.add('hidden');
         }
 
-        function openColorImportModal() {
-            document.getElementById('color-import-textarea').value = '';
-            document.getElementById('color-import-modal').classList.remove('hidden');
-        }
-
-        function closeColorImportModal() {
-            document.getElementById('color-import-modal').classList.add('hidden');
-        }
-
-        function executeColorImport() {
-            const text = document.getElementById('color-import-textarea').value.trim();
-            if (!text) return;
-
-            const mode = document.querySelector('input[name="color-import-mode"]:checked').value;
-            if (mode === 'replace') {
-                state.colorTypes = [];
-            }
-
-            const lines = text.split('\n');
-            let count = 0;
-
-            lines.forEach((line, idx) => {
-                const parts = line.split(/[\t,]/).map(p => p.trim());
-                if (parts.length >= 1 && parts[0] !== '') {
-                    const colorName = parts[0];
-                    const shortName = parts[1] || '';
-
-                    state.colorTypes.push({
-                        id: 'c_' + Date.now() + '_' + idx,
-                        name: colorName,
-                        shortName: shortName,
-                        color: getRandomColor()
-                    });
-                    count++;
-                }
-            });
-
-            closeColorImportModal();
-            renderAll();
-            showMessageModal(`${count}件のカラー属性を取り込みました。`);
-        }
-
         function executeShiftImport() {
             const text = document.getElementById('shift-import-textarea').value.trim();
             if (!text) return;
 
             const mode = document.querySelector('input[name="shift-import-mode"]:checked').value;
-            if (mode === 'replace') {
-                state.shiftTypes = [];
-            }
+            if (mode === 'replace') state.shiftTypes = [];
 
             const lines = text.split('\n');
             let count = 0;
@@ -1142,7 +3690,49 @@
 
             closeShiftImportModal();
             renderAll();
+            saveMasterToCloud(true);
             showMessageModal(`${count}件のシフト属性を取り込みました。`);
+        }
+
+        function openColorImportModal() {
+            document.getElementById('color-import-textarea').value = '';
+            document.getElementById('color-import-modal').classList.remove('hidden');
+        }
+
+        function closeColorImportModal() {
+            document.getElementById('color-import-modal').classList.add('hidden');
+        }
+
+        function executeColorImport() {
+            const text = document.getElementById('color-import-textarea').value.trim();
+            if (!text) return;
+
+            const mode = document.querySelector('input[name="color-import-mode"]:checked').value;
+            if (mode === 'replace') state.colorTypes = [];
+
+            const lines = text.split('\n');
+            let count = 0;
+
+            lines.forEach((line, idx) => {
+                const parts = line.split(/[\t,]/).map(p => p.trim());
+                if (parts.length >= 1 && parts[0] !== '') {
+                    const colorName = parts[0];
+                    const shortName = parts[1] || '';
+
+                    state.colorTypes.push({
+                        id: 'c_' + Date.now() + '_' + idx,
+                        name: colorName,
+                        shortName: shortName,
+                        color: getRandomColor()
+                    });
+                    count++;
+                }
+            });
+
+            closeColorImportModal();
+            renderAll();
+            saveMasterToCloud(true);
+            showMessageModal(`${count}件のカラー属性を取り込みました。`);
         }
 
         function openShiftModal(id = null) {
@@ -1199,11 +3789,13 @@
 
             closeShiftModal();
             renderAll();
+            saveMasterToCloud(true);
         }
 
         function deleteShiftType(id) {
             state.shiftTypes = state.shiftTypes.filter(s => s.id !== id);
             renderAll();
+            saveMasterToCloud(true);
         }
 
         function openColorModal(id = null) {
@@ -1255,40 +3847,13 @@
 
             closeColorModal();
             renderAll();
+            saveMasterToCloud(true);
         }
 
         function deleteColorType(id) {
             state.colorTypes = state.colorTypes.filter(c => c.id !== id);
             renderAll();
-        }
-
-        function exportData() {
-            const jsonStr = JSON.stringify(state, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `shift_data_${state.currentYear}_${state.currentMonth}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    state = parsed;
-                    renderAll();
-                    showMessageModal("データを正常に復元しました。");
-                } catch (err) {
-                    showMessageModal("ファイルの読み込みに失敗しました。");
-                }
-            };
-            reader.readAsText(file);
+            saveMasterToCloud(true);
         }
 
         function showMessageModal(msg) {
@@ -1300,9 +3865,84 @@
             document.getElementById('message-modal').classList.add('hidden');
         }
 
+        window.changeMonth = changeMonth;
+        window.switchTab = switchTab;
+        window.selectStamp = selectStamp;
+        window.toggleStamp = toggleStamp;
+        window.setMemberAllHoliday = setMemberAllHoliday;
+        window.updateDailyRequired = updateDailyRequired;
+        window.applyDefaultRequired = applyDefaultRequired;
+        window.openStaffImportModal = openStaffImportModal;
+        window.closeStaffImportModal = closeStaffImportModal;
+        window.executeStaffImport = executeStaffImport;
+        window.openShiftImportModal = openShiftImportModal;
+        window.closeShiftImportModal = closeShiftImportModal;
+        window.executeShiftImport = executeShiftImport;
+        window.openColorImportModal = openColorImportModal;
+        window.closeColorImportModal = closeColorImportModal;
+        window.executeColorImport = executeColorImport;
+        window.openShiftModal = openShiftModal;
+        window.closeShiftModal = closeShiftModal;
+        window.saveShiftType = saveShiftType;
+        window.deleteShiftType = deleteShiftType;
+        window.openColorModal = openColorModal;
+        window.closeColorModal = closeColorModal;
+        window.saveColorType = saveColorType;
+        window.deleteColorType = deleteColorType;
+        window.selectTool = selectTool;
+        window.toggleShiftStamp = toggleShiftStamp;
+        window.saveAsDefaultMaster = saveAsDefaultMaster;
+        window.resetToDefaultMaster = resetToDefaultMaster;
+        window.saveDirectToFile = saveDirectToFile;
+        window.setSaveFileAs = setSaveFileAs;
+        window.openDirectFile = openDirectFile;
+        window.importData = importData;
+        window.showMessageModal = showMessageModal;
+        window.closeMessageModal = closeMessageModal;
+
+        window.showAuthLockOverlay = showAuthLockOverlay;
+        window.hideAuthLockOverlay = hideAuthLockOverlay;
+
+        window.openStaffAttrModal = openStaffAttrModal;
+        window.closeStaffAttrModal = closeStaffAttrModal;
+        window.saveStaffAttr = saveStaffAttr;
+        window.deleteStaffAttr = deleteStaffAttr;
+        window.openMemberEditModal = openMemberEditModal;
+        window.closeMemberEditModal = closeMemberEditModal;
+        window.saveMemberEdit = saveMemberEdit;
+        window.deleteCurrentMember = deleteCurrentMember;
+        window.deleteStaffDirect = deleteStaffDirect;
+        window.setStaffFilter = setStaffFilter;
+        window.setAssignmentStaffFilter = setAssignmentStaffFilter;
+        window.saveAllToCloud = saveAllToCloud;
+
+        window.openGeneratorModal = openGeneratorModal;
+        window.closeGeneratorModal = closeGeneratorModal;
+        window.setGeneratorRange = setGeneratorRange;
+        window.executeShiftGeneration = executeShiftGeneration;
+        window.openRuleConfigModal = openRuleConfigModal;
+        window.closeRuleConfigModal = closeRuleConfigModal;
+        window.saveRuleConfig = saveRuleConfig;
+
+        window.openCourseModal = openCourseModal;
+        window.closeCourseModal = closeCourseModal;
+        window.saveCourse = saveCourse;
+        window.deleteCourse = deleteCourse;
+        window.openCourseImportModal = openCourseImportModal;
+        window.closeCourseImportModal = closeCourseImportModal;
+        window.executeCourseImport = executeCourseImport;
+        window.onAssignmentDateChange = onAssignmentDateChange;
+        window.changeAssignmentDay = changeAssignmentDay;
+        window.updateCourseAssignment = updateCourseAssignment;
+        window.clearCourseAssignment = clearCourseAssignment;
+
+        window.loginWithGoogle = loginWithGoogle;
+        window.logoutGoogle = logoutGoogle;
+
         window.onload = function() {
             loadData();
             renderAll();
+            initFirebase();
         };
     </script>
 </body>
