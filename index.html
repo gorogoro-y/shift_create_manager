@@ -67,7 +67,7 @@
 
                 <!-- クラウド同期ステータス & 操作ボタン -->
                 <div class="flex items-center gap-1.5 bg-slate-800/90 px-2 py-1 rounded-lg border border-indigo-500/40">
-                    <span id="cloud-status-badge" class="text-[11px] px-2 py-0.5 rounded font-bold bg-amber-950 text-amber-300 border border-amber-700/60 flex items-center gap-1">
+                    <span id="cloud-status-badge" onclick="showAuthLockOverlay()" class="text-[11px] px-2 py-0.5 rounded font-bold bg-amber-950 text-amber-300 border border-amber-700/60 flex items-center gap-1 cursor-pointer" title="クリックしてGoogleログイン・同期設定">
                         <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                         <span>認証待ち...</span>
                     </span>
@@ -1232,8 +1232,10 @@
 
         async function saveAllToCloud() {
             if (!isCloudConnected) {
+                // ローカルにはまず確実に保存
                 saveData();
-                showMessageModal("現在クラウド同期はOFF（ローカル運用）です。\nデータはブラウザ（ローカル）に自動保存されました。\n\nファイルとして保存する場合は上部の「💾 保存」ボタンをご利用ください。");
+                // クラウド同期用ログインモーダルを表示
+                showAuthLockOverlay();
                 return;
             }
             updateCloudStatus('クラウド保存中...', 'syncing');
