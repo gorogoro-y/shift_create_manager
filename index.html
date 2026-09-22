@@ -127,7 +127,6 @@
                 </div>
             </div>
         </div>
-
         <!-- タブナビゲーション -->
         <nav class="max-w-7xl mx-auto px-4 flex gap-1 border-t border-slate-200">
             <button onclick="switchTab('tab-holidays')" id="nav-tab-holidays" class="nav-tab py-2.5 px-4 font-bold text-xs border-b-2 border-indigo-600 text-indigo-700 flex items-center gap-1.5">
@@ -147,12 +146,11 @@
 
     <!-- メインコンテンツ -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-4">
-
         <!-- タブ1: メンバー休み設定 -->
         <section id="tab-holidays" class="tab-pane flex flex-col gap-3">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-bold text-slate-500">休みスタンプ:</span>
+                    <span class="text-xs font-bold text-slate-500">休みスタンプ (再クリックで解除):</span>
                     <button onclick="selectStamp('休')" id="stamp-btn-休" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-rose-100 border-rose-300 text-rose-800 shadow-xs ring-2 ring-indigo-500">休 (公休)</button>
                     <button onclick="selectStamp('指')" id="stamp-btn-指" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-amber-50 border-amber-200 text-amber-700">指 (指定休)</button>
                     <button onclick="selectStamp('有')" id="stamp-btn-有" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-emerald-50 border-emerald-200 text-emerald-700">有 (有給)</button>
@@ -179,12 +177,11 @@
                 <!-- JSで動的レンダリング -->
             </div>
         </section>
-
         <!-- タブ2: 属性設定 -->
         <section id="tab-shifts" class="tab-pane hidden flex flex-col gap-3">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-3">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-xs font-bold text-slate-500">シフトスタンプ:</span>
+                    <span class="text-xs font-bold text-slate-500">シフトスタンプ (再クリックで解除):</span>
                     <div id="shift-stamp-selector-bar" class="flex items-center gap-1.5 flex-wrap">
                         <!-- JSで動的レンダリング -->
                     </div>
@@ -221,7 +218,6 @@
                 <!-- JSで動的レンダリング -->
             </div>
         </section>
-
         <!-- タブ3: シフト作成 (日別配車) -->
         <section id="tab-assignment" class="tab-pane hidden flex flex-col gap-3">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
@@ -247,7 +243,6 @@
                 <!-- JSで動的生成 -->
             </div>
         </section>
-
         <!-- タブ4: 設定 -->
         <section id="tab-settings" class="tab-pane hidden flex flex-col gap-4">
             
@@ -342,9 +337,8 @@
 
         </section>
     </main>
-
     <!-- 各種モーダル -->
-    
+
     <!-- Google認証モーダル -->
     <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl flex flex-col gap-4">
@@ -360,7 +354,7 @@
                 • taihironaoya0116708@gmail.com
             </div>
 
-            <div id="auth-error-msg" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded"></div>
+            <div id="auth-error-msg" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded leading-relaxed"></div>
 
             <div class="flex flex-col gap-2">
                 <button onclick="triggerGoogleSignIn()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-xs transition">
@@ -522,10 +516,9 @@
             </div>
         </div>
     </div>
-
     <!-- スクリプト領域 -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteField, onSnapshot } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
@@ -535,14 +528,13 @@
             'taihironaoya0116708@gmail.com'
         ];
 
-        // Firebase設定
         const firebaseConfig = {
-            apiKey: "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXX", // ご自身のキー
+            apiKey: "AIzaSyB5j7zz0EXn9a7m0wBV3B0Yb-nU3pUpaXg",
             authDomain: "shift-manager-lq.firebaseapp.com",
             projectId: "shift-manager-lq",
-            storageBucket: "shift-manager-lq.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:xxxxxxxxxxxxxxxxx"
+            storageBucket: "shift-manager-lq.firebasestorage.app",
+            messagingSenderId: "98087663813",
+            appId: "1:98087663813:web:a79cf88693c15f0bb018ac"
         };
 
         let app = null;
@@ -551,25 +543,32 @@
         let currentUser = null;
         let isSyncingFromCloud = false;
 
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) {
-            console.warn("Firebase初期化スキップ(ローカル運用):", e);
+        function initFirebase(config) {
+            try {
+                if (getApps().length === 0) {
+                    app = initializeApp(config);
+                } else {
+                    app = getApps()[0];
+                }
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (e) {
+                console.warn("Firebase初期化スキップ(ローカル運用):", e);
+            }
         }
 
-        // アプリケーション全体ステート
+        initFirebase(firebaseConfig);
+
+        // アプリケーション状態管理
         const state = {
             currentYear: 2026,
             currentMonth: 9,
+            selectedAssignmentDate: '2026-09-01',
             selectedStamp: '休',
             selectedTool: { category: 'shift', id: 't1' },
-            selectedAssignmentDate: '2026-09-01',
-            staffFilterBadge: null,
+            staffFilterBadge: '',
             consecutiveAlertLimit: 5,
-            
-            generatorRules: {
+            autoRules: {
                 firstDaySingle: true,
                 throughMax2: true,
                 oddPreferSingle: true
@@ -632,7 +631,6 @@
                 });
             }
         }
-
         function getMonthDays() {
             const date = new Date(state.currentYear, state.currentMonth - 1, 1);
             const days = [];
@@ -677,7 +675,6 @@
                 isTrainee: false
             };
         }
-
         function renderHolidaysTab() {
             const container = document.getElementById('holidays-matrix-container');
             if (!container) return;
@@ -834,7 +831,6 @@
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
-
         function renderShiftsTab() {
             const container = document.getElementById('shifts-matrix-container');
             if (!container) return;
@@ -1014,7 +1010,6 @@
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
-
         function renderAssignmentTab() {
             const container = document.getElementById('assignment-table-container');
             const summaryBadges = document.getElementById('assignment-summary-badges');
@@ -1193,7 +1188,6 @@
             html += `</tbody></table>`;
             container.innerHTML = html;
         }
-
         function renderSettingsTab() {
             // スタッフマスター
             const memberTbody = document.getElementById('member-master-tbody');
@@ -1289,7 +1283,6 @@
                 groupTbody.innerHTML = html || '<tr><td colspan="4" class="p-4 text-center text-slate-400">コース選択グループは未設定です。</td></tr>';
             }
         }
-
         window.switchTab = function(tabId) {
             document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.nav-tab').forEach(el => {
@@ -1506,7 +1499,6 @@
             renderAll();
             syncMasterConfigToCloud();
         };
-
         // コース選択グループ モーダル
         window.openCourseGroupModal = function(groupId) {
             const modal = document.getElementById('course-group-modal');
@@ -1616,7 +1608,6 @@
             renderAll();
             syncMasterConfigToCloud();
         };
-
         // スタッフ編集 モーダル
         window.openMemberEditModal = function(memberId) {
             const modal = document.getElementById('member-edit-modal');
@@ -1689,6 +1680,23 @@
             document.getElementById('auto-generate-modal').classList.add('hidden');
         };
 
+        window.openRuleConfigModal = function() {
+            document.getElementById('rule-first-day-single').checked = state.autoRules.firstDaySingle;
+            document.getElementById('rule-through-max-2').checked = state.autoRules.throughMax2;
+            document.getElementById('rule-odd-prefer-single').checked = state.autoRules.oddPreferSingle;
+            document.getElementById('rule-config-modal').classList.remove('hidden');
+        };
+
+        window.closeRuleConfigModal = function() {
+            document.getElementById('rule-config-modal').classList.add('hidden');
+        };
+
+        window.saveRuleConfig = function() {
+            state.autoRules.firstDaySingle = document.getElementById('rule-first-day-single').checked;
+            state.autoRules.throughMax2 = document.getElementById('rule-through-max-2').checked;
+            state.autoRules.oddPreferSingle = document.getElementById('rule-odd-prefer-single').checked;
+            closeRuleConfigModal();
+        };
         window.executeAutoGenerate = function() {
             const startDate = document.getElementById('gen-start-date').value;
             const endDate = document.getElementById('gen-end-date').value;
@@ -1729,7 +1737,7 @@
             const len = spanDays.length;
             const pattern = [];
 
-            // 初日は単独
+            // 初日は単独 (t2)
             if (len === 1) pattern.push('t2');
             else if (len === 2) pattern.push('t2', 't2');
             else if (len === 3) pattern.push('t2', 't1', 't2');
@@ -1746,70 +1754,60 @@
             spanDays.forEach((d, idx) => {
                 const key = `${memberId}_${d.dateStr}`;
                 const cell = getCellData(key);
-                if (cell.isPinned) return; // ピン保護
-
-                const newShiftId = pattern[idx] || 't2';
-                const newCell = { shiftId: newShiftId, colorId: '', isPinned: false };
-                state.schedule[key] = newCell;
-                batchUpdates[key] = newCell;
+                if (!cell.isPinned && !['休', '指', '有', '待'].includes(cell.shiftId)) {
+                    const assignedShift = pattern[idx] || 't2';
+                    const newCell = { shiftId: assignedShift, colorId: cell.colorId || '', isPinned: false };
+                    state.schedule[key] = newCell;
+                    batchUpdates[key] = newCell;
+                }
             });
         }
+        window.openFirebaseConfigModal = function() {
+            const modal = document.getElementById('firebase-config-modal');
+            const textarea = document.getElementById('firebase-config-textarea');
+            const errorMsg = document.getElementById('config-error-msg');
+            if (errorMsg) errorMsg.classList.add('hidden');
+            
+            textarea.value = JSON.stringify(firebaseConfig, null, 2);
+            modal.classList.remove('hidden');
+        };
 
-        window.openRuleConfigModal = function() {
-            document.getElementById('rule-config-modal').classList.remove('hidden');
-        };
-        window.closeRuleConfigModal = function() {
-            document.getElementById('rule-config-modal').classList.add('hidden');
-        };
-        window.saveRuleConfig = function() {
-            closeRuleConfigModal();
+        window.closeFirebaseConfigModal = function() {
+            document.getElementById('firebase-config-modal').classList.add('hidden');
         };
 
-        function syncSingleCellToCloud(key, cellData) {
-            if (!db || !currentUser) return;
-            const monthKey = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
-            const ref = doc(db, 'shifts', monthKey);
-            const updatePayload = {};
-            if (cellData === null) {
-                updatePayload[`schedule.${key}`] = deleteField();
-            } else {
-                updatePayload[`schedule.${key}`] = cellData;
+        window.saveCustomFirebaseConfig = function() {
+            const textarea = document.getElementById('firebase-config-textarea');
+            const errorMsg = document.getElementById('config-error-msg');
+            const raw = textarea.value.trim();
+
+            try {
+                let parsed = null;
+                if (raw.startsWith('{')) {
+                    parsed = JSON.parse(raw);
+                } else {
+                    const match = raw.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        parsed = new Function(`return ${match[0]}`)();
+                    } else {
+                        throw new Error('有効なFirebase設定オブジェクトが見つかりません。');
+                    }
+                }
+
+                if (!parsed.apiKey || parsed.apiKey.includes('XXXX')) {
+                    throw new Error('apiKeyがプレースホルダー(XXXX)のままです。本物のキーを入力してください。');
+                }
+
+                localStorage.setItem('shift_firebase_config', JSON.stringify(parsed));
+                alert('Firebase設定を保存しました。反映のため画面を再読み込みします。');
+                window.location.reload();
+            } catch (err) {
+                if (errorMsg) {
+                    errorMsg.textContent = `入力エラー: ${err.message}`;
+                    errorMsg.classList.remove('hidden');
+                }
             }
-            updateDoc(ref, updatePayload).catch(e => console.warn('セル同期失敗:', e));
-        }
-
-        function syncBatchCellsToCloud(batchUpdates) {
-            if (!db || !currentUser) return;
-            const monthKey = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
-            const ref = doc(db, 'shifts', monthKey);
-            const updatePayload = {};
-            for (const [key, val] of Object.entries(batchUpdates)) {
-                if (val === null) updatePayload[`schedule.${key}`] = deleteField();
-                else updatePayload[`schedule.${key}`] = val;
-            }
-            updateDoc(ref, updatePayload).catch(e => console.warn('バッチ同期失敗:', e));
-        }
-
-        function syncSingleCourseAssignmentToCloud(key, assignmentData) {
-            if (!db || !currentUser) return;
-            const monthKey = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
-            const ref = doc(db, 'shifts', monthKey);
-            updateDoc(ref, {
-                [`courseAssignments.${key}`]: assignmentData
-            }).catch(e => console.warn('配車同期失敗:', e));
-        }
-
-        function syncMasterConfigToCloud() {
-            if (!db || !currentUser) return;
-            const ref = doc(db, 'settings', 'master_config');
-            setDoc(ref, {
-                members: state.members,
-                courses: state.courses,
-                courseGroups: state.courseGroups,
-                shiftTypes: state.shiftTypes,
-                updatedAt: new Date().toISOString()
-            }, { merge: true }).catch(e => console.warn('マスター同期失敗:', e));
-        }
+        };
 
         window.handleCloudSyncButton = function() {
             if (currentUser) {
@@ -1828,15 +1826,25 @@
         };
 
         window.triggerGoogleSignIn = async function() {
-            if (!auth) return;
+            const errorMsgEl = document.getElementById('auth-error-msg');
+            if (errorMsgEl) errorMsgEl.classList.add('hidden');
+
+            if (!auth) {
+                if (errorMsgEl) {
+                    errorMsgEl.textContent = "Firebaseの初期化に失敗しています。";
+                    errorMsgEl.classList.remove('hidden');
+                }
+                return;
+            }
+
             try {
                 const provider = new GoogleAuthProvider();
                 const res = await signInWithPopup(auth, provider);
                 const user = res.user;
 
                 if (!ALLOWED_EMAILS.includes(user.email)) {
-                    document.getElementById('auth-error-msg').textContent = `アクセス権限がありません (${user.email})`;
-                    document.getElementById('auth-error-msg').classList.remove('hidden');
+                    errorMsgEl.textContent = `アクセス権限がありません (${user.email})。許可された2名のアカウントでログインしてください。`;
+                    errorMsgEl.classList.remove('hidden');
                     await signOut(auth);
                     return;
                 }
@@ -1844,8 +1852,14 @@
                 closeAuthModal();
             } catch (err) {
                 console.error("ログインエラー:", err);
-                document.getElementById('auth-error-msg').textContent = err.message;
-                document.getElementById('auth-error-msg').classList.remove('hidden');
+                if (errorMsgEl) {
+                    if (err.code === 'auth/unauthorized-domain') {
+                        errorMsgEl.innerHTML = `⚠️ <strong>現在のドメインがFirebaseで許可されていません。</strong><br>Firebase Consoleの「Authentication」>「設定」>「承認済みドメイン」に現在のドメインを追加してください。`;
+                    } else {
+                        errorMsgEl.textContent = `エラー (${err.code}): ${err.message}`;
+                    }
+                    errorMsgEl.classList.remove('hidden');
+                }
             }
         };
 
@@ -1871,19 +1885,108 @@
                 profile.classList.add('hidden');
             }
         }
+        async function syncSingleCellToCloud(key, cellData) {
+            if (!currentUser || !db) return;
+            try {
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const docRef = doc(db, 'shifts', monthDocId);
+                if (cellData === null) {
+                    await updateDoc(docRef, { [`schedule.${key}`]: deleteField() });
+                } else {
+                    await setDoc(docRef, { schedule: { [key]: cellData } }, { merge: true });
+                }
+            } catch (err) {
+                console.warn('セル同期失敗:', err);
+            }
+        }
+
+        async function syncBatchCellsToCloud(batchMap) {
+            if (!currentUser || !db) return;
+            try {
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const docRef = doc(db, 'shifts', monthDocId);
+                const updates = {};
+                for (const k in batchMap) {
+                    if (batchMap[k] === null) {
+                        updates[`schedule.${k}`] = deleteField();
+                    } else {
+                        updates[`schedule.${k}`] = batchMap[k];
+                    }
+                }
+                await updateDoc(docRef, updates);
+            } catch (err) {
+                console.warn('バッチ同期失敗:', err);
+            }
+        }
+
+        async function syncSingleCourseAssignmentToCloud(key, assignmentData) {
+            if (!currentUser || !db) return;
+            try {
+                const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+                const docRef = doc(db, 'shifts', monthDocId);
+                await setDoc(docRef, { courseAssignments: { [key]: assignmentData } }, { merge: true });
+            } catch (err) {
+                console.warn('コース割当同期失敗:', err);
+            }
+        }
+
+        async function syncMasterConfigToCloud() {
+            if (!currentUser || !db) return;
+            try {
+                const docRef = doc(db, 'settings', 'master_config');
+                await setDoc(docRef, {
+                    members: state.members,
+                    courses: state.courses,
+                    courseGroups: state.courseGroups,
+                    shiftTypes: state.shiftTypes,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (err) {
+                console.warn('マスター設定同期失敗:', err);
+            }
+        }
+
+        function listenToCloudData() {
+            if (!currentUser || !db) return;
+            const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+            const shiftDocRef = doc(db, 'shifts', monthDocId);
+            onSnapshot(shiftDocRef, snap => {
+                if (snap.exists()) {
+                    isSyncingFromCloud = true;
+                    const d = snap.data();
+                    if (d.schedule) Object.assign(state.schedule, d.schedule);
+                    if (d.courseAssignments) Object.assign(state.courseAssignments, d.courseAssignments);
+                    renderAll();
+                    isSyncingFromCloud = false;
+                }
+            });
+
+            const masterDocRef = doc(db, 'settings', 'master_config');
+            onSnapshot(masterDocRef, snap => {
+                if (snap.exists()) {
+                    isSyncingFromCloud = true;
+                    const d = snap.data();
+                    if (d.members) state.members = d.members;
+                    if (d.courses) state.courses = d.courses;
+                    if (d.courseGroups) state.courseGroups = d.courseGroups;
+                    renderAll();
+                    isSyncingFromCloud = false;
+                }
+            });
+        }
 
         if (auth) {
             onAuthStateChanged(auth, user => {
                 if (user && ALLOWED_EMAILS.includes(user.email)) {
                     currentUser = user;
                     updateAuthBadgeUI();
+                    listenToCloudData();
                 } else {
                     currentUser = null;
                     updateAuthBadgeUI();
                 }
             });
         }
-
         window.exportDataJSON = function() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
             const downloadAnchor = document.createElement('a');
