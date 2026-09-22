@@ -12,7 +12,7 @@
         .sticky-col-left {
             position: sticky;
             left: 0;
-            background-color: #ffffff;
+            background-color: #ffffff !important;
             z-index: 20;
         }
         .sticky-col-header {
@@ -27,6 +27,21 @@
             top: 0;
             background-color: #e2e8f0;
             z-index: 40;
+        }
+        .sticky-col-right {
+            position: sticky;
+            right: 0;
+            background-color: #eef2ff !important;
+            z-index: 20;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.06);
+        }
+        .sticky-col-corner-right {
+            position: sticky;
+            right: 0;
+            top: 0;
+            background-color: #e2e8f0 !important;
+            z-index: 40;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.06);
         }
         
         /* 横スクロールバーを常に鮮明に表示するスタイル */
@@ -54,6 +69,16 @@
         }
         .force-horizontal-scroll::-webkit-scrollbar-thumb:hover {
             background: #4338ca !important;
+        }
+
+        /* 濃い罫線を強制適用するスタイル */
+        table.border-separate th,
+        table.border-separate td {
+            border-bottom: 1.5px solid #64748b !important;
+            border-right: 1.5px solid #64748b !important;
+        }
+        table.border-separate thead tr:last-child th {
+            border-bottom: 2.5px solid #334155 !important;
         }
     </style>
 </head>
@@ -218,51 +243,6 @@
             <!-- マトリクス表 2 (常時スクロールバーを保持) -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="force-horizontal-scroll max-h-[620px] w-full" id="matrix-container-2"></div>
-            </div>
-        </div>
-
-        <!-- タブ2: 属性設定 -->
-        <div id="view-mode-2" class="space-y-4 hidden">
-            <!-- スタッフ属性絞り込みフィルター & ジェネレーター実行バー -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
-                
-                <div class="flex items-center gap-2">
-                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                        <button onclick="scrollToPosition('matrix-container-2', 'start')" class="px-2 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-xs" title="1日側へ移動">◀ 1日〜</button>
-                        <button onclick="scrollToPosition('matrix-container-2', 'mid')" class="px-2 py-1 bg-white hover:bg-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-xs" title="16日側へ移動">16日〜 ▶</button>
-                    </div>
-
-                    <button onclick="openGeneratorModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-sm transition flex items-center gap-1.5 transform active:scale-95">
-                        <span>⚡</span>
-                        <span>シフト自動ジェネレート</span>
-                    </button>
-                    <button onclick="openRuleConfigModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1" title="自動ジェネレートのルール設定">
-                        <span>⚙️</span>
-                        <span class="hidden sm:inline">ルール設定</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-                <!-- シフト属性スタンプ ＋ ピン留めツール -->
-                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container"></div>
-
-                <!-- カラー属性スタンプ -->
-                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container"></div>
-
-                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <span>💡</span>
-                        <span>「📌 ピン留め」を選択してマスをクリックすると保護ロック（📌）され、自動ジェネレートで上書きされなくなります。コースが割り当てられている日は下部にコース名バッジが表示されます。</span>
-                    </div>
-                    <div id="pinned-stats-info" class="font-bold text-indigo-700"></div>
-                </div>
-            </div>
-
-            <!-- マトリクス表 2 -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto max-h-[620px]" id="matrix-container-2"></div>
             </div>
         </div>
 
@@ -937,7 +917,7 @@
         </div>
     </div>
 
-    <!-- Googleアカウント認証モーダル（必要な時だけ開く任意モーダルに変更・全画面常時ロックを解除） -->
+    <!-- Googleアカウント認証モーダル -->
     <div id="auth-lock-overlay" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-[999] hidden">
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 text-center border border-slate-200">
             <div class="flex justify-end">
@@ -1030,6 +1010,7 @@
             members: [],
             schedule: {},
             courseAssignments: {},
+            courseGroups: [],
             courses: [
                 { id: 'c_01', order: 1, name: '01コース' },
                 { id: 'c_02', order: 2, name: '02コース' },
@@ -1141,7 +1122,6 @@
                             await signOut(auth);
                         }
                     } else {
-                        // 未ログイン状態：画面はロックせず、ローカル運用としてそのまま稼働
                         currentUser = null;
                         isCloudConnected = false;
                         if (masterDocUnsubscribe) { masterDocUnsubscribe(); masterDocUnsubscribe = null; }
@@ -1248,6 +1228,7 @@
                     if (data.colorTypes && Array.isArray(data.colorTypes)) state.colorTypes = data.colorTypes;
                     if (data.staffAttributes && Array.isArray(data.staffAttributes)) state.staffAttributes = data.staffAttributes;
                     if (data.courses && Array.isArray(data.courses)) state.courses = data.courses;
+                    if (data.courseGroups && Array.isArray(data.courseGroups)) state.courseGroups = data.courseGroups;
                     if (data.generatorRules) state.generatorRules = { ...state.generatorRules, ...data.generatorRules };
                     renderAll(false);
                     isSyncingFromCloud = false;
@@ -1278,7 +1259,6 @@
                     const cloudDailyRequired = data.dailyRequired ? (typeof data.dailyRequired === 'string' ? JSON.parse(data.dailyRequired) : data.dailyRequired) : {};
                     const cloudCourseAssignments = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
 
-                    // クラウド上の最新データをローカルに合成（相手の編集分を自動マージ）
                     state.schedule = { ...cloudSchedule };
                     state.dailyRequired = { ...cloudDailyRequired };
                     state.courseAssignments = { ...cloudCourseAssignments };
@@ -1314,6 +1294,7 @@
                     colorTypes: state.colorTypes,
                     staffAttributes: state.staffAttributes,
                     courses: state.courses,
+                    courseGroups: state.courseGroups,
                     generatorRules: state.generatorRules,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
@@ -1325,7 +1306,7 @@
             }
         }
 
-        // マス単位・セル単位のピンポイント送信（他のマスを上書きしない）
+        // マス単位・セル単位のピンポイント送信
         async function syncSingleCellToCloud(key, cellData) {
             if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
 
@@ -1334,7 +1315,6 @@
                 const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
                 const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
 
-                // ドット記法で指定したマスのみをピンポイント更新
                 if (cellData === undefined || cellData === null) {
                     await updateDoc(shiftRef, {
                         [`schedule.${key}`]: deleteField(),
@@ -1356,7 +1336,7 @@
             }
         }
 
-        // コース割当のピンポイント送信（他の割当を上書きしない）
+        // コース割当のピンポイント送信
         async function syncSingleCourseAssignmentToCloud(key, assignmentData) {
             if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
 
@@ -1409,7 +1389,7 @@
             }
         }
 
-        // 複数マスの一括更新（自動ジェネレート用：対象マスのみ更新し他を壊さない）
+        // 複数マスの一括更新
         async function syncBatchCellsToCloud(cellUpdates) {
             if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
 
@@ -1427,7 +1407,6 @@
                 await updateDoc(shiftRef, payload);
                 updateCloudStatus('同期完了', 'success');
             } catch (err) {
-                // 初回などでドキュメント自体がない場合はsetDocでフォールバック
                 try {
                     const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
                     const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
@@ -1469,9 +1448,7 @@
 
         async function saveAllToCloud() {
             if (!isCloudConnected) {
-                // ローカルにはまず確実に保存
                 saveData();
-                // クラウド同期用ログインモーダルを表示
                 showAuthLockOverlay();
                 return;
             }
@@ -1501,6 +1478,7 @@
                     if (!state.courses || state.courses.length === 0) {
                         initDefaultCourses();
                     }
+                    if (!state.courseGroups) state.courseGroups = [];
                 } catch (e) {
                     console.error('Failed to load state', e);
                 }
@@ -1551,17 +1529,17 @@
             const { prevKey, nextKey } = getAdjacentMonthKeys(state.currentYear, state.currentMonth);
 
             [prevKey, nextKey].forEach(k => {
-                if (!state.adjacentSchedules[k]) {
-                    const cached = localStorage.getItem(`shift_app_month_${k}`);
-                    if (cached) {
-                        try { state.adjacentSchedules[k] = JSON.parse(cached); } catch(e){}
-                    }
+                const cached = localStorage.getItem(`shift_app_month_${k}`);
+                if (cached) {
+                    try { state.adjacentSchedules[k] = JSON.parse(cached); } catch(e){}
+                } else if (!state.adjacentSchedules[k]) {
+                    state.adjacentSchedules[k] = {};
                 }
-                if (!state.adjacentCourseAssignments[k]) {
-                    const cachedCourses = localStorage.getItem(`shift_app_courses_${k}`);
-                    if (cachedCourses) {
-                        try { state.adjacentCourseAssignments[k] = JSON.parse(cachedCourses); } catch(e){}
-                    }
+                const cachedCourses = localStorage.getItem(`shift_app_courses_${k}`);
+                if (cachedCourses) {
+                    try { state.adjacentCourseAssignments[k] = JSON.parse(cachedCourses); } catch(e){}
+                } else if (!state.adjacentCourseAssignments[k]) {
+                    state.adjacentCourseAssignments[k] = {};
                 }
             });
 
@@ -1573,13 +1551,13 @@
 
                     if (prevSnap.exists()) {
                         const data = prevSnap.data();
-                        state.adjacentSchedules[prevKey] = data.schedule ? JSON.parse(data.schedule) : {};
-                        state.adjacentCourseAssignments[prevKey] = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                        state.adjacentSchedules[prevKey] = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
+                        state.adjacentCourseAssignments[prevKey] = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
                     }
                     if (nextSnap.exists()) {
                         const data = nextSnap.data();
-                        state.adjacentSchedules[nextKey] = data.schedule ? JSON.parse(data.schedule) : {};
-                        state.adjacentCourseAssignments[nextKey] = data.courseAssignments ? JSON.parse(data.courseAssignments) : {};
+                        state.adjacentSchedules[nextKey] = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
+                        state.adjacentCourseAssignments[nextKey] = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
                     }
                     renderMatrixMode1();
                     renderCourseAssignmentTab();
@@ -1616,6 +1594,8 @@
         }
 
         function changeMonth(delta) {
+            saveData();
+
             state.currentMonth += delta;
             if (state.currentMonth > 12) {
                 state.currentMonth = 1;
@@ -1629,6 +1609,12 @@
                 monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
             }
             ensureSelectedDateInMonth();
+
+            const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+            const cachedMonth = localStorage.getItem(`shift_app_month_${monthDocId}`);
+            state.schedule = cachedMonth ? JSON.parse(cachedMonth) : {};
+            const cachedCourses = localStorage.getItem(`shift_app_courses_${monthDocId}`);
+            state.courseAssignments = cachedCourses ? JSON.parse(cachedCourses) : {};
 
             if (isCloudConnected) {
                 listenToCurrentMonthShift();
@@ -1775,7 +1761,7 @@
             };
 
             const firstDateOfMonth = new Date(state.currentYear, state.currentMonth - 1, 1);
-            for (let i = 10; i >= 1; i--) {
+            for (let i = 15; i >= 1; i--) {
                 const dt = new Date(firstDateOfMonth);
                 dt.setDate(dt.getDate() - i);
                 timeline.push({ dateStr: formatDate(dt), isCurrentMonth: false });
@@ -1786,13 +1772,15 @@
             });
 
             const lastDateOfMonth = new Date(state.currentYear, state.currentMonth, 0);
-            for (let i = 1; i <= 10; i++) {
+            for (let i = 1; i <= 15; i++) {
                 const dt = new Date(lastDateOfMonth);
                 dt.setDate(dt.getDate() + i);
                 timeline.push({ dateStr: formatDate(dt), isCurrentMonth: false });
             }
 
             const holidayIndices = [];
+
+            // 前月15日分〜当月〜翌月15日分の中で、実在する「休・指・有」の位置のみを収集
             timeline.forEach((item, idx) => {
                 const cell = getCellDataForAnyDate(memberId, item.dateStr);
                 if (['休', '指', '有'].includes(cell.shiftId)) {
@@ -1800,16 +1788,18 @@
                 }
             });
 
+            const sortedHolidays = Array.from(new Set(holidayIndices)).sort((a, b) => a - b);
+
             const spanMap = {};
-            for (let i = 0; i < holidayIndices.length - 1; i++) {
-                const startIdx = holidayIndices[i];
-                const endIdx = holidayIndices[i + 1];
+            for (let i = 0; i < sortedHolidays.length - 1; i++) {
+                const startIdx = sortedHolidays[i];
+                const endIdx = sortedHolidays[i + 1];
                 const spanLength = endIdx - startIdx - 1;
 
                 if (spanLength > 0 && spanLength < 10) {
                     for (let k = startIdx + 1; k < endIdx; k++) {
                         const target = timeline[k];
-                        if (target.isCurrentMonth) {
+                        if (target && target.isCurrentMonth) {
                             spanMap[target.dateStr] = spanLength;
                         }
                     }
@@ -1823,9 +1813,8 @@
             if (!container) return;
             const days = getMonthDays();
             
-            // min-w-[1550px] を保証し、ブラウザ幅に関わらず確実にスクロール領域を確立
-            let html = `<table class="min-w-[1550px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
+            let html = `<table class="min-w-[1550px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700">`;
+            html += `<th class="p-2 border-r border-b border-slate-300 min-w-[170px] w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
 
             days.forEach(d => {
                 const required = state.dailyRequired[d.dateStr] ?? 31;
@@ -1859,11 +1848,11 @@
                 }
 
                 html += `
-                    <th class="p-1.5 border-r border-b border-slate-200 min-w-[42px] sticky-col-header font-bold ${headerBg}">
+                    <th class="p-1.5 border-r border-b border-slate-300 min-w-[44px] sticky-col-header font-bold ${headerBg}">
                         <div class="flex flex-col items-center gap-1">
                             <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                             <div class="flex items-center gap-0.5 text-[10px] text-slate-500">
-                                <span>必要:</span>
+                                <span>必:</span>
                                 <input type="number" min="0" value="${required}" onchange="updateDailyRequired('${d.dateStr}', this.value)" class="w-8 px-0.5 py-0.5 border border-slate-300 rounded text-center font-bold bg-white text-slate-800">
                             </div>
                             <div class="font-extrabold text-sm ${dayTextClass}">
@@ -1873,7 +1862,7 @@
                     </th>
                 `;
             });
-            html += `<th class="p-2 border-l border-b border-slate-200 min-w-[70px] text-center font-bold bg-slate-100">稼働日数</th></tr></thead><tbody>`;
+            html += `<th class="p-2 border-l border-b border-slate-300 min-w-[70px] text-center font-bold sticky-col-corner-right">稼働日数</th></tr></thead><tbody>`;
 
             state.members.forEach(m => {
                 let totalHolidays = 0;
@@ -1891,9 +1880,9 @@
                 const badgesHTML = getMemberBadgesHTML(m);
                 const workSpans = getMemberWorkSpans(m.id, days);
 
-                html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                html += `<tr class="border-b border-slate-300 hover:bg-slate-50 transition">`;
                 html += `
-                    <td class="p-1.5 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">
+                    <td class="p-1.5 border-r border-b border-slate-300 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">
                         <div class="flex items-center gap-1.5 justify-start">
                             <button onclick="setMemberAllHoliday('${m.id}')" title="${isAllHoliday ? '全休を解除' : '全日を休みに設定'}" class="px-1.5 py-0.5 border rounded text-[10px] font-bold transition shrink-0 ${btnStyle}">
                                 ${isAllHoliday ? '済' : '全休'}
@@ -1914,8 +1903,8 @@
                     const val = cell.shiftId;
                     
                     let cellStyle = "bg-white hover:bg-slate-100 text-slate-300";
-                    if (d.isSunday) cellStyle = "bg-rose-50/40 hover:bg-rose-100/60 text-rose-300/60";
-                    if (d.isSaturday) cellStyle = "bg-sky-50/40 hover:bg-sky-100/60 text-sky-300/60";
+                    if (d.isSunday) cellStyle = "bg-rose-50/70 hover:bg-rose-100/70 text-rose-300/60";
+                    if (d.isSaturday) cellStyle = "bg-sky-50/70 hover:bg-sky-100/70 text-sky-300/60";
 
                     let displayContent = 'ー';
 
@@ -1944,14 +1933,14 @@
                     }
 
                     html += `
-                        <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs ${cellStyle}">
+                        <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-300 cursor-pointer select-none text-xs ${cellStyle}">
                             ${displayContent}
                         </td>
                     `;
                 });
 
                 const workDays = allDays.length - totalHolidays;
-                html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-indigo-700 bg-indigo-50/50">${workDays}日</td></tr>`;
+                html += `<td class="p-2 border-l border-b border-slate-300 font-extrabold text-indigo-700 sticky-col-right">${workDays}日</td></tr>`;
             });
 
             html += `</tbody></table>`;
@@ -2224,14 +2213,13 @@
                 ? state.members.filter(m => m.attributes && m.attributes.includes(state.activeStaffFilter))
                 : state.members;
 
-            // min-w-[2400px] を保証し、31日分の各シフト集計枠とコースバッジが潰れない幅を常時確保
-            let html = `<table class="min-w-[2400px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-200">`;
+            let html = `<table class="min-w-[2400px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-300">`;
             
             const filterNotice = state.activeStaffFilter 
                 ? `<span class="block text-[10px] text-indigo-600 font-bold">絞込中 (${displayMembers.length}/${state.members.length})</span>` 
                 : `<span class="block text-[10px] text-slate-500 font-normal">全員 (${state.members.length}名)</span>`;
 
-            html += `<th class="p-2 border-r border-b border-slate-200 min-w-[170px] w-[170px] sticky-col-corner font-bold align-middle">
+            html += `<th class="p-2 border-r border-b border-slate-300 min-w-[170px] w-[170px] sticky-col-corner font-bold align-middle">
                 <div>メンバー</div>
                 ${filterNotice}
             </th>`;
@@ -2266,13 +2254,14 @@
                         if (cell.shiftId === st.id) count++;
                     });
 
-                    const isMet = count === st.count;
-                    const opacityClass = isMet ? 'opacity-100 ring-1 ring-emerald-400' : 'opacity-90';
+                    const remaining = (st.count || 0) - count;
+                    let remainText = remaining === 0 ? '0' : (remaining > 0 ? `${remaining}` : `+${Math.abs(remaining)}`);
+                    let badgeBg = remaining === 0 ? 'bg-emerald-600 ring-1 ring-emerald-400' : (remaining > 0 ? '' : 'bg-rose-600 ring-1 ring-rose-400');
 
                     shiftBadgesHTML += `
-                        <span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold text-white shadow-2xs ${opacityClass}" style="background-color:${st.color}">
+                        <span class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold text-white shadow-2xs ${badgeBg}" style="${remaining > 0 ? `background-color:${st.color}` : ''}" title="目標:${st.count}名 / 配置:${count}名 / 残り:${remaining}名">
                             <span>${st.shortName}:</span>
-                            <span class="font-black">${count}/${st.count}</span>
+                            <span class="font-black">${remainText}</span>
                         </span>
                     `;
                 });
@@ -2289,7 +2278,7 @@
                 }
 
                 html += `
-                    <th class="p-1 border-r border-b border-slate-200 min-w-[72px] sticky-col-header font-bold align-top ${headerBg}">
+                    <th class="p-1 border-r border-b border-slate-300 min-w-[72px] sticky-col-header font-bold align-top ${headerBg}">
                         <div class="flex flex-col items-center gap-1">
                             <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                             <div class="font-black text-xs w-full py-0.5 rounded-md ${dayBadgeStyle}">
@@ -2301,7 +2290,7 @@
                 `;
             });
 
-            html += `<th class="p-2 border-l border-b border-slate-200 min-w-[70px] text-center font-bold bg-slate-100 align-middle">休み数</th></tr></thead><tbody>`;
+            html += `<th class="p-2 border-l border-b border-slate-300 min-w-[110px] text-center font-bold sticky-col-corner-right align-middle">シフト属性計</th></tr></thead><tbody>`;
 
             if (displayMembers.length === 0) {
                 html += `
@@ -2314,18 +2303,12 @@
                 `;
             } else {
                 displayMembers.forEach(m => {
-                    let totalHolidays = 0;
                     const allDays = getMonthDays();
-                    allDays.forEach(ad => {
-                        const cell = getCellData(`${m.id}_${ad.dateStr}`);
-                        if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
-                    });
-
                     const badgesHTML = getMemberBadgesHTML(m);
 
-                    html += `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                    html += `<tr class="border-b border-slate-300 hover:bg-slate-50 transition">`;
                     html += `
-                        <td class="p-2 border-r border-b border-slate-200 font-bold text-slate-800 sticky-col-left shadow-2xs text-left cursor-pointer" onclick="openMemberEditModal('${m.id}')" title="クリックして属性や担当不可コースを編集">
+                        <td class="p-2 border-r border-b border-slate-300 font-bold text-slate-800 sticky-col-left shadow-2xs text-left cursor-pointer" onclick="openMemberEditModal('${m.id}')" title="クリックして属性や担当不可コースを編集">
                             <div class="flex flex-col">
                                 <span class="truncate text-xs font-bold hover:text-indigo-600">${m.name}</span>
                                 <div class="flex items-center gap-1 mt-0.5 overflow-hidden">
@@ -2342,27 +2325,26 @@
                         const isPinned = cell.isPinned;
                         const courseBadge = getCourseBadgeSummary(m.id, d.dateStr);
                         
+                        let cellBgClass = "bg-white text-slate-300";
+                        if (d.isSunday) cellBgClass = "bg-rose-50/70 text-rose-300/60";
+                        if (d.isSaturday) cellBgClass = "bg-sky-50/70 text-sky-300/60";
+
                         if (['休', '指', '有'].includes(val)) {
                             let bg = "bg-rose-100 text-rose-800 border-rose-200";
                             if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
                             if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                            html += `<td class="p-1 border-r border-b border-slate-200 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
+                            html += `<td class="p-1 border-r border-b border-slate-300 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
                         } else {
                             const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
                             const customColor = state.colorTypes.find(c => c.id === cell.colorId);
                             
                             let label = shift ? shift.shortName : 'ー';
-                            
                             let styleColor = '';
                             if (customColor) {
                                 styleColor = customColor.color;
                             } else if (shift) {
                                 styleColor = shift.color;
                             }
-
-                            let cellBgClass = "bg-white text-slate-300";
-                            if (d.isSunday) cellBgClass = "bg-rose-50/40 text-rose-300/60";
-                            if (d.isSaturday) cellBgClass = "bg-sky-50/40 text-sky-300/60";
 
                             let style = cellBgClass;
                             if (styleColor) {
@@ -2374,7 +2356,7 @@
                                 : '';
 
                             html += `
-                                <td onclick="toggleShiftStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-200 cursor-pointer select-none text-xs relative ${style}" style="${styleColor ? `background-color:${styleColor}` : ''}">
+                                <td onclick="toggleShiftStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-300 cursor-pointer select-none text-xs relative ${style}" style="${styleColor ? `background-color:${styleColor}` : ''}">
                                     ${pinBadge}
                                     <div class="leading-tight">${label}</div>
                                     ${courseBadge}
@@ -2383,7 +2365,22 @@
                         }
                     });
 
-                    html += `<td class="p-2 border-l border-b border-slate-200 font-extrabold text-slate-700 bg-slate-50">${totalHolidays}日</td></tr>`;
+                    let shiftCountsHTML = `<div class="flex flex-wrap items-center justify-center gap-1">`;
+                    state.shiftTypes.forEach(st => {
+                        let count = 0;
+                        allDays.forEach(ad => {
+                            const c = getCellData(`${m.id}_${ad.dateStr}`);
+                            if (c.shiftId === st.id) count++;
+                        });
+                        shiftCountsHTML += `
+                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs" style="background-color:${st.color}">
+                                <span>${st.shortName}:</span><span class="font-black">${count}</span>
+                            </span>
+                        `;
+                    });
+                    shiftCountsHTML += `</div>`;
+
+                    html += `<td class="p-2 border-l border-b border-slate-300 font-extrabold text-slate-700 sticky-col-right">${shiftCountsHTML}</td></tr>`;
                 });
             }
 
@@ -2593,7 +2590,6 @@
                 }
             });
 
-            // 必須コースと任意コースに分類
             const unassignedRequiredList = state.courses.filter(c => c.isRequired !== false && !activeUsedCourses.has(c.id));
             const unassignedOptionalList = state.courses.filter(c => c.isRequired === false && !activeUsedCourses.has(c.id));
             const unassignedReqCount = unassignedRequiredList.length;
@@ -2623,7 +2619,6 @@
                 `;
             }
 
-            // 未割り当てコース一覧の表示（必須と任意を明確に分離）
             if (unassignedContainer) {
                 if (unassignedReqCount === 0 && unassignedOptionalList.length === 0) {
                     unassignedContainer.innerHTML = `
@@ -2754,7 +2749,7 @@
                 } else {
                     const ngCourses = member.ngCourses || [];
 
-                    // コース選択肢の生成ロジック（教育・同乗チェック時はNGコースも選択可能）
+                    // コース選択肢の生成ロジック
                     const renderCourseOptions = (selectedCourseId, slotType, isTrainee) => {
                         let optHtml = `<option value="">-- コースを選択 --</option>`;
                         state.courses.forEach(crs => {
@@ -2793,7 +2788,6 @@
 
                             if (isNG) {
                                 if (isTrainee) {
-                                    // 教育・同乗時はNGコースでも選択可能にロック解除
                                     labelSuffix += ' ⚠️NG(教育許可)';
                                 } else {
                                     disabledAttr = 'disabled';
@@ -2801,7 +2795,6 @@
                                 }
                             } else if (conflictReason) {
                                 if (isTrainee) {
-                                    // 教育・同乗時は他者重複も選択可能にロック解除
                                     labelSuffix += ` 🎓(${conflictReason})`;
                                 } else {
                                     disabledAttr = 'disabled';
@@ -2929,7 +2922,6 @@
 
             state.courseAssignments[key] = current;
             renderAll();
-            // 単一割当のピンポイント送信
             syncSingleCourseAssignmentToCloud(key, current);
         }
 
@@ -2937,7 +2929,6 @@
             const key = `${state.selectedAssignmentDate}_${memberId}`;
             delete state.courseAssignments[key];
             renderAll();
-            // 単一割当の削除をピンポイント送信
             syncSingleCourseAssignmentToCloud(key, null);
         }
 
@@ -3405,7 +3396,6 @@
             const newIndex = index + direction;
             if (newIndex < 0 || newIndex >= state.members.length) return;
 
-            // 配列の要素を入れ替え
             const temp = state.members[index];
             state.members[index] = state.members[newIndex];
             state.members[newIndex] = temp;
@@ -3415,18 +3405,15 @@
         }
 
         function moveCourse(index, direction) {
-            // 現在のソート順（order基準）を確実に反映
             state.courses.sort((a, b) => (a.order || 0) - (b.order || 0));
 
             const newIndex = index + direction;
             if (newIndex < 0 || newIndex >= state.courses.length) return;
 
-            // 配列の要素を入れ替え
             const temp = state.courses[index];
             state.courses[index] = state.courses[newIndex];
             state.courses[newIndex] = temp;
 
-            // order番号を1から振り直す
             state.courses.forEach((crs, i) => {
                 crs.order = i + 1;
             });
@@ -3613,7 +3600,6 @@
 
             closeGeneratorModal();
             renderAll();
-            // 自動生成されたマスだけをバッチ送信（他のマスを上書きしない）
             syncBatchCellsToCloud(updatedCellsMap);
 
             let msg = `指定期間（${startDateStr} 〜 ${endDateStr}）のシフト自動生成が完了しました！\n・自動入力: ${generatedCount} 箇所`;
@@ -3669,7 +3655,6 @@
                 cellData = state.selectedStamp;
             }
             renderAll();
-            // 単一マスのピンポイント送信
             syncSingleCellToCloud(key, cellData);
         }
 
@@ -3690,7 +3675,6 @@
             });
             renderAll();
 
-            // 対象メンバーの日付のみを送信
             if (isAllHoliday) {
                 days.forEach(d => syncSingleCellToCloud(`${memberId}_${d.dateStr}`, null));
             } else {
@@ -4270,10 +4254,8 @@
             if (pos === 'start') {
                 container.scrollTo({ left: 0, behavior: 'smooth' });
             } else if (pos === 'mid') {
-                // 15〜16日付近へスクロール
                 container.scrollTo({ left: (container.scrollWidth - container.clientWidth) * 0.48, behavior: 'smooth' });
             } else if (pos === 'end') {
-                // 末日へスクロール
                 container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
             }
         }
