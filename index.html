@@ -170,6 +170,8 @@
                     <button onclick="selectStamp('休')" id="stamp-btn-休" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-rose-100 border-rose-300 text-rose-800 shadow-xs ring-2 ring-indigo-500">休 (公休)</button>
                     <button onclick="selectStamp('指')" id="stamp-btn-指" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-amber-50 border-amber-200 text-amber-700">指 (指定休)</button>
                     <button onclick="selectStamp('有')" id="stamp-btn-有" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-emerald-50 border-emerald-200 text-emerald-700">有 (有給)</button>
+                    <button onclick="selectStamp('待')" id="stamp-btn-待" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-violet-100 border-violet-300 text-violet-800">待 (待機)</button>
+                    <button onclick="selectStamp('健診')" id="stamp-btn-健診" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-teal-50 border-teal-200 text-teal-700">健診 (健康診断)</button>
                     <button onclick="selectStamp('')" id="stamp-btn-clear" class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-slate-50 border-slate-200 text-slate-600">解除</button>
                     
                     <div class="flex items-center gap-1.5 ml-2 pl-3 border-l border-slate-200 bg-slate-50 p-1 rounded-lg">
@@ -1684,7 +1686,7 @@
             if (typeof raw === 'object' && raw !== null) {
                 return { shiftId: raw.shiftId || '', colorId: raw.colorId || '', isPinned: !!raw.isPinned };
             }
-            if (['休', '指', '有'].includes(raw)) {
+            if (['休', '指', '有', '待', '健診', '健'].includes(raw)) {
                 return { shiftId: raw, colorId: '', isPinned: false };
             }
             const isShift = state.shiftTypes.some(s => s.id === raw);
@@ -1811,10 +1813,10 @@
 
             const holidayIndices = [];
 
-            // 実在する「休・指・有」の位置のみを収集
+            // 実在する「休・指・有・待・健診」の位置のみを収集
             timeline.forEach((item, idx) => {
                 const cell = getCellDataForAnyDate(memberId, item.dateStr);
-                if (['休', '指', '有'].includes(cell.shiftId)) {
+                if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) {
                     holidayIndices.push(idx);
                 }
             });
@@ -1853,7 +1855,7 @@
                 let holidayCount = 0;
                 state.members.forEach(m => {
                     const cell = getCellData(`${m.id}_${d.dateStr}`);
-                    if (['休', '指', '有'].includes(cell.shiftId)) holidayCount++;
+                    if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) holidayCount++;
                 });
 
                 const availableCount = state.members.length - holidayCount;
@@ -1901,7 +1903,7 @@
                 const allDays = getMonthDays();
                 allDays.forEach(ad => {
                     const cell = getCellData(`${m.id}_${ad.dateStr}`);
-                    if (['休', '指', '有'].includes(cell.shiftId)) totalHolidays++;
+                    if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) totalHolidays++;
                 });
 
                 const isAllHoliday = allDays.every(ad => getCellData(`${m.id}_${ad.dateStr}`).shiftId === '休');
@@ -1909,15 +1911,23 @@
                     ? "bg-rose-600 text-white border-rose-600 shadow-xs" 
                     : "bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-600 border-slate-300";
 
+                const isAllWait = allDays.every(ad => getCellData(`${m.id}_${ad.dateStr}`).shiftId === '待');
+                const waitBtnStyle = isAllWait
+                    ? "bg-violet-600 text-white border-violet-600 shadow-xs"
+                    : "bg-slate-100 hover:bg-violet-500 hover:text-white text-slate-600 border-slate-300";
+
                 const badgesHTML = getMemberBadgesHTML(m);
                 const workSpans = getMemberWorkSpans(m.id, days);
 
                 html += `<tr class="border-b border-slate-300 hover:bg-slate-50 transition">`;
                 html += `
                     <td class="p-1.5 border-r border-b border-slate-300 font-bold text-slate-800 sticky-col-left shadow-2xs text-left">
-                        <div class="flex items-center gap-1.5 justify-start">
+                        <div class="flex items-center gap-1 justify-start">
                             <button onclick="setMemberAllHoliday('${m.id}')" title="${isAllHoliday ? '全休を解除' : '全日を休みに設定'}" class="px-1.5 py-0.5 border rounded text-[10px] font-bold transition shrink-0 ${btnStyle}">
                                 ${isAllHoliday ? '済' : '全休'}
+                            </button>
+                            <button onclick="setMemberAllWait('${m.id}')" title="${isAllWait ? '全待を解除' : '全日を待機に設定'}" class="px-1.5 py-0.5 border rounded text-[10px] font-bold transition shrink-0 ${waitBtnStyle}">
+                                ${isAllWait ? '済' : '全待'}
                             </button>
                             <div class="flex flex-col min-w-0 flex-1 cursor-pointer" onclick="openMemberEditModal('${m.id}')" title="クリックして属性や担当不可コースを編集">
                                 <span class="truncate text-xs font-bold hover:text-indigo-600">${m.name}</span>
@@ -1949,6 +1959,12 @@
                     } else if (val === '有') {
                         cellStyle = "bg-emerald-100 text-emerald-800 font-extrabold border-emerald-300 shadow-2xs";
                         displayContent = '有';
+                    } else if (val === '待') {
+                        cellStyle = "bg-violet-100 text-violet-800 font-extrabold border-violet-300 shadow-2xs";
+                        displayContent = '待';
+                    } else if (val === '健診' || val === '健') {
+                        cellStyle = "bg-teal-100 text-teal-800 font-extrabold border-teal-300 shadow-2xs";
+                        displayContent = '健診';
                     } else if (workSpans[d.dateStr]) {
                         const span = workSpans[d.dateStr];
                         let badgeColor = "text-slate-600 bg-slate-100/90 border-slate-300/80";
@@ -2173,7 +2189,7 @@
                 const key = `${memberId}_${d.dateStr}`;
                 const cell = getCellData(key);
 
-                if (['休', '指', '有'].includes(cell.shiftId)) return;
+                if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) return;
                 if (cell.isPinned) return;
 
                 if (cell.shiftId || cell.colorId) {
@@ -2193,7 +2209,7 @@
             const key = `${memberId}_${dateStr}`;
             const cell = getCellData(key);
             
-            if (['休', '指', '有'].includes(cell.shiftId)) {
+            if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) {
                 return;
             }
 
@@ -2286,7 +2302,7 @@
                 let holidayCount = 0;
                 state.members.forEach(m => {
                     const cell = getCellData(`${m.id}_${d.dateStr}`);
-                    if (['休', '指', '有'].includes(cell.shiftId)) holidayCount++;
+                    if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) holidayCount++;
                 });
 
                 const availableCount = state.members.length - holidayCount;
@@ -2397,11 +2413,13 @@
                         const isPinned = cell.isPinned;
                         const courseBadge = getCourseBadgeSummary(m.id, d.dateStr);
                         
-                        if (['休', '指', '有'].includes(val)) {
+                        if (['休', '指', '有', '待', '健診', '健'].includes(val)) {
                             let bg = "bg-rose-100 text-rose-800 border-rose-200";
                             if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
                             if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                            html += `<td class="p-1 border-r border-b border-slate-300 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み設定で固定されています">🔒${val}</td>`;
+                            if (val === '待') bg = "bg-violet-100 text-violet-800 border-violet-200";
+                            if (val === '健診' || val === '健') bg = "bg-teal-100 text-teal-800 border-teal-200";
+                            html += `<td class="p-1 border-r border-b border-slate-300 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み・待機・健診設定で固定されています">🔒${val}</td>`;
                         } else {
                             const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
                             const customColor = state.colorTypes.find(c => c.id === cell.colorId);
@@ -2557,10 +2575,12 @@
                 }
             }
 
-            if (['休', '指', '有'].includes(shiftId)) {
+            if (['休', '指', '有', '待', '健診', '健'].includes(shiftId)) {
                 let badgeClass = "bg-rose-100 text-rose-800 border-rose-200";
                 if (shiftId === '指') badgeClass = "bg-amber-100 text-amber-800 border-amber-200";
                 if (shiftId === '有') badgeClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
+                if (shiftId === '待') badgeClass = "bg-violet-100 text-violet-800 border-violet-200";
+                if (shiftId === '健診' || shiftId === '健') badgeClass = "bg-teal-100 text-teal-800 border-teal-200";
                 return `
                     <div class="w-full py-1 text-center">
                         <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black border ${badgeClass}">
@@ -2712,7 +2732,7 @@
             let workingMembersCount = 0;
             state.members.forEach(m => {
                 const cell = getCellData(`${m.id}_${state.selectedAssignmentDate}`);
-                if (!['休', '指', '有'].includes(cell.shiftId)) workingMembersCount++;
+                if (!['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) workingMembersCount++;
             });
 
             if (statsContainer) {
@@ -2868,7 +2888,7 @@
             let tbodyHtml = '';
             displayMembers.forEach(member => {
                 const cell = getCellData(`${member.id}_${state.selectedAssignmentDate}`);
-                const isHoliday = ['休', '指', '有'].includes(cell.shiftId);
+                const isHoliday = ['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId);
                 const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
                 const shiftLabel = shiftObj ? shiftObj.name : (cell.shiftId || '未定');
                 const shiftColor = shiftObj ? shiftObj.color : '#64748b';
@@ -2883,6 +2903,15 @@
                 const nextCell3 = renderTimelineMiniCell(member.id, timelineDays[3]);
 
                 if (isHoliday) {
+                    let holidayBadgeLabel = `🔒 休み (${cell.shiftId})`;
+                    let holidayBadgeClass = 'bg-rose-100 text-rose-800 border-rose-200';
+                    if (cell.shiftId === '待') {
+                        holidayBadgeLabel = '🔒 待機 (待)';
+                        holidayBadgeClass = 'bg-violet-100 text-violet-800 border-violet-200';
+                    } else if (cell.shiftId === '健診' || cell.shiftId === '健') {
+                        holidayBadgeLabel = '🔒 健診';
+                        holidayBadgeClass = 'bg-teal-100 text-teal-800 border-teal-200';
+                    }
                     tbodyHtml += `
                         <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-400 hover:bg-slate-100/50 transition">
                             <td class="p-3 font-bold sticky-col-left shadow-2xs border-r border-slate-200">
@@ -2896,12 +2925,12 @@
                             <td class="p-1 border-r-2 border-indigo-300 align-middle bg-white/40">${prevCell1}</td>
 
                             <td class="p-2.5 text-center bg-rose-50/50 border-r border-indigo-200">
-                                <span class="px-2 py-1 bg-rose-100 text-rose-800 rounded font-black text-xs border border-rose-200">
-                                    🔒 休み (${cell.shiftId})
+                                <span class="px-2 py-1 ${holidayBadgeClass} rounded font-black text-xs border">
+                                    ${holidayBadgeLabel}
                                 </span>
                             </td>
                             <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/30 border-r border-indigo-200">ー</td>
-                            <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">公休・指定休のためコース割当対象外です</td>
+                            <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">公休・健診・待機設定のためコース割当対象外です</td>
 
                             <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell1}</td>
                             <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell2}</td>
@@ -3767,7 +3796,7 @@
                     const key = `${member.id}_${d.dateStr}`;
                     const cell = getCellData(key);
 
-                    if (['休', '指', '有'].includes(cell.shiftId)) {
+                    if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) {
                         if (currentSpanDays.length > 0) {
                             processSpan(currentSpanDays);
                             currentSpanDays = [];
@@ -3789,7 +3818,7 @@
                             const key = `${member.id}_${dayObj.dateStr}`;
                             const cell = getCellData(key);
 
-                            if (['休', '指', '有'].includes(cell.shiftId)) return;
+                            if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) return;
 
                             if (cell.isPinned) {
                                 skippedPinnedCount++;
@@ -3888,6 +3917,30 @@
             renderAll();
 
             if (isAllHoliday) {
+                days.forEach(d => syncSingleCellToCloud(`${memberId}_${d.dateStr}`, null));
+            } else {
+                syncBatchCellsToCloud(batchUpdates);
+            }
+        }
+
+        function setMemberAllWait(memberId) {
+            const days = getMonthDays();
+            const isAllWait = days.every(d => state.schedule[`${memberId}_${d.dateStr}`] === '待');
+            const batchUpdates = {};
+
+            days.forEach(d => {
+                const key = `${memberId}_${d.dateStr}`;
+                if (isAllWait) {
+                    delete state.schedule[key];
+                    batchUpdates[key] = null;
+                } else {
+                    state.schedule[key] = '待';
+                    batchUpdates[key] = '待';
+                }
+            });
+            renderAll();
+
+            if (isAllWait) {
                 days.forEach(d => syncSingleCellToCloud(`${memberId}_${d.dateStr}`, null));
             } else {
                 syncBatchCellsToCloud(batchUpdates);
@@ -4477,6 +4530,7 @@
         window.selectStamp = selectStamp;
         window.toggleStamp = toggleStamp;
         window.setMemberAllHoliday = setMemberAllHoliday;
+        window.setMemberAllWait = setMemberAllWait;
         window.updateDailyRequired = updateDailyRequired;
         window.applyDefaultRequired = applyDefaultRequired;
         window.openStaffImportModal = openStaffImportModal;
