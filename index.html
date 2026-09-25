@@ -18,7 +18,7 @@
         .sticky-col-header {
             position: sticky;
             top: 0;
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
             z-index: 30;
         }
         .sticky-col-corner {
@@ -1871,13 +1871,13 @@
                     badgeText = `+${diff}余り`;
                 }
 
-                let headerBg = "bg-slate-50/60";
+                let headerBg = "bg-slate-100";
                 let dayTextClass = "text-slate-800";
                 if (d.isSunday) {
-                    headerBg = "bg-rose-50/90";
+                    headerBg = "bg-rose-100";
                     dayTextClass = "text-rose-700 font-extrabold";
                 } else if (d.isSaturday) {
-                    headerBg = "bg-sky-50/90";
+                    headerBg = "bg-sky-100";
                     dayTextClass = "text-sky-700 font-extrabold";
                 }
 
@@ -2350,14 +2350,14 @@
                 });
                 shiftBadgesHTML += `</div>`;
 
-                let headerBg = "bg-slate-50/60";
-                let dayBadgeStyle = "bg-slate-200/70 text-slate-800";
+                let headerBg = "bg-slate-100";
+                let dayBadgeStyle = "bg-slate-200 text-slate-800";
                 if (d.isSunday) {
-                    headerBg = "bg-rose-50/90";
-                    dayBadgeStyle = "bg-rose-200/80 text-rose-900 font-extrabold";
+                    headerBg = "bg-rose-100";
+                    dayBadgeStyle = "bg-rose-200 text-rose-900 font-extrabold";
                 } else if (d.isSaturday) {
-                    headerBg = "bg-sky-50/90";
-                    dayBadgeStyle = "bg-sky-200/80 text-sky-900 font-extrabold";
+                    headerBg = "bg-sky-100";
+                    dayBadgeStyle = "bg-sky-200 text-sky-900 font-extrabold";
                 }
 
                 html += `
