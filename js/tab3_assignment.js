@@ -64,33 +64,74 @@ function setAssignmentStaffFilter(attrId) {
 }
 
 
-function onAssignmentDateChange(newDateStr) {
-    state.selectedAssignmentDate = newDateStr;
-    const dt = new Date(newDateStr);
-    if (!isNaN(dt.getTime())) {
-        state.currentYear = dt.getFullYear();
-        state.currentMonth = dt.getMonth() + 1;
-        document.getElementById('current-month-display').innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+function parseAssignmentDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return new Date();
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+        return new Date();
     }
-    renderAll();
+    return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
-function changeAssignmentDay(delta) {
-    const dt = new Date(state.selectedAssignmentDate);
-    if (isNaN(dt.getTime())) return;
-    dt.setDate(dt.getDate() + delta);
-
+function formatAssignmentDate(dt) {
     const y = dt.getFullYear();
     const m = String(dt.getMonth() + 1).padStart(2, '0');
     const d = String(dt.getDate()).padStart(2, '0');
-    const newDateStr = `${y}-${m}-${d}`;
+    return `${y}-${m}-${d}`;
+}
+
+function onAssignmentDateChange(newDateStr) {
+    if (!newDateStr) return;
+    const parts = newDateStr.split('-').map(Number);
+    if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return;
+
+    const newY = parts[0];
+    const newM = parts[1];
+    const oldMonthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+    const newMonthDocId = `${newY}-${String(newM).padStart(2, '0')}`;
 
     state.selectedAssignmentDate = newDateStr;
-    state.currentYear = dt.getFullYear();
-    state.currentMonth = dt.getMonth() + 1;
-    document.getElementById('current-month-display').innerText = `${state.currentYear}年 ${state.currentMonth}月`;
 
-    renderAll();
+    if (oldMonthDocId !== newMonthDocId) {
+        // 月をまたぐ場合：まず現在月（旧月）のメモリ内データをローカルストレージに確実に保存
+        saveData();
+
+        // 年月を更新
+        state.currentYear = newY;
+        state.currentMonth = newM;
+
+        const monthDisplay = document.getElementById('current-month-display');
+        if (monthDisplay) {
+            monthDisplay.innerText = `${state.currentYear}年 ${state.currentMonth}月`;
+        }
+
+        // 移動先月のデータをlocalStorageからロード
+        const cachedMonth = localStorage.getItem(`shift_app_month_${newMonthDocId}`);
+        state.schedule = cachedMonth ? JSON.parse(cachedMonth) : {};
+        const cachedCourses = localStorage.getItem(`shift_app_courses_${newMonthDocId}`);
+        state.courseAssignments = cachedCourses ? JSON.parse(cachedCourses) : {};
+
+        // 隣接月キャッシュをクリアして再取得
+        if (state.adjacentSchedules) state.adjacentSchedules = {};
+        if (state.adjacentCourseAssignments) state.adjacentCourseAssignments = {};
+        fetchAdjacentMonthSchedules();
+
+        if (typeof isCloudConnected !== 'undefined' && isCloudConnected && typeof listenToCurrentMonthShift === 'function') {
+            listenToCurrentMonthShift();
+        } else {
+            renderAll();
+        }
+    } else {
+        renderAll();
+    }
+}
+
+function changeAssignmentDay(delta) {
+    if (!state.selectedAssignmentDate) return;
+    const dt = parseAssignmentDate(state.selectedAssignmentDate);
+    dt.setDate(dt.getDate() + delta);
+    const newDateStr = formatAssignmentDate(dt);
+    onAssignmentDateChange(newDateStr);
 }
 
 function getAssignedCoursesMapForDate(dateStr) {
@@ -119,16 +160,265 @@ function getAssignedCoursesMapForDate(dateStr) {
     return map;
 }
 
+// --- ドラッグ＆ドロップ（DnD）配車ハンドラー ---
+function handleCourseDragStart(event, courseId, sourceMemberId = null, sourceSlot = null) {
+    const payload = {
+        courseId: courseId,
+        sourceMemberId: sourceMemberId,
+        sourceSlot: sourceSlot
+    };
+    event.dataTransfer.setData('text/plain', JSON.stringify(payload));
+    event.dataTransfer.effectAllowed = 'move';
+}
+
+function handleCourseDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const target = event.currentTarget;
+    if (target && !target.classList.contains('drag-over-active')) {
+        target.classList.add('drag-over-active', 'ring-2', 'ring-indigo-500', 'bg-indigo-50/80');
+    }
+}
+
+function handleCourseDragLeave(event) {
+    const target = event.currentTarget;
+    if (target) {
+        target.classList.remove('drag-over-active', 'ring-2', 'ring-indigo-500', 'bg-indigo-50/80');
+    }
+}
+
+function handleCourseDrop(event, targetMemberId, targetSlot) {
+    event.preventDefault();
+    const target = event.currentTarget;
+    if (target) {
+        target.classList.remove('drag-over-active', 'ring-2', 'ring-indigo-500', 'bg-indigo-50/80');
+    }
+
+    let payload;
+    try {
+        payload = JSON.parse(event.dataTransfer.getData('text/plain'));
+    } catch(e) {
+        return;
+    }
+
+    const { courseId, sourceMemberId, sourceSlot } = payload;
+    if (!courseId) return;
+
+    // 同じスタッフの同じ枠へのドロップはスキップ
+    if (sourceMemberId === targetMemberId && sourceSlot === targetSlot) return;
+
+    const course = state.courses.find(c => c.id === courseId);
+    if (!course) return;
+
+    const targetMember = state.members.find(m => m.id === targetMemberId);
+    if (!targetMember) return;
+
+    const targetCa = getCourseAssignment(targetMemberId, state.selectedAssignmentDate);
+    const targetKey = `${state.selectedAssignmentDate}_${targetMemberId}`;
+
+    // NGコース判定（教育フラグがONなら許可）
+    let isTargetTrainee = false;
+    if (targetSlot === 'full') isTargetTrainee = !!targetCa.isTrainee;
+    else if (targetSlot === 'first') isTargetTrainee = !!targetCa.firstHalf?.isTrainee;
+    else if (targetSlot === 'second') isTargetTrainee = !!targetCa.secondHalf?.isTrainee;
+
+    const isTargetNG = targetMember.ngCourses && targetMember.ngCourses.includes(courseId);
+    if (isTargetNG && !isTargetTrainee) {
+        if (typeof showMessageModal === 'function') {
+            showMessageModal(`【担当不可（NGコース）】<br><strong>${targetMember.name}</strong> さんは「${course.name}」の担当不可に指定されています。<br><span class="text-xs text-slate-500 mt-1 block">※このコースを割り当てる場合は「🎓 教育・同乗」にチェックを入れてください。</span>`);
+        } else {
+            alert(`${targetMember.name} さんは「${course.name}」の担当不可に設定されています。`);
+        }
+        return;
+    }
+
+    // ターゲットスロットの現在のコース
+    let targetCurrentCourseId = '';
+    if (targetSlot === 'full') targetCurrentCourseId = targetCa.courseId || '';
+    else if (targetSlot === 'first') targetCurrentCourseId = targetCa.firstHalf?.courseId || '';
+    else if (targetSlot === 'second') targetCurrentCourseId = targetCa.secondHalf?.courseId || '';
+
+    // パターン1: スタッフ間でのドラッグ＆ドロップ（交換または同乗追加）
+    if (sourceMemberId) {
+        const sourceCa = getCourseAssignment(sourceMemberId, state.selectedAssignmentDate);
+        const sourceKey = `${state.selectedAssignmentDate}_${sourceMemberId}`;
+
+        // ターゲットへ配置
+        if (targetSlot === 'full') {
+            targetCa.courseId = courseId;
+        } else if (targetSlot === 'first') {
+            if (!targetCa.firstHalf) targetCa.firstHalf = { courseId: '', isTrainee: false };
+            targetCa.firstHalf.courseId = courseId;
+        } else if (targetSlot === 'second') {
+            if (!targetCa.secondHalf) targetCa.secondHalf = { courseId: '', isTrainee: false };
+            targetCa.secondHalf.courseId = courseId;
+        }
+
+        // ターゲットが教育・同乗（isTargetTrainee）でない場合のみ、ソース側をスワップ・移動処理
+        // （ターゲットが教育生の場合は元の本乗務スタッフからコースを奪わず同乗追加とする）
+        if (!isTargetTrainee) {
+            if (sourceSlot === 'full') {
+                sourceCa.courseId = targetCurrentCourseId;
+            } else if (sourceSlot === 'first') {
+                if (!sourceCa.firstHalf) sourceCa.firstHalf = { courseId: '', isTrainee: false };
+                sourceCa.firstHalf.courseId = targetCurrentCourseId;
+            } else if (sourceSlot === 'second') {
+                if (!sourceCa.secondHalf) sourceCa.secondHalf = { courseId: '', isTrainee: false };
+                sourceCa.secondHalf.courseId = targetCurrentCourseId;
+            }
+            state.courseAssignments[sourceKey] = sourceCa;
+            if (typeof syncSingleCourseAssignmentToCloud === 'function') {
+                syncSingleCourseAssignmentToCloud(sourceKey, sourceCa);
+            }
+        }
+
+        state.courseAssignments[targetKey] = targetCa;
+        if (typeof syncSingleCourseAssignmentToCloud === 'function') {
+            syncSingleCourseAssignmentToCloud(targetKey, targetCa);
+        }
+    } else {
+        // パターン2: 上部コース一覧からのドラッグ＆ドロップ
+        // ドロップ先が通常乗務（!isTargetTrainee）の場合のみ、既存の通常乗務スタッフを解除して移動
+        // ドロップ先が教育・同乗（isTargetTrainee）の場合は、他スタッフを解除せずそのまま同乗として追加
+        if (!isTargetTrainee) {
+            state.members.forEach(m => {
+                if (m.id === targetMemberId) return;
+                const mCa = getCourseAssignment(m.id, state.selectedAssignmentDate);
+                const mKey = `${state.selectedAssignmentDate}_${m.id}`;
+                let changed = false;
+
+                if (!mCa.isSplit) {
+                    // 通常スタッフ（!mCa.isTrainee）の場合のみ解除（同乗教育生は解除しない）
+                    if (mCa.courseId === courseId && !mCa.isTrainee) {
+                        mCa.courseId = '';
+                        changed = true;
+                    }
+                } else {
+                    if (targetSlot === 'full' || targetSlot === 'first') {
+                        if (mCa.firstHalf?.courseId === courseId && !mCa.firstHalf?.isTrainee) {
+                            mCa.firstHalf.courseId = '';
+                            changed = true;
+                        }
+                    }
+                    if (targetSlot === 'full' || targetSlot === 'second') {
+                        if (mCa.secondHalf?.courseId === courseId && !mCa.secondHalf?.isTrainee) {
+                            mCa.secondHalf.courseId = '';
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (changed) {
+                    state.courseAssignments[mKey] = mCa;
+                    if (typeof syncSingleCourseAssignmentToCloud === 'function') {
+                        syncSingleCourseAssignmentToCloud(mKey, mCa);
+                    }
+                }
+            });
+        }
+
+        // ターゲットへ配置
+        if (targetSlot === 'full') {
+            targetCa.courseId = courseId;
+        } else if (targetSlot === 'first') {
+            if (!targetCa.firstHalf) targetCa.firstHalf = { courseId: '', isTrainee: false };
+            targetCa.firstHalf.courseId = courseId;
+        } else if (targetSlot === 'second') {
+            if (!targetCa.secondHalf) targetCa.secondHalf = { courseId: '', isTrainee: false };
+            targetCa.secondHalf.courseId = courseId;
+        }
+
+        state.courseAssignments[targetKey] = targetCa;
+        if (typeof syncSingleCourseAssignmentToCloud === 'function') {
+            syncSingleCourseAssignmentToCloud(targetKey, targetCa);
+        }
+    }
+
+    saveData();
+    renderAll();
+}
+
+function clearCourseSlot(memberId, slot) {
+    const key = `${state.selectedAssignmentDate}_${memberId}`;
+    const ca = getCourseAssignment(memberId, state.selectedAssignmentDate);
+    if (!ca) return;
+
+    if (slot === 'full') {
+        ca.courseId = '';
+    } else if (slot === 'first') {
+        if (ca.firstHalf) ca.firstHalf.courseId = '';
+    } else if (slot === 'second') {
+        if (ca.secondHalf) ca.secondHalf.courseId = '';
+    }
+
+    state.courseAssignments[key] = ca;
+    saveData();
+    renderAll();
+    if (typeof syncSingleCourseAssignmentToCloud === 'function') {
+        syncSingleCourseAssignmentToCloud(key, ca);
+    }
+}
+
+function renderDraggableCourseChip(crs, assignedMap, isGroup = false) {
+    const assigned = assignedMap[crs.id] || { full: [], first: [], second: [] };
+    const isFullAssigned = assigned.full.length > 0;
+    const isFirstAssigned = assigned.first.length > 0;
+    const isSecondAssigned = assigned.second.length > 0;
+    const isAnyAssigned = isFullAssigned || isFirstAssigned || isSecondAssigned;
+
+    let staffLabels = [];
+    if (isFullAssigned) {
+        staffLabels.push(assigned.full.map(a => `${a.memberName}${a.isTrainee ? '(🎓同乗)' : ''}`).join(', '));
+    }
+    if (isFirstAssigned) {
+        staffLabels.push(assigned.first.map(a => `${a.memberName}[前]${a.isTrainee ? '(🎓同乗)' : ''}`).join(', '));
+    }
+    if (isSecondAssigned) {
+        staffLabels.push(assigned.second.map(a => `${a.memberName}[後]${a.isTrainee ? '(🎓同乗)' : ''}`).join(', '));
+    }
+    const staffText = staffLabels.join(' / ');
+
+    if (isAnyAssigned) {
+        return `
+            <div draggable="true"
+                 ondragstart="handleCourseDragStart(event, '${crs.id}')"
+                 class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-300 shadow-2xs cursor-grab active:cursor-grabbing hover:bg-slate-200 hover:border-slate-400 transition select-none"
+                 title="${crs.order}. ${crs.name} (担当: ${staffText}) - ドラッグして他スタッフへ移動・交代可能">
+                <span class="text-[10px] text-slate-400 font-black">${crs.order}.</span>
+                <span class="line-through decoration-slate-400">${crs.name}</span>
+                <span class="text-[10px] font-black text-indigo-700 bg-white px-1.5 py-0.2 rounded border border-indigo-200 shadow-2xs">${staffText}</span>
+            </div>
+        `;
+    } else {
+        let badgeColorClass = "bg-white text-slate-800 border-amber-300 hover:border-amber-500 hover:bg-amber-50/50";
+        let orderColorClass = "text-amber-600";
+        if (crs.isRequired === false) {
+            badgeColorClass = "bg-white text-slate-700 border-slate-300 hover:border-slate-500 hover:bg-slate-50";
+            orderColorClass = "text-slate-400";
+        } else if (isGroup) {
+            badgeColorClass = "bg-white text-violet-800 border-violet-300 hover:border-violet-500 hover:bg-violet-50";
+            orderColorClass = "text-violet-600";
+        }
+        return `
+            <div draggable="true"
+                 ondragstart="handleCourseDragStart(event, '${crs.id}')"
+                 class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-xs transition select-none ${badgeColorClass}"
+                 title="${crs.order}. ${crs.name} - ドラッグしてスタッフ枠へドロップ">
+                <span class="text-[10px] font-black ${orderColorClass}">${crs.order}.</span>
+                <span>${crs.name}</span>
+                ${crs.isRequired === false ? '<span class="text-[9px] px-1 bg-slate-100 text-slate-500 rounded font-normal">任意</span>' : ''}
+            </div>
+        `;
+    }
+}
+
 function getTimelineDayInfo(baseDateStr, offset) {
-    const dt = new Date(baseDateStr);
+    const dt = parseAssignmentDate(baseDateStr);
     dt.setDate(dt.getDate() + offset);
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, '0');
-    const d = String(dt.getDate()).padStart(2, '0');
     const dayOfWeekNum = dt.getDay();
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     return {
-        dateStr: `${y}-${m}-${d}`,
+        dateStr: formatAssignmentDate(dt),
         day: dt.getDate(),
         month: dt.getMonth() + 1,
         dayOfWeek: dayNames[dayOfWeekNum],
@@ -161,8 +451,8 @@ function renderTimelineMiniCell(memberId, dateInfo) {
     const hType = getHolidayType(shiftId);
     if (hType) {
         return `
-            <div class="w-full py-1 text-center">
-                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black border" style="background-color: ${hType.color}20; color: ${hType.color}; border-color: ${hType.color}50;">
+            <div class="w-full text-center py-0.5">
+                <span class="inline-block px-1.5 py-0.5 rounded text-xs font-black border leading-none shadow-2xs" style="background-color: ${hType.color}20; color: ${hType.color}; border-color: ${hType.color}50;" title="${hType.name}">
                     ${hType.shortName}
                 </span>
             </div>
@@ -173,7 +463,7 @@ function renderTimelineMiniCell(memberId, dateInfo) {
     const color = state.colorTypes.find(c => c.id === cell.colorId);
 
     if (!shift && !color && !courseText) {
-        return `<div class="text-center text-slate-300 text-[11px] py-1">ー</div>`;
+        return `<div class="text-center text-slate-300 text-xs py-1 font-bold">ー</div>`;
     }
 
     let bgStyle = '';
@@ -195,12 +485,12 @@ function renderTimelineMiniCell(memberId, dateInfo) {
     return `
         <div class="flex flex-col items-center justify-center gap-0.5 py-0.5">
             ${label ? `
-                <span class="inline-block px-1 py-0.2 rounded text-[9px] font-black text-white shadow-2xs leading-tight" style="${bgStyle}" title="${badgeTitle}">
+                <span class="inline-block px-1.5 py-0.5 rounded text-xs font-black text-white shadow-2xs leading-none" style="${bgStyle}" title="${badgeTitle}">
                     ${label}
                 </span>
             ` : ''}
             ${courseText ? `
-                <span class="text-[8px] font-black bg-slate-800 text-white px-1 py-0.2 rounded leading-none" title="割当コース: ${courseText}">
+                <span class="text-[10px] font-bold bg-slate-800 text-white px-1 py-0.5 rounded leading-tight max-w-[50px] truncate shadow-2xs" title="割当コース: ${courseText}">
                     ${courseText}
                 </span>
             ` : ''}
@@ -218,7 +508,7 @@ function renderCourseAssignmentTab() {
     if (!targetDateInput || !tableBody) return;
 
     targetDateInput.value = state.selectedAssignmentDate;
-    const dateObj = new Date(state.selectedAssignmentDate);
+    const dateObj = parseAssignmentDate(state.selectedAssignmentDate);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayOfWeek = dayNames[dateObj.getDay()] || '';
     dayBadge.innerText = `${dayOfWeek}曜日`;
@@ -342,118 +632,98 @@ function renderCourseAssignmentTab() {
     }
 
     if (unassignedContainer) {
-        if (unassignedReqCount === 0 && unassignedOptionalList.length === 0) {
-            unassignedContainer.innerHTML = `
-                <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-                    <span>✅</span>
-                    <span>すべての運行コースおよび選択グループ枠が過不足なく割り当て済みです！</span>
+        let htmlList = `<div class="space-y-2.5">`;
+
+        // 全充足時の完了バナー（上部に表示）
+        if (unassignedReqCount === 0) {
+            htmlList += `
+                <div class="flex items-center justify-between text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-2 rounded-xl shadow-2xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">✅</span>
+                        <span>すべての必須運行コースおよびグループ選択枠が割り当て済みです！</span>
+                    </div>
+                    <span class="text-[11px] text-emerald-600 font-normal">※グレーのバッジを掴んで別のスタッフ枠へドロップすると、いつでも担当者を移動・交代できます</span>
                 </div>
             `;
-        } else {
-            let htmlList = `<div class="space-y-2.5">`;
-
-            // 1. コース選択グループ枠の表示
-            if (groupStatusList.length > 0) {
-                htmlList += `
-                    <div class="space-y-1.5">
-                        <div class="flex items-center justify-between text-xs font-bold text-violet-900">
-                            <span class="flex items-center gap-1">
-                                <span>🔀</span>
-                                <span>コース選択グループ枠 (${groupStatusList.length}グループ):</span>
-                            </span>
-                            <span class="text-[11px] text-slate-400 font-normal">※指定された必要枠数が満たされると充足します</span>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            ${groupStatusList.map(g => {
-                                if (g.isSatisfied) {
-                                    return `
-                                        <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs">
-                                            <div class="flex items-center justify-between font-bold text-emerald-800">
-                                                <span class="flex items-center gap-1"><span>✅</span> <span>${g.name}</span></span>
-                                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 font-black">充足済 (${g.assignedCourses.length}/${g.requiredCount}枠)</span>
-                                            </div>
-                                            <div class="mt-1 flex flex-wrap gap-1 text-[11px] text-emerald-700">
-                                                <span>運行: ${g.assignedCourses.map(c => c.name).join(', ')}</span>
-                                            </div>
-                                        </div>
-                                    `;
-                                } else {
-                                    return `
-                                        <div class="p-2 rounded-lg bg-violet-50 border border-violet-200 text-xs space-y-1">
-                                            <div class="flex items-center justify-between font-bold text-violet-900">
-                                                <span class="flex items-center gap-1"><span>⚠️</span> <span>${g.name}</span></span>
-                                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 border border-rose-300 font-black">あと ${g.shortage}枠 不足 (${g.assignedCourses.length}/${g.requiredCount})</span>
-                                            </div>
-                                            <div class="flex items-center gap-1 flex-wrap pt-0.5">
-                                                <span class="text-[10px] text-violet-600 font-bold">候補:</span>
-                                                ${g.unassignedCourses.map(crs => `
-                                                    <span class="px-1.5 py-0.2 rounded text-[11px] font-bold bg-white text-violet-800 border border-violet-300 shadow-2xs">
-                                                        ${crs.order}. ${crs.name}
-                                                    </span>
-                                                `).join('')}
-                                            </div>
-                                        </div>
-                                    `;
-                                }
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // 2. 単独必須コースの未割当表示
-            if (unassignedSingleRequiredList.length > 0) {
-                htmlList += `
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between text-xs font-bold text-amber-800">
-                            <span class="flex items-center gap-1">
-                                <span>⚠️</span>
-                                <span>必須・未割り当て通常コース (<span class="text-rose-600 font-black">${unassignedSingleRequiredList.length}件</span>):</span>
-                            </span>
-                            <span class="text-[11px] text-slate-400 font-normal">※運行が必要な通常便です</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1.5 bg-amber-50/50 border border-amber-200 rounded-lg">
-                            ${unassignedSingleRequiredList.map(crs => `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-white text-slate-700 border border-amber-300 shadow-2xs">
-                                    <span class="text-[10px] text-amber-600 font-black">${crs.order}.</span>
-                                    <span>${crs.name}</span>
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            } else if (unassignedReqCount === 0) {
-                htmlList += `
-                    <div class="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                        <span>✅</span>
-                        <span>必須コースはすべて割り当て完了しています。</span>
-                    </div>
-                `;
-            }
-
-            // 3. 任意コースの空き表示
-            if (unassignedOptionalList.length > 0) {
-                htmlList += `
-                    <div class="space-y-1 pt-1">
-                        <div class="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                            <span>📦</span>
-                            <span>任意・臨時便（未配車: ${unassignedOptionalList.length}件）:</span>
-                        </div>
-                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto p-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-                            ${unassignedOptionalList.map(crs => `
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-white text-slate-600 border border-slate-300">
-                                    <span class="text-[10px] text-slate-400">${crs.order}.</span>
-                                    <span>${crs.name}</span>
-                                    <span class="text-[9px] px-1 bg-slate-100 text-slate-500 rounded">任意</span>
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-            htmlList += `</div>`;
-            unassignedContainer.innerHTML = htmlList;
         }
+
+        // 1. コース選択グループ枠の表示
+        if (groupStatusList.length > 0) {
+            htmlList += `
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-bold text-violet-900">
+                        <span class="flex items-center gap-1.5">
+                            <span>🔀</span>
+                            <span>コース選択グループ枠 (${groupStatusList.length}グループ):</span>
+                        </span>
+                        <span class="text-[11px] text-slate-400 font-normal">※バッジをスタッフ枠へドラッグ＆ドロップして配車できます</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${groupStatusList.map(g => {
+                            const groupCourses = (g.courseIds || []).map(cid => state.courses.find(c => c.id === cid)).filter(Boolean);
+                            const isSat = g.isSatisfied;
+                            return `
+                                <div class="p-2.5 rounded-xl border text-xs space-y-1.5 ${isSat ? 'bg-emerald-50/50 border-emerald-200' : 'bg-violet-50/50 border-violet-200'}">
+                                    <div class="flex items-center justify-between font-bold">
+                                        <span class="flex items-center gap-1 ${isSat ? 'text-emerald-800' : 'text-violet-900'}">
+                                            <span>${isSat ? '✅' : '⚠️'}</span>
+                                            <span>${g.name}</span>
+                                        </span>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-black ${isSat ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-100 text-rose-700 border border-rose-300'}">
+                                            ${isSat ? `充足済 (${g.assignedCourses.length}/${g.requiredCount}枠)` : `あと ${g.shortage}枠 不足 (${g.assignedCourses.length}/${g.requiredCount})`}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                        <span class="text-[10px] ${isSat ? 'text-emerald-700' : 'text-violet-700'} font-bold">候補:</span>
+                                        ${groupCourses.map(crs => renderDraggableCourseChip(crs, assignedMap, true)).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 2. 単独必須コース一覧（全件表示：未割当は明るく、割当済はグレー＋担当者名）
+        const allSingleRequiredList = state.courses.filter(c => c.isRequired !== false && !allGroupCourseIds.has(c.id));
+        if (allSingleRequiredList.length > 0) {
+            htmlList += `
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs font-bold text-amber-900">
+                        <span class="flex items-center gap-1.5">
+                            <span>📋</span>
+                            <span>必須・通常コース全件 (${allSingleRequiredList.length}コース / <span class="${unassignedSingleRequiredList.length > 0 ? 'text-rose-600 font-black' : 'text-emerald-600 font-black'}">未配車: ${unassignedSingleRequiredList.length}件</span>):</span>
+                        </span>
+                        <span class="text-[11px] text-slate-400 font-normal">※ドラッグしてスタッフ枠へドロップ / グレーは割当済</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 p-2 bg-slate-50/80 border border-slate-200 rounded-xl">
+                        ${allSingleRequiredList.map(crs => renderDraggableCourseChip(crs, assignedMap, false)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 3. 任意コース一覧（全件表示：未割当は明るく、割当済はグレー＋担当者名）
+        const allOptionalList = state.courses.filter(c => c.isRequired === false && !allGroupCourseIds.has(c.id));
+        if (allOptionalList.length > 0) {
+            htmlList += `
+                <div class="space-y-1 pt-0.5">
+                    <div class="text-[11px] font-bold text-slate-500 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <span>📦</span>
+                            <span>任意・臨時便 (${allOptionalList.length}コース / 未配車: ${unassignedOptionalList.length}件):</span>
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 border border-slate-200 rounded-xl">
+                        ${allOptionalList.map(crs => renderDraggableCourseChip(crs, assignedMap, false)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        htmlList += `</div>`;
+        unassignedContainer.innerHTML = htmlList;
     }
 
     const displayMembers = state.activeAssignmentStaffFilter
@@ -511,7 +781,6 @@ function renderCourseAssignmentTab() {
             const holidayShort = hType ? hType.shortName : cell.shiftId;
             const holidayName = hType ? hType.name : cell.shiftId;
             const holidayColor = hType ? hType.color : '#f43f5e';
-            const holidayBadgeLabel = `🔒 ${holidayName} (${holidayShort})`;
             tbodyHtml += `
                 <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-400 hover:bg-slate-100/50 transition">
                     <td class="p-3 font-bold sticky-col-left shadow-2xs border-r border-slate-200">
@@ -524,88 +793,54 @@ function renderCourseAssignmentTab() {
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${prevCell2}</td>
                     <td class="p-1 border-r-2 border-indigo-300 align-middle bg-white/40">${prevCell1}</td>
 
-                    <td class="p-2.5 text-center bg-rose-50/50 border-r border-indigo-200">
-                        <span class="px-2 py-1 rounded font-black text-xs border" style="background-color: ${holidayColor}20; color: ${holidayColor}; border-color: ${holidayColor}50;">
-                            ${holidayBadgeLabel}
+                    <td class="p-2.5 text-center bg-rose-50/30 border-r border-indigo-200 align-middle">
+                        <span class="px-2.5 py-1 rounded-md font-black text-xs border inline-block shadow-2xs" style="background-color: ${holidayColor}20; color: ${holidayColor}; border-color: ${holidayColor}50;" title="${holidayName}">
+                            ${holidayShort}
                         </span>
                     </td>
-                    <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/30 border-r border-indigo-200">ー</td>
-                    <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">${holidayName}設定のためコース割当対象外です</td>
+                    <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/20 border-r border-indigo-200 align-middle">ー</td>
+                    <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/20 border-r-2 border-indigo-300 align-middle">ー</td>
 
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell1}</td>
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell2}</td>
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell3}</td>
 
-                    <td class="p-2 text-center text-xs text-slate-400">ー</td>
+                    <td class="p-2 text-center text-xs text-slate-400 align-middle">ー</td>
                 </tr>
             `;
         } else {
             const ngCourses = member.ngCourses || [];
 
-            const renderCourseOptions = (selectedCourseId, slotType, isTrainee) => {
-                let optHtml = `<option value="">-- コースを選択 --</option>`;
-                state.courses.forEach(crs => {
-                    const isSelected = crs.id === selectedCourseId;
-                    const isNG = ngCourses.includes(crs.id);
-                    const isOptional = crs.isRequired === false;
-
-                    let conflictReason = '';
-                    const assigned = assignedMap[crs.id] || { full: [], first: [], second: [] };
-
-                    if (slotType === 'full') {
-                        const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
-                        const conflictFirst = assigned.first.find(a => a.memberId !== member.id && !a.isTrainee);
-                        const conflictSecond = assigned.second.find(a => a.memberId !== member.id && !a.isTrainee);
-                        if (conflictFull) conflictReason = `${conflictFull.memberName}割当済`;
-                        else if (conflictFirst) conflictReason = `${conflictFirst.memberName}(前)割当済`;
-                        else if (conflictSecond) conflictReason = `${conflictSecond.memberName}(後)割当済`;
-                    } else if (slotType === 'first') {
-                        const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
-                        const conflictFirst = assigned.first.find(a => a.memberId !== member.id && !a.isTrainee);
-                        if (conflictFull) conflictReason = `${conflictFull.memberName}(終)割当済`;
-                        else if (conflictFirst) conflictReason = `${conflictFirst.memberName}割当済`;
-                    } else if (slotType === 'second') {
-                        const conflictFull = assigned.full.find(a => a.memberId !== member.id && !a.isTrainee);
-                        const conflictSecond = assigned.second.find(a => a.memberId !== member.id && !a.isTrainee);
-                        if (conflictFull) conflictReason = `${conflictFull.memberName}(終)割当済`;
-                        else if (conflictSecond) conflictReason = `${conflictSecond.memberName}割当済`;
-                    }
-
-                    let disabledAttr = '';
-                    let labelSuffix = '';
-
-                    if (isOptional) {
-                        labelSuffix += ' [任意]';
-                    }
-
-                    if (isNG) {
-                        if (isTrainee) {
-                            labelSuffix += ' ⚠️NG(教育許可)';
-                        } else {
-                            disabledAttr = 'disabled';
-                            labelSuffix += ' ⚠️担当不可NG';
-                        }
-                    } else if (conflictReason) {
-                        if (isTrainee) {
-                            labelSuffix += ` 🎓(${conflictReason})`;
-                        } else {
-                            disabledAttr = 'disabled';
-                            labelSuffix += ` 🔒(${conflictReason})`;
-                        }
-                    }
-
-                    optHtml += `<option value="${crs.id}" ${isSelected ? 'selected' : ''} ${disabledAttr}>${crs.order}. ${crs.name}${labelSuffix}</option>`;
-                });
-                return optHtml;
-            };
-
             let assignmentControls = '';
             if (!ca.isSplit) {
+                const currentCrs = ca.courseId ? state.courses.find(c => c.id === ca.courseId) : null;
+                const isNG = currentCrs && ngCourses.includes(currentCrs.id);
+
                 assignmentControls = `
                     <div class="flex items-center gap-2">
-                        <select onchange="updateCourseAssignment('${member.id}', 'courseId', this.value)" class="w-56 p-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-sky-500 shrink-0">
-                            ${renderCourseOptions(ca.courseId, 'full', ca.isTrainee)}
-                        </select>
+                        <div ondragover="handleCourseDragOver(event)"
+                             ondragleave="handleCourseDragLeave(event)"
+                             ondrop="handleCourseDrop(event, '${member.id}', 'full')"
+                             class="w-64 min-h-[38px] p-0.5 rounded-xl transition flex items-center">
+                            ${currentCrs ? `
+                                <div draggable="true"
+                                     ondragstart="handleCourseDragStart(event, '${currentCrs.id}', '${member.id}', 'full')"
+                                     class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg ${isNG && !ca.isTrainee ? 'bg-rose-600' : 'bg-indigo-600'} text-white font-bold text-xs shadow-2xs cursor-grab active:cursor-grabbing hover:opacity-95 transition select-none"
+                                     title="${currentCrs.order}. ${currentCrs.name} - ドラッグして他スタッフへ移動・交換可能">
+                                    <span class="flex items-center gap-1.5 truncate">
+                                        <span class="text-[10px] px-1.5 py-0.2 rounded bg-black/25 text-white font-black">${currentCrs.order}.</span>
+                                        <span class="truncate">${currentCrs.name}</span>
+                                        ${ca.isTrainee ? '<span class="text-[9px] px-1 bg-amber-400 text-slate-900 rounded font-black shrink-0">🎓同乗</span>' : ''}
+                                        ${isNG ? '<span class="text-[9px] px-1 bg-rose-300 text-rose-950 rounded font-black shrink-0">⚠️NG</span>' : ''}
+                                    </span>
+                                    <button type="button" onclick="clearCourseSlot('${member.id}', 'full')" class="ml-1 text-white/80 hover:text-white hover:bg-black/20 rounded px-1 transition text-xs font-black" title="コース割当を解除">✕</button>
+                                </div>
+                            ` : `
+                                <div class="w-full text-center text-xs font-bold text-slate-400 border-2 border-dashed border-slate-300 rounded-lg py-1.5 bg-slate-50/70 hover:bg-indigo-50/60 hover:border-indigo-400 transition cursor-pointer select-none">
+                                    ＋ ここにコースをドロップ
+                                </div>
+                            `}
+                        </div>
                         <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition select-none shrink-0 ${ca.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-2xs ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
                             <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'isTrainee', this.checked)" ${ca.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
                             <span>🎓 教育・同乗</span>
@@ -613,13 +848,38 @@ function renderCourseAssignmentTab() {
                     </div>
                 `;
             } else {
+                const firstCrs = ca.firstHalf?.courseId ? state.courses.find(c => c.id === ca.firstHalf.courseId) : null;
+                const secondCrs = ca.secondHalf?.courseId ? state.courses.find(c => c.id === ca.secondHalf.courseId) : null;
+                const isFirstNG = firstCrs && ngCourses.includes(firstCrs.id);
+                const isSecondNG = secondCrs && ngCourses.includes(secondCrs.id);
+
                 assignmentControls = `
                     <div class="space-y-1.5 py-0.5">
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 w-8 text-center shrink-0">前半</span>
-                            <select onchange="updateCourseAssignment('${member.id}', 'firstHalf.courseId', this.value)" class="w-48 p-1 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-sky-500 shrink-0">
-                                ${renderCourseOptions(ca.firstHalf?.courseId, 'first', ca.firstHalf?.isTrainee)}
-                            </select>
+                            <div ondragover="handleCourseDragOver(event)"
+                                 ondragleave="handleCourseDragLeave(event)"
+                                 ondrop="handleCourseDrop(event, '${member.id}', 'first')"
+                                 class="w-56 min-h-[34px] p-0.5 rounded-xl transition flex items-center">
+                                ${firstCrs ? `
+                                    <div draggable="true"
+                                         ondragstart="handleCourseDragStart(event, '${firstCrs.id}', '${member.id}', 'first')"
+                                         class="w-full flex items-center justify-between px-2 py-1 rounded-lg ${isFirstNG && !ca.firstHalf?.isTrainee ? 'bg-rose-600' : 'bg-sky-700'} text-white font-bold text-xs shadow-2xs cursor-grab active:cursor-grabbing hover:opacity-95 transition select-none"
+                                         title="${firstCrs.order}. ${firstCrs.name} - ドラッグして他スタッフへ移動・交換可能">
+                                        <span class="flex items-center gap-1.5 truncate">
+                                            <span class="text-[10px] px-1 py-0.2 rounded bg-black/25 text-white font-black">${firstCrs.order}.</span>
+                                            <span class="truncate">${firstCrs.name}</span>
+                                            ${ca.firstHalf?.isTrainee ? '<span class="text-[9px] px-1 bg-amber-400 text-slate-900 rounded font-black shrink-0">🎓同乗</span>' : ''}
+                                            ${isFirstNG ? '<span class="text-[9px] px-1 bg-rose-300 text-rose-950 rounded font-black shrink-0">⚠️NG</span>' : ''}
+                                        </span>
+                                        <button type="button" onclick="clearCourseSlot('${member.id}', 'first')" class="ml-1 text-white/80 hover:text-white hover:bg-black/20 rounded px-1 transition text-xs font-black" title="前半の割当を解除">✕</button>
+                                    </div>
+                                ` : `
+                                    <div class="w-full text-center text-[11px] font-bold text-slate-400 border-2 border-dashed border-sky-300 rounded-lg py-1 bg-sky-50/50 hover:bg-sky-100/60 hover:border-sky-400 transition cursor-pointer select-none">
+                                        ＋ 前半へドロップ
+                                    </div>
+                                `}
+                            </div>
                             <label class="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer select-none shrink-0 ${ca.firstHalf?.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
                                 <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'firstHalf.isTrainee', this.checked)" ${ca.firstHalf?.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
                                 <span>🎓教育</span>
@@ -627,9 +887,29 @@ function renderCourseAssignmentTab() {
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-300 w-8 text-center shrink-0">後半</span>
-                            <select onchange="updateCourseAssignment('${member.id}', 'secondHalf.courseId', this.value)" class="w-48 p-1 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 shrink-0">
-                                ${renderCourseOptions(ca.secondHalf?.courseId, 'second', ca.secondHalf?.isTrainee)}
-                            </select>
+                            <div ondragover="handleCourseDragOver(event)"
+                                 ondragleave="handleCourseDragLeave(event)"
+                                 ondrop="handleCourseDrop(event, '${member.id}', 'second')"
+                                 class="w-56 min-h-[34px] p-0.5 rounded-xl transition flex items-center">
+                                ${secondCrs ? `
+                                    <div draggable="true"
+                                         ondragstart="handleCourseDragStart(event, '${secondCrs.id}', '${member.id}', 'second')"
+                                         class="w-full flex items-center justify-between px-2 py-1 rounded-lg ${isSecondNG && !ca.secondHalf?.isTrainee ? 'bg-rose-600' : 'bg-indigo-700'} text-white font-bold text-xs shadow-2xs cursor-grab active:cursor-grabbing hover:opacity-95 transition select-none"
+                                         title="${secondCrs.order}. ${secondCrs.name} - ドラッグして他スタッフへ移動・交換可能">
+                                        <span class="flex items-center gap-1.5 truncate">
+                                            <span class="text-[10px] px-1 py-0.2 rounded bg-black/25 text-white font-black">${secondCrs.order}.</span>
+                                            <span class="truncate">${secondCrs.name}</span>
+                                            ${ca.secondHalf?.isTrainee ? '<span class="text-[9px] px-1 bg-amber-400 text-slate-900 rounded font-black shrink-0">🎓同乗</span>' : ''}
+                                            ${isSecondNG ? '<span class="text-[9px] px-1 bg-rose-300 text-rose-950 rounded font-black shrink-0">⚠️NG</span>' : ''}
+                                        </span>
+                                        <button type="button" onclick="clearCourseSlot('${member.id}', 'second')" class="ml-1 text-white/80 hover:text-white hover:bg-black/20 rounded px-1 transition text-xs font-black" title="後半の割当を解除">✕</button>
+                                    </div>
+                                ` : `
+                                    <div class="w-full text-center text-[11px] font-bold text-slate-400 border-2 border-dashed border-indigo-300 rounded-lg py-1 bg-indigo-50/50 hover:bg-indigo-100/60 hover:border-indigo-400 transition cursor-pointer select-none">
+                                        ＋ 後半へドロップ
+                                    </div>
+                                `}
+                            </div>
                             <label class="flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-bold cursor-pointer select-none shrink-0 ${ca.secondHalf?.isTrainee ? 'bg-amber-100 border-amber-300 text-amber-900 ring-1 ring-amber-400' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'}">
                                 <input type="checkbox" onchange="updateCourseAssignment('${member.id}', 'secondHalf.isTrainee', this.checked)" ${ca.secondHalf?.isTrainee ? 'checked' : ''} class="w-3.5 h-3.5 text-amber-600 rounded">
                                 <span>🎓教育</span>
@@ -710,6 +990,7 @@ function updateCourseAssignment(memberId, fieldPath, value) {
     }
 
     state.courseAssignments[key] = current;
+    saveData();
     renderAll();
     syncSingleCourseAssignmentToCloud(key, current);
 }
@@ -717,6 +998,7 @@ function updateCourseAssignment(memberId, fieldPath, value) {
 function clearCourseAssignment(memberId) {
     const key = `${state.selectedAssignmentDate}_${memberId}`;
     delete state.courseAssignments[key];
+    saveData();
     renderAll();
     syncSingleCourseAssignmentToCloud(key, null);
 }
