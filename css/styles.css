@@ -1,0 +1,88 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.sticky-col-left {
+    position: sticky;
+    left: 0;
+    background-color: #ffffff !important;
+    z-index: 20;
+}
+
+.sticky-col-header {
+    position: sticky;
+    top: 0;
+    background-color: #f1f5f9;
+    z-index: 30;
+}
+
+.sticky-col-corner {
+    position: sticky;
+    left: 0;
+    top: 0;
+    background-color: #e2e8f0 !important;
+    z-index: 40;
+}
+
+.sticky-col-right {
+    position: sticky;
+    right: 0;
+    background-color: #f8fafc !important;
+    z-index: 20;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+}
+
+.sticky-col-corner-right {
+    position: sticky;
+    right: 0;
+    top: 0;
+    background-color: #e2e8f0 !important;
+    z-index: 40;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+}
+
+/* 濃いくっきりとした罫線スタイル */
+table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+th, td {
+    border-bottom: 1.5px solid #64748b !important;
+    border-right: 1.5px solid #64748b !important;
+}
+
+thead th {
+    border-bottom: 2.5px solid #334155 !important;
+}
+
+/* 横スクロールバーを常に鮮明に表示するスタイル */
+.force-horizontal-scroll {
+    overflow-x: scroll !important;
+    overflow-y: auto !important;
+    scrollbar-width: auto;
+    scrollbar-color: #4f46e5 #e2e8f0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.force-horizontal-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 14px !important;
+    display: block !important;
+}
+
+.force-horizontal-scroll::-webkit-scrollbar-track {
+    background: #e2e8f0 !important;
+    border-radius: 8px;
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
+}
+
+.force-horizontal-scroll::-webkit-scrollbar-thumb {
+    background: #4f46e5 !important;
+    border-radius: 8px;
+    border: 3px solid #e2e8f0;
+}
+
+.force-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    background: #4338ca !important;
+}
