@@ -392,12 +392,12 @@ function renderDraggableCourseChip(crs, assignedMap, isGroup = false) {
     } else {
         let badgeColorClass = "bg-white text-slate-800 border-amber-300 hover:border-amber-500 hover:bg-amber-50/50";
         let orderColorClass = "text-amber-600";
-        if (crs.isRequired === false) {
-            badgeColorClass = "bg-white text-slate-700 border-slate-300 hover:border-slate-500 hover:bg-slate-50";
-            orderColorClass = "text-slate-400";
-        } else if (isGroup) {
+        if (isGroup) {
             badgeColorClass = "bg-white text-violet-800 border-violet-300 hover:border-violet-500 hover:bg-violet-50";
             orderColorClass = "text-violet-600";
+        } else if (crs.isRequired === false) {
+            badgeColorClass = "bg-white text-slate-700 border-slate-300 hover:border-slate-500 hover:bg-slate-50";
+            orderColorClass = "text-slate-400";
         }
         return `
             <div draggable="true"
@@ -580,6 +580,8 @@ function renderCourseAssignmentTab() {
         return {
             id: g.id,
             name: g.name,
+            courseIds: g.courseIds || [],
+            allCourses: (g.courseIds || []).map(cid => state.courses.find(c => c.id === cid)).filter(Boolean),
             requiredCount: reqCount,
             assignedCourses: assignedInGroup.map(cid => state.courses.find(c => c.id === cid)).filter(Boolean),
             unassignedCourses: unassignedInGroup.map(cid => state.courses.find(c => c.id === cid)).filter(Boolean),
@@ -622,6 +624,12 @@ function renderCourseAssignmentTab() {
                 <span class="text-slate-500">必須未割当:</span>
                 <span class="${unassignedReqCount > 0 ? 'text-amber-600 font-black' : 'text-emerald-600 font-black'}">${unassignedReqCount}枠</span>
             </div>
+            ${groupStatusList.length > 0 ? `
+                <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg text-violet-700">
+                    <span class="text-slate-500">選択枠:</span>
+                    <span class="font-bold">${groupStatusList.filter(g => g.isSatisfied).length}/${groupStatusList.length}組充足</span>
+                </div>
+            ` : ''}
             ${unassignedOptionalList.length > 0 ? `
                 <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg text-slate-500">
                     <span>任意空き:</span>
@@ -642,7 +650,7 @@ function renderCourseAssignmentTab() {
                         <span class="text-base">✅</span>
                         <span>すべての必須運行コースおよびグループ選択枠が割り当て済みです！</span>
                     </div>
-                    <span class="text-[11px] text-emerald-600 font-normal">※グレーのバッジを掴んで別のスタッフ枠へドロップすると、いつでも担当者を移動・交代できます</span>
+                    <span class="text-[11px] text-emerald-600 font-normal hidden sm:inline">※グレーのバッジを掴んで別のスタッフ枠へドロップすると、いつでも担当者を移動・交代できます</span>
                 </div>
             `;
         }
@@ -656,11 +664,16 @@ function renderCourseAssignmentTab() {
                             <span>🔀</span>
                             <span>コース選択グループ枠 (${groupStatusList.length}グループ):</span>
                         </span>
-                        <span class="text-[11px] text-slate-400 font-normal">※バッジをスタッフ枠へドラッグ＆ドロップして配車できます</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] text-slate-400 font-normal hidden sm:inline">※バッジをスタッフ枠へドラッグ＆ドロップして配車できます</span>
+                            <button type="button" onclick="openCourseGroupModal()" class="px-2 py-0.5 bg-violet-100 hover:bg-violet-200 text-violet-800 rounded font-bold transition flex items-center gap-1 text-[11px]">
+                                <span>＋ グループ追加</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         ${groupStatusList.map(g => {
-                            const groupCourses = (g.courseIds || []).map(cid => state.courses.find(c => c.id === cid)).filter(Boolean);
+                            const groupCourses = g.allCourses;
                             const isSat = g.isSatisfied;
                             return `
                                 <div class="p-2.5 rounded-xl border text-xs space-y-1.5 ${isSat ? 'bg-emerald-50/50 border-emerald-200' : 'bg-violet-50/50 border-violet-200'}">
@@ -669,9 +682,12 @@ function renderCourseAssignmentTab() {
                                             <span>${isSat ? '✅' : '⚠️'}</span>
                                             <span>${g.name}</span>
                                         </span>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-black ${isSat ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-100 text-rose-700 border border-rose-300'}">
-                                            ${isSat ? `充足済 (${g.assignedCourses.length}/${g.requiredCount}枠)` : `あと ${g.shortage}枠 不足 (${g.assignedCourses.length}/${g.requiredCount})`}
-                                        </span>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded font-black ${isSat ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-100 text-rose-700 border border-rose-300'}">
+                                                ${isSat ? `充足済 (${g.assignedCourses.length}/${g.requiredCount}枠)` : `あと ${g.shortage}枠 不足 (${g.assignedCourses.length}/${g.requiredCount})`}
+                                            </span>
+                                            <button type="button" onclick="openCourseGroupModal('${g.id}')" class="text-slate-400 hover:text-violet-700 text-xs font-bold px-1 py-0.5 rounded hover:bg-black/5" title="グループ設定を編集">✏️</button>
+                                        </div>
                                     </div>
                                     <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
                                         <span class="text-[10px] ${isSat ? 'text-emerald-700' : 'text-violet-700'} font-bold">候補:</span>
@@ -680,6 +696,26 @@ function renderCourseAssignmentTab() {
                                 </div>
                             `;
                         }).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            htmlList += `
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-bold text-violet-900">
+                        <span class="flex items-center gap-1.5">
+                            <span>🔀</span>
+                            <span>コース選択グループ枠:</span>
+                        </span>
+                        <button type="button" onclick="openCourseGroupModal()" class="px-2 py-0.5 bg-violet-100 hover:bg-violet-200 text-violet-800 rounded font-bold transition flex items-center gap-1 text-[11px]">
+                            <span>＋ グループを追加</span>
+                        </button>
+                    </div>
+                    <div class="p-3 border-2 border-dashed border-violet-200 bg-violet-50/30 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs text-violet-700">
+                        <span class="font-medium">「01便/02便のどちらか1便運行」など、複数コースからいずれかを選択運行するグループ枠が未登録です。</span>
+                        <button type="button" onclick="openCourseGroupModal()" class="px-3 py-1 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-bold shadow-xs transition shrink-0">
+                            ＋ コース選択グループを追加
+                        </button>
                     </div>
                 </div>
             `;
