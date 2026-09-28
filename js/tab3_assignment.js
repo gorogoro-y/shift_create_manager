@@ -158,16 +158,12 @@ function renderTimelineMiniCell(memberId, dateInfo) {
         }
     }
 
-    if (['休', '指', '有', '待', '健診', '健'].includes(shiftId)) {
-        let badgeClass = "bg-rose-100 text-rose-800 border-rose-200";
-        if (shiftId === '指') badgeClass = "bg-amber-100 text-amber-800 border-amber-200";
-        if (shiftId === '有') badgeClass = "bg-emerald-100 text-emerald-800 border-emerald-200";
-        if (shiftId === '待') badgeClass = "bg-violet-100 text-violet-800 border-violet-200";
-        if (shiftId === '健診' || shiftId === '健') badgeClass = "bg-teal-100 text-teal-800 border-teal-200";
+    const hType = getHolidayType(shiftId);
+    if (hType) {
         return `
             <div class="w-full py-1 text-center">
-                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black border ${badgeClass}">
-                    ${shiftId}
+                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-black border" style="background-color: ${hType.color}20; color: ${hType.color}; border-color: ${hType.color}50;">
+                    ${hType.shortName}
                 </span>
             </div>
         `;
@@ -181,17 +177,25 @@ function renderTimelineMiniCell(memberId, dateInfo) {
     }
 
     let bgStyle = '';
-    let label = shift ? shift.shortName : '';
+    let label = '';
+    if (shift) {
+        label = shift.shortName;
+    } else if (color) {
+        label = color.name;
+    }
+
     if (color) {
         bgStyle = `background-color: ${color.color}`;
     } else if (shift) {
         bgStyle = `background-color: ${shift.color}`;
     }
 
+    const badgeTitle = `${shift ? shift.name : ''}${shift && color ? ' [' + color.name + ']' : (!shift && color ? color.name : '')}`;
+
     return `
         <div class="flex flex-col items-center justify-center gap-0.5 py-0.5">
             ${label ? `
-                <span class="inline-block px-1 py-0.2 rounded text-[9px] font-black text-white shadow-2xs leading-tight" style="${bgStyle}">
+                <span class="inline-block px-1 py-0.2 rounded text-[9px] font-black text-white shadow-2xs leading-tight" style="${bgStyle}" title="${badgeTitle}">
                     ${label}
                 </span>
             ` : ''}
@@ -315,7 +319,7 @@ function renderCourseAssignmentTab() {
     let workingMembersCount = 0;
     state.members.forEach(m => {
         const cell = getCellData(`${m.id}_${state.selectedAssignmentDate}`);
-        if (!['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) workingMembersCount++;
+        if (!isHolidayValue(cell.shiftId)) workingMembersCount++;
     });
 
     if (statsContainer) {
@@ -471,10 +475,27 @@ function renderCourseAssignmentTab() {
     let tbodyHtml = '';
     displayMembers.forEach(member => {
         const cell = getCellData(`${member.id}_${state.selectedAssignmentDate}`);
-        const isHoliday = ['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId);
+        const isHoliday = isHolidayValue(cell.shiftId);
         const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
-        const shiftLabel = shiftObj ? shiftObj.name : (cell.shiftId || '未定');
-        const shiftColor = shiftObj ? shiftObj.color : '#64748b';
+        const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+
+        let shiftLabel = '未定';
+        if (shiftObj) {
+            shiftLabel = shiftObj.name;
+        } else if (cell.shiftId) {
+            shiftLabel = cell.shiftId;
+        } else if (colorObj) {
+            shiftLabel = colorObj.name;
+        }
+
+        let shiftBadgeBg = '#64748b';
+        if (colorObj) {
+            shiftBadgeBg = colorObj.color;
+        } else if (shiftObj) {
+            shiftBadgeBg = shiftObj.color;
+        }
+
+        const shiftBadgeTitle = `${shiftObj ? shiftObj.name : ''}${shiftObj && colorObj ? ' [' + colorObj.name + ']' : (!shiftObj && colorObj ? colorObj.name : '')}`;
         const memberBadges = getMemberBadgesHTML(member);
         const ca = getCourseAssignment(member.id, state.selectedAssignmentDate);
 
@@ -486,15 +507,11 @@ function renderCourseAssignmentTab() {
         const nextCell3 = renderTimelineMiniCell(member.id, timelineDays[3]);
 
         if (isHoliday) {
-            let holidayBadgeLabel = `🔒 休み (${cell.shiftId})`;
-            let holidayBadgeClass = 'bg-rose-100 text-rose-800 border-rose-200';
-            if (cell.shiftId === '待') {
-                holidayBadgeLabel = '🔒 待機 (待)';
-                holidayBadgeClass = 'bg-violet-100 text-violet-800 border-violet-200';
-            } else if (cell.shiftId === '健診' || cell.shiftId === '健') {
-                holidayBadgeLabel = '🔒 健診';
-                holidayBadgeClass = 'bg-teal-100 text-teal-800 border-teal-200';
-            }
+            const hType = getHolidayType(cell.shiftId);
+            const holidayShort = hType ? hType.shortName : cell.shiftId;
+            const holidayName = hType ? hType.name : cell.shiftId;
+            const holidayColor = hType ? hType.color : '#f43f5e';
+            const holidayBadgeLabel = `🔒 ${holidayName} (${holidayShort})`;
             tbodyHtml += `
                 <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-400 hover:bg-slate-100/50 transition">
                     <td class="p-3 font-bold sticky-col-left shadow-2xs border-r border-slate-200">
@@ -508,12 +525,12 @@ function renderCourseAssignmentTab() {
                     <td class="p-1 border-r-2 border-indigo-300 align-middle bg-white/40">${prevCell1}</td>
 
                     <td class="p-2.5 text-center bg-rose-50/50 border-r border-indigo-200">
-                        <span class="px-2 py-1 ${holidayBadgeClass} rounded font-black text-xs border">
+                        <span class="px-2 py-1 rounded font-black text-xs border" style="background-color: ${holidayColor}20; color: ${holidayColor}; border-color: ${holidayColor}50;">
                             ${holidayBadgeLabel}
                         </span>
                     </td>
                     <td class="p-2.5 text-center text-xs text-slate-400 bg-rose-50/30 border-r border-indigo-200">ー</td>
-                    <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">公休・健診・待機設定のためコース割当対象外です</td>
+                    <td class="p-2.5 text-xs text-slate-400 italic bg-rose-50/30 border-r-2 border-indigo-300">${holidayName}設定のためコース割当対象外です</td>
 
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell1}</td>
                     <td class="p-1 border-r border-slate-200 align-middle bg-white/40">${nextCell2}</td>
@@ -637,7 +654,7 @@ function renderCourseAssignmentTab() {
                     <td class="p-1 border-r-2 border-indigo-300 align-middle bg-slate-50/30">${prevCell1}</td>
 
                     <td class="p-2.5 text-center bg-indigo-50/40 border-r border-indigo-200 align-middle">
-                        <span class="px-2.5 py-1 rounded-md text-xs font-black text-white shadow-2xs inline-block" style="background-color: ${shiftColor}">
+                        <span class="px-2.5 py-1 rounded-md text-xs font-black text-white shadow-2xs inline-block" style="background-color: ${shiftBadgeBg}" title="${shiftBadgeTitle}">
                             ${shiftLabel}
                         </span>
                     </td>

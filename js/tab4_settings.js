@@ -203,6 +203,26 @@ function renderMode4() {
             `;
         }).join('');
     }
+
+    const holidayTableBody = document.getElementById('holiday-types-table-body');
+    if (holidayTableBody) {
+        holidayTableBody.innerHTML = (state.holidayTypes || []).map(ht => {
+            return `
+                <tr class="border-b border-slate-200 hover:bg-slate-50">
+                    <td class="p-3">
+                        <span class="w-6 h-6 rounded-full inline-block align-middle border border-slate-300 shadow-2xs" style="background-color:${ht.color}"></span>
+                    </td>
+                    <td class="p-3 font-bold text-slate-800">${ht.name}</td>
+                    <td class="p-3 font-black text-slate-700">${ht.shortName}</td>
+                    <td class="p-3 text-xs text-slate-500 font-medium">稼働除外・公休管理</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="openHolidayModal('${ht.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
+                        <button onclick="deleteHolidayType('${ht.id}')" class="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded text-xs font-bold">削除</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
 }
 
 function openCourseModal(id = null) {
@@ -555,6 +575,7 @@ function saveAsDefaultMaster() {
     try {
         localStorage.setItem('shift_app_default_shift_types', JSON.stringify(state.shiftTypes));
         localStorage.setItem('shift_app_default_color_types', JSON.stringify(state.colorTypes));
+        localStorage.setItem('shift_app_default_holiday_types', JSON.stringify(state.holidayTypes));
         localStorage.setItem('shift_app_default_staff_attributes', JSON.stringify(state.staffAttributes));
         localStorage.setItem('shift_app_default_courses', JSON.stringify(state.courses));
         saveMasterToCloud(true);
@@ -568,10 +589,11 @@ function saveAsDefaultMaster() {
 function resetToDefaultMaster() {
     const defShift = localStorage.getItem('shift_app_default_shift_types');
     const defColor = localStorage.getItem('shift_app_default_color_types');
+    const defHoliday = localStorage.getItem('shift_app_default_holiday_types');
     const defStaffAttr = localStorage.getItem('shift_app_default_staff_attributes');
     const defCourses = localStorage.getItem('shift_app_default_courses');
 
-    if (!defShift && !defColor && !defStaffAttr && !defCourses) {
+    if (!defShift && !defColor && !defHoliday && !defStaffAttr && !defCourses) {
         showMessageModal("保存されたデフォルト設定がありません。");
         return;
     }
@@ -579,6 +601,7 @@ function resetToDefaultMaster() {
     try {
         if (defShift) state.shiftTypes = JSON.parse(defShift);
         if (defColor) state.colorTypes = JSON.parse(defColor);
+        if (defHoliday) state.holidayTypes = JSON.parse(defHoliday);
         if (defStaffAttr) state.staffAttributes = JSON.parse(defStaffAttr);
         if (defCourses) state.courses = JSON.parse(defCourses);
         renderAll();
@@ -942,6 +965,75 @@ function saveColorType() {
 
 function deleteColorType(id) {
     state.colorTypes = state.colorTypes.filter(c => c.id !== id);
+    renderAll();
+    saveMasterToCloud(true);
+}
+
+function openHolidayModal(id = null) {
+    document.getElementById('holiday-modal-id').value = id || '';
+    document.getElementById('holiday-modal-title').innerText = id ? '休みスタンプの編集' : '休みスタンプの追加';
+
+    if (id) {
+        const ht = state.holidayTypes.find(h => h.id === id);
+        if (ht) {
+            document.getElementById('holiday-modal-name').value = ht.name;
+            document.getElementById('holiday-modal-short').value = ht.shortName;
+            document.getElementById('holiday-modal-color').value = ht.color;
+        }
+    } else {
+        document.getElementById('holiday-modal-name').value = '';
+        document.getElementById('holiday-modal-short').value = '';
+        document.getElementById('holiday-modal-color').value = getRandomColor();
+    }
+    document.getElementById('holiday-modal').classList.remove('hidden');
+}
+
+function closeHolidayModal() {
+    document.getElementById('holiday-modal').classList.add('hidden');
+}
+
+function saveHolidayType() {
+    const id = document.getElementById('holiday-modal-id').value;
+    const name = document.getElementById('holiday-modal-name').value.trim();
+    const shortName = document.getElementById('holiday-modal-short').value.trim() || name.substring(0, 1);
+    const color = document.getElementById('holiday-modal-color').value;
+
+    if (!name) {
+        showMessageModal("スタンプ名称を入力してください。");
+        return;
+    }
+    if (!shortName) {
+        showMessageModal("略称を入力してください。");
+        return;
+    }
+
+    if (id) {
+        const ht = state.holidayTypes.find(h => h.id === id);
+        if (ht) {
+            ht.name = name;
+            ht.shortName = shortName;
+            ht.color = color;
+        }
+    } else {
+        state.holidayTypes.push({
+            id: 'h_' + Date.now(),
+            name: name,
+            shortName: shortName,
+            color: color
+        });
+    }
+
+    closeHolidayModal();
+    renderAll();
+    saveMasterToCloud(true);
+}
+
+function deleteHolidayType(id) {
+    if (state.holidayTypes.length <= 1) {
+        showMessageModal("最低1つの休みスタンプが必要です。");
+        return;
+    }
+    state.holidayTypes = state.holidayTypes.filter(h => h.id !== id);
     renderAll();
     saveMasterToCloud(true);
 }

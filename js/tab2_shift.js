@@ -87,7 +87,7 @@ function clearMemberShifts(memberId) {
         const key = `${memberId}_${d.dateStr}`;
         const cell = getCellData(key);
 
-        if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) return;
+        if (isHolidayValue(cell.shiftId)) return;
         if (cell.isPinned) return;
 
         if (cell.shiftId || cell.colorId) {
@@ -107,7 +107,7 @@ function toggleShiftStamp(memberId, dateStr) {
     const key = `${memberId}_${dateStr}`;
     const cell = getCellData(key);
     
-    if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) {
+    if (isHolidayValue(cell.shiftId)) {
         return;
     }
 
@@ -200,7 +200,7 @@ function renderMatrixMode2() {
         let holidayCount = 0;
         state.members.forEach(m => {
             const cell = getCellData(`${m.id}_${d.dateStr}`);
-            if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) holidayCount++;
+            if (isHolidayValue(cell.shiftId)) holidayCount++;
         });
 
         const availableCount = state.members.length - holidayCount;
@@ -311,13 +311,12 @@ function renderMatrixMode2() {
                 const isPinned = cell.isPinned;
                 const courseBadge = getCourseBadgeSummary(m.id, d.dateStr);
                 
-                if (['休', '指', '有', '待', '健診', '健'].includes(val)) {
-                    let bg = "bg-rose-100 text-rose-800 border-rose-200";
-                    if (val === '指') bg = "bg-amber-100 text-amber-800 border-amber-200";
-                    if (val === '有') bg = "bg-emerald-100 text-emerald-800 border-emerald-200";
-                    if (val === '待') bg = "bg-violet-100 text-violet-800 border-violet-200";
-                    if (val === '健診' || val === '健') bg = "bg-teal-100 text-teal-800 border-teal-200";
-                    html += `<td class="p-1 border-r border-b border-slate-300 font-extrabold ${bg} cursor-not-allowed text-xs" title="休み・待機・健診設定で固定されています">🔒${val}</td>`;
+                if (isHolidayValue(val)) {
+                    const hType = getHolidayType(val);
+                    const shortName = hType ? hType.shortName : val;
+                    const name = hType ? hType.name : val;
+                    const color = hType ? hType.color : '#f43f5e';
+                    html += `<td class="p-1 border-r border-b border-slate-300 font-extrabold cursor-not-allowed text-xs" style="background-color: ${color}20; color: ${color}; border-color: ${color}50;" title="${name}で固定されています">🔒${shortName}</td>`;
                 } else {
                     const shift = state.shiftTypes.find(s => s.id === cell.shiftId);
                     const customColor = state.colorTypes.find(c => c.id === cell.colorId);

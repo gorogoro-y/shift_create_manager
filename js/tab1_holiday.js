@@ -30,10 +30,10 @@ function getMemberWorkSpans(memberId, currentDays) {
 
     const holidayIndices = [];
 
-    // 実在する「休・指・有・待・健診」の位置のみを収集
+    // 実在する休みスタンプの位置のみを収集
     timeline.forEach((item, idx) => {
         const cell = getCellDataForAnyDate(memberId, item.dateStr);
-        if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) {
+        if (isHolidayValue(cell.shiftId)) {
             holidayIndices.push(idx);
         }
     });
@@ -59,20 +59,68 @@ function getMemberWorkSpans(memberId, currentDays) {
     return spanMap;
 }
 
+function getPreviousMonthConsecutiveWorkdays(memberId) {
+    const { prevKey } = getAdjacentMonthKeys(state.currentYear, state.currentMonth);
+    let prevSchedule = state.adjacentSchedules ? state.adjacentSchedules[prevKey] : null;
+
+    if (!prevSchedule) {
+        const cached = localStorage.getItem(`shift_app_month_${prevKey}`);
+        if (cached) {
+            try {
+                prevSchedule = JSON.parse(cached);
+                if (!state.adjacentSchedules) state.adjacentSchedules = {};
+                state.adjacentSchedules[prevKey] = prevSchedule;
+            } catch (e) {}
+        }
+    }
+
+    if (!prevSchedule || typeof prevSchedule !== 'object' || Object.keys(prevSchedule).length === 0) {
+        return '-';
+    }
+
+    const prevLastDate = new Date(state.currentYear, state.currentMonth - 1, 0);
+    const prevYear = prevLastDate.getFullYear();
+    const prevMonth = prevLastDate.getMonth() + 1;
+    const lastDayNum = prevLastDate.getDate();
+
+    let count = 0;
+    for (let day = lastDayNum; day >= 1; day--) {
+        const dStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const cell = getCellDataForAnyDate(memberId, dStr);
+
+        if (isHolidayValue(cell.shiftId)) {
+            break;
+        } else {
+            count++;
+        }
+    }
+
+    return count;
+}
+
 function renderMatrixMode1() {
+    renderHolidayStampsBar();
     const container = document.getElementById('matrix-container-1');
     if (!container) return;
     const days = getMonthDays();
     
     let html = `<table class="min-w-[1550px] w-full text-center border-separate border-spacing-0 text-xs"><thead><tr class="bg-slate-100 text-slate-700 border-b border-slate-300">`;
     html += `<th class="p-2 border-r border-b border-slate-300 min-w-[170px] w-[170px] sticky-col-corner font-bold">メンバー (${state.members.length}名)</th>`;
+    html += `
+        <th class="p-1 border-r border-b border-slate-300 min-w-[48px] w-[48px] sticky-col-header bg-slate-200 text-slate-700 font-bold text-center" title="先月末日からの継続勤務日数">
+            <div class="flex flex-col items-center justify-center gap-0.5">
+                <span class="text-[9px] text-slate-500 font-bold leading-tight">前月末</span>
+                <span class="text-xs font-black text-slate-700">連勤</span>
+            </div>
+        </th>
+    `;
 
     days.forEach(d => {
         const required = state.dailyRequired[d.dateStr] ?? 31;
         let holidayCount = 0;
         state.members.forEach(m => {
             const cell = getCellData(`${m.id}_${d.dateStr}`);
-            if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) holidayCount++;
+            if (isHolidayValue(cell.shiftId)) holidayCount++;
         });
 
         const availableCount = state.members.length - holidayCount;
@@ -120,7 +168,7 @@ function renderMatrixMode1() {
         const allDays = getMonthDays();
         allDays.forEach(ad => {
             const cell = getCellData(`${m.id}_${ad.dateStr}`);
-            if (['休', '指', '有', '待', '健診', '健'].includes(cell.shiftId)) totalHolidays++;
+            if (isHolidayValue(cell.shiftId)) totalHolidays++;
         });
 
         const isAllHoliday = allDays.every(ad => getCellData(`${m.id}_${ad.dateStr}`).shiftId === '休');
@@ -156,6 +204,13 @@ function renderMatrixMode1() {
             </td>
         `;
 
+        const prevWorkdays = getPreviousMonthConsecutiveWorkdays(m.id);
+        html += `
+            <td class="p-1 border-r border-b border-slate-300 font-black text-slate-700 bg-slate-50 text-center text-xs">
+                ${prevWorkdays}
+            </td>
+        `;
+
         days.forEach(d => {
             const key = `${m.id}_${d.dateStr}`;
             const cell = getCellData(key);
@@ -166,22 +221,13 @@ function renderMatrixMode1() {
             if (d.isSaturday) cellStyle = "bg-sky-50/40 hover:bg-sky-100/60 text-sky-300/60";
 
             let displayContent = 'ー';
+            let inlineStyle = '';
 
-            if (val === '休') {
-                cellStyle = "bg-rose-100 text-rose-800 font-extrabold border-rose-300 shadow-2xs";
-                displayContent = '休';
-            } else if (val === '指') {
-                cellStyle = "bg-amber-100 text-amber-800 font-extrabold border-amber-300 shadow-2xs";
-                displayContent = '指';
-            } else if (val === '有') {
-                cellStyle = "bg-emerald-100 text-emerald-800 font-extrabold border-emerald-300 shadow-2xs";
-                displayContent = '有';
-            } else if (val === '待') {
-                cellStyle = "bg-violet-100 text-violet-800 font-extrabold border-violet-300 shadow-2xs";
-                displayContent = '待';
-            } else if (val === '健診' || val === '健') {
-                cellStyle = "bg-teal-100 text-teal-800 font-extrabold border-teal-300 shadow-2xs";
-                displayContent = '健診';
+            const hType = getHolidayType(val);
+            if (hType) {
+                cellStyle = "font-extrabold shadow-2xs border-slate-300";
+                inlineStyle = `style="background-color: ${hType.color}25; color: ${hType.color}; border: 1.5px solid ${hType.color}70;"`;
+                displayContent = hType.shortName;
             } else if (workSpans[d.dateStr]) {
                 const span = workSpans[d.dateStr];
                 let badgeColor = "text-slate-600 bg-slate-100/90 border-slate-300/80";
@@ -198,7 +244,7 @@ function renderMatrixMode1() {
             }
 
             html += `
-                <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-300 cursor-pointer select-none text-xs ${cellStyle}">
+                <td onclick="toggleStamp('${m.id}', '${d.dateStr}')" class="p-1 border-r border-b border-slate-300 cursor-pointer select-none text-xs ${cellStyle}" ${inlineStyle}>
                     ${displayContent}
                 </td>
             `;
@@ -259,11 +305,39 @@ function setStaffFilter(attrId) {
 }
 
 
+function renderHolidayStampsBar() {
+    const container = document.getElementById('holiday-stamps-bar');
+    if (!container) return;
+
+    let html = `<span class="text-xs font-bold text-slate-500">休みスタンプ:</span>`;
+
+    (state.holidayTypes || []).forEach(ht => {
+        const isSelected = state.selectedStamp === ht.shortName || state.selectedStamp === ht.id;
+        const ringClass = isSelected ? 'shadow-xs ring-2 ring-indigo-500 font-black' : '';
+        html += `
+            <button onclick="selectStamp('${ht.shortName}')" id="stamp-btn-${ht.shortName}" 
+                class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs transition ${ringClass}"
+                style="background-color: ${ht.color}18; border-color: ${ht.color}50; color: ${ht.color};">
+                ${ht.shortName} (${ht.name})
+            </button>
+        `;
+    });
+
+    const isClearSelected = !state.selectedStamp;
+    const clearRing = isClearSelected ? 'shadow-xs ring-2 ring-indigo-500 font-black' : '';
+    html += `
+        <button onclick="selectStamp('')" id="stamp-btn-clear" 
+            class="stamp-btn px-3 py-1 rounded-lg border font-bold text-xs bg-slate-50 border-slate-200 text-slate-600 transition ${clearRing}">
+            解除
+        </button>
+    `;
+
+    container.innerHTML = html;
+}
+
 function selectStamp(stamp) {
     state.selectedStamp = stamp;
-    document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('shadow-xs', 'ring-2', 'ring-indigo-500'));
-    const target = document.getElementById(`stamp-btn-${stamp || 'clear'}`);
-    if (target) target.classList.add('shadow-xs', 'ring-2', 'ring-indigo-500');
+    renderHolidayStampsBar();
 }
 
 function toggleStamp(memberId, dateStr) {

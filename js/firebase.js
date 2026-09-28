@@ -204,6 +204,7 @@ function listenToMasterConfig() {
             if (data.staffAttributes && Array.isArray(data.staffAttributes)) state.staffAttributes = data.staffAttributes;
             if (data.courses && Array.isArray(data.courses)) state.courses = data.courses;
             if (data.courseGroups && Array.isArray(data.courseGroups)) state.courseGroups = data.courseGroups;
+            if (data.holidayTypes && Array.isArray(data.holidayTypes)) state.holidayTypes = data.holidayTypes;
             if (data.generatorRules) state.generatorRules = { ...state.generatorRules, ...data.generatorRules };
             renderAll(false);
             isSyncingFromCloud = false;
@@ -270,6 +271,7 @@ async function saveMasterToCloud(isSilent = false) {
             staffAttributes: state.staffAttributes,
             courses: state.courses,
             courseGroups: state.courseGroups || [],
+            holidayTypes: state.holidayTypes || [],
             generatorRules: state.generatorRules,
             updatedAt: new Date().toISOString()
         }, { merge: true });
@@ -440,19 +442,22 @@ async function saveAllToCloud() {
 
 async function fetchAdjacentMonthSchedules() {
     const { prevKey, nextKey } = getAdjacentMonthKeys(state.currentYear, state.currentMonth);
+    if (!state.adjacentSchedules) state.adjacentSchedules = {};
+    if (!state.adjacentCourseAssignments) state.adjacentCourseAssignments = {};
 
     [prevKey, nextKey].forEach(k => {
-        if (!state.adjacentSchedules[k]) {
-            const cached = localStorage.getItem(`shift_app_month_${k}`);
-            if (cached) {
-                try { state.adjacentSchedules[k] = JSON.parse(cached); } catch(e){}
-            }
+        const cached = localStorage.getItem(`shift_app_month_${k}`);
+        if (cached) {
+            try { state.adjacentSchedules[k] = JSON.parse(cached); } catch(e){}
+        } else {
+            delete state.adjacentSchedules[k];
         }
-        if (!state.adjacentCourseAssignments[k]) {
-            const cachedCourses = localStorage.getItem(`shift_app_courses_${k}`);
-            if (cachedCourses) {
-                try { state.adjacentCourseAssignments[k] = JSON.parse(cachedCourses); } catch(e){}
-            }
+
+        const cachedCourses = localStorage.getItem(`shift_app_courses_${k}`);
+        if (cachedCourses) {
+            try { state.adjacentCourseAssignments[k] = JSON.parse(cachedCourses); } catch(e){}
+        } else {
+            delete state.adjacentCourseAssignments[k];
         }
     });
 
@@ -464,13 +469,21 @@ async function fetchAdjacentMonthSchedules() {
 
             if (prevSnap.exists()) {
                 const data = prevSnap.data();
-                state.adjacentSchedules[prevKey] = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
-                state.adjacentCourseAssignments[prevKey] = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+                const pSched = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
+                const pCourses = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+                state.adjacentSchedules[prevKey] = pSched;
+                state.adjacentCourseAssignments[prevKey] = pCourses;
+                localStorage.setItem(`shift_app_month_${prevKey}`, JSON.stringify(pSched));
+                localStorage.setItem(`shift_app_courses_${prevKey}`, JSON.stringify(pCourses));
             }
             if (nextSnap.exists()) {
                 const data = nextSnap.data();
-                state.adjacentSchedules[nextKey] = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
-                state.adjacentCourseAssignments[nextKey] = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+                const nSched = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
+                const nCourses = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+                state.adjacentSchedules[nextKey] = nSched;
+                state.adjacentCourseAssignments[nextKey] = nCourses;
+                localStorage.setItem(`shift_app_month_${nextKey}`, JSON.stringify(nSched));
+                localStorage.setItem(`shift_app_courses_${nextKey}`, JSON.stringify(nCourses));
             }
             renderMatrixMode1();
             renderCourseAssignmentTab();

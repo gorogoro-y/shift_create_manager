@@ -63,6 +63,13 @@ let state = {
         { id: 'attr_tenko', name: '点呼', shortName: '点', color: '#dc2626' },
         { id: 'attr_night', name: 'ナイト', shortName: '夜', color: '#7c3aed' }
     ],
+    holidayTypes: [
+        { id: 'h_rest', name: '公休', shortName: '休', color: '#f43f5e' },
+        { id: 'h_designated', name: '指定休', shortName: '指', color: '#f59e0b' },
+        { id: 'h_paid', name: '有給', shortName: '有', color: '#10b981' },
+        { id: 'h_standby', name: '待機', shortName: '待', color: '#8b5cf6' },
+        { id: 'h_checkup', name: '健康診断', shortName: '健診', color: '#14b8a6' }
+    ],
     generatorRules: {
         holidayNextSingle: true,
         maxConsecutiveThrough: 2,
@@ -83,6 +90,8 @@ function saveData() {
         const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
         localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
         localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
+        if (!state.adjacentSchedules) state.adjacentSchedules = {};
+        state.adjacentSchedules[monthDocId] = JSON.parse(JSON.stringify(state.schedule));
     } catch (e) {
         console.error('Failed to save state', e);
     }
@@ -100,6 +109,15 @@ function loadData() {
             if (!state.courseGroups) {
                 state.courseGroups = [];
             }
+            if (!state.holidayTypes || state.holidayTypes.length === 0) {
+                state.holidayTypes = [
+                    { id: 'h_rest', name: '公休', shortName: '休', color: '#f43f5e' },
+                    { id: 'h_designated', name: '指定休', shortName: '指', color: '#f59e0b' },
+                    { id: 'h_paid', name: '有給', shortName: '有', color: '#10b981' },
+                    { id: 'h_standby', name: '待機', shortName: '待', color: '#8b5cf6' },
+                    { id: 'h_checkup', name: '健康診断', shortName: '健診', color: '#14b8a6' }
+                ];
+            }
         } catch (e) {
             console.error('Failed to load state', e);
         }
@@ -108,6 +126,16 @@ function loadData() {
     state.currentYear = now.getFullYear();
     state.currentMonth = now.getMonth() + 1;
     ensureSelectedDateInMonth();
+
+    const currentDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+    const cachedMonth = localStorage.getItem(`shift_app_month_${currentDocId}`);
+    if (cachedMonth) {
+        try { state.schedule = JSON.parse(cachedMonth); } catch (e) {}
+    }
+    const cachedCourses = localStorage.getItem(`shift_app_courses_${currentDocId}`);
+    if (cachedCourses) {
+        try { state.courseAssignments = JSON.parse(cachedCourses); } catch (e) {}
+    }
 
     if (!state.members || state.members.length === 0) {
         initDefaultMembers();
@@ -174,6 +202,7 @@ function getMonthDays() {
 }
 
 function changeMonth(delta) {
+    saveData();
     state.currentMonth += delta;
     if (state.currentMonth > 12) {
         state.currentMonth = 1;
@@ -188,10 +217,16 @@ function changeMonth(delta) {
     }
     ensureSelectedDateInMonth();
 
+    const newMonthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+    const cachedMonth = localStorage.getItem(`shift_app_month_${newMonthDocId}`);
+    state.schedule = cachedMonth ? JSON.parse(cachedMonth) : {};
+    const cachedCourses = localStorage.getItem(`shift_app_courses_${newMonthDocId}`);
+    state.courseAssignments = cachedCourses ? JSON.parse(cachedCourses) : {};
+
+    fetchAdjacentMonthSchedules();
     if (isCloudConnected) {
         listenToCurrentMonthShift();
     } else {
-        fetchAdjacentMonthSchedules();
         renderAll();
     }
 }
@@ -219,13 +254,24 @@ function getRandomColor() {
     return colors[Math.floor(Math.random() * colors.length)];
 }
 
+function getHolidayType(val) {
+    if (!val || !state.holidayTypes) return null;
+    return state.holidayTypes.find(h => h.shortName === val || h.id === val || h.name === val) || null;
+}
+
+function isHolidayValue(val) {
+    if (!val) return false;
+    if (['休', '指', '有', '待', '健診', '健'].includes(val)) return true;
+    return !!getHolidayType(val);
+}
+
 function getCellData(key) {
     const raw = state.schedule[key];
     if (!raw) return { shiftId: '', colorId: '', isPinned: false };
     if (typeof raw === 'object' && raw !== null) {
         return { shiftId: raw.shiftId || '', colorId: raw.colorId || '', isPinned: !!raw.isPinned };
     }
-    if (['休', '指', '有', '待', '健診', '健'].includes(raw)) {
+    if (isHolidayValue(raw)) {
         return { shiftId: raw, colorId: '', isPinned: false };
     }
     const isShift = state.shiftTypes.some(s => s.id === raw);
@@ -242,6 +288,14 @@ function getCellDataForAnyDate(memberId, dateStr) {
 
     if (monthKey === currentMonthKey) {
         return getCellData(key);
+    }
+
+    if (!state.adjacentSchedules) state.adjacentSchedules = {};
+    if (!state.adjacentSchedules[monthKey]) {
+        const cached = localStorage.getItem(`shift_app_month_${monthKey}`);
+        if (cached) {
+            try { state.adjacentSchedules[monthKey] = JSON.parse(cached); } catch(e){}
+        }
     }
 
     if (state.adjacentSchedules[monthKey] && state.adjacentSchedules[monthKey][key]) {
@@ -262,8 +316,17 @@ function getCourseAssignment(memberId, dateStr) {
     let raw = null;
     if (monthKey === currentMonthKey) {
         raw = state.courseAssignments[key];
-    } else if (state.adjacentCourseAssignments[monthKey]) {
-        raw = state.adjacentCourseAssignments[monthKey][key];
+    } else {
+        if (!state.adjacentCourseAssignments) state.adjacentCourseAssignments = {};
+        if (!state.adjacentCourseAssignments[monthKey]) {
+            const cachedCourses = localStorage.getItem(`shift_app_courses_${monthKey}`);
+            if (cachedCourses) {
+                try { state.adjacentCourseAssignments[monthKey] = JSON.parse(cachedCourses); } catch(e){}
+            }
+        }
+        if (state.adjacentCourseAssignments[monthKey]) {
+            raw = state.adjacentCourseAssignments[monthKey][key];
+        }
     }
 
     if (!raw) {

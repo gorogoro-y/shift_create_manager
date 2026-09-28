@@ -41,6 +41,13 @@ window.openColorModal = openColorModal;
 window.closeColorModal = closeColorModal;
 window.saveColorType = saveColorType;
 window.deleteColorType = deleteColorType;
+
+window.openHolidayModal = openHolidayModal;
+window.closeHolidayModal = closeHolidayModal;
+window.saveHolidayType = saveHolidayType;
+window.deleteHolidayType = deleteHolidayType;
+window.renderHolidayStampsBar = renderHolidayStampsBar;
+window.getPreviousMonthConsecutiveWorkdays = getPreviousMonthConsecutiveWorkdays;
 window.selectTool = selectTool;
 window.clearMemberShifts = clearMemberShifts;
 window.toggleShiftStamp = toggleShiftStamp;
