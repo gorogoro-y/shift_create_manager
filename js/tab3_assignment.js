@@ -1,6 +1,41 @@
 // js/tab3_assignment.js
 // 【タブ3】日別コース配車（7日間連動タイムライン・コース選択グループ判定）
 
+let isCoursePaletteCollapsed = false;
+
+function toggleCoursePalette() {
+    isCoursePaletteCollapsed = !isCoursePaletteCollapsed;
+    const container = document.getElementById('unassigned-courses-container');
+    const icon = document.getElementById('toggle-course-palette-icon');
+    const text = document.getElementById('toggle-course-palette-text');
+    const btn = document.getElementById('toggle-course-palette-btn');
+    const tableContainer = document.getElementById('assignment-table-container');
+
+    if (!container) return;
+
+    if (isCoursePaletteCollapsed) {
+        container.classList.add('hidden');
+        if (icon) icon.innerText = '▼';
+        if (text) text.innerText = 'コース一覧を展開';
+        if (btn) {
+            btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none";
+        }
+        if (tableContainer) {
+            tableContainer.style.maxHeight = 'calc(100vh - 220px)';
+        }
+    } else {
+        container.classList.remove('hidden');
+        if (icon) icon.innerText = '▲';
+        if (text) text.innerText = '一覧を折りたたむ';
+        if (btn) {
+            btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none";
+        }
+        if (tableContainer) {
+            tableContainer.style.maxHeight = '580px';
+        }
+    }
+}
+
 function renderAssignmentFilterToolbar() {
     const container = document.getElementById('assignment-attribute-filter-container');
     const statusInfo = document.getElementById('assignment-filter-status-info');
@@ -760,6 +795,28 @@ function renderCourseAssignmentTab() {
 
         htmlList += `</div>`;
         unassignedContainer.innerHTML = htmlList;
+
+        const icon = document.getElementById('toggle-course-palette-icon');
+        const text = document.getElementById('toggle-course-palette-text');
+        const btn = document.getElementById('toggle-course-palette-btn');
+
+        if (isCoursePaletteCollapsed) {
+            unassignedContainer.classList.add('hidden');
+            if (icon) icon.innerText = '▼';
+            if (text) {
+                text.innerText = unassignedReqCount > 0 ? `コース一覧を展開 (未割当: ${unassignedReqCount}枠)` : 'コース一覧を展開 (全割当済)';
+            }
+            if (btn) {
+                btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none";
+            }
+        } else {
+            unassignedContainer.classList.remove('hidden');
+            if (icon) icon.innerText = '▲';
+            if (text) text.innerText = '一覧を折りたたむ';
+            if (btn) {
+                btn.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none";
+            }
+        }
     }
 
     const displayMembers = state.activeAssignmentStaffFilter

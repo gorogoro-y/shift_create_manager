@@ -177,48 +177,54 @@
                 <div class="text-xs text-slate-500 font-bold" id="assignment-filter-status-info"></div>
             </div>
 
-            <!-- 日付選択バー ＆ 配車サマリー -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <div class="flex items-center gap-3">
-                        <button onclick="changeAssignmentDay(-1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
-                        <div class="flex items-center gap-2">
-                            <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-2 border border-slate-300 rounded-lg font-bold text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+            <!-- 日付選択バー ＆ 配車サマリー（コース一覧パレット） -->
+            <div id="assignment-sticky-panel" class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 space-y-2.5">
+                <div class="flex flex-wrap justify-between items-center gap-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="changeAssignmentDay(-1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
+                        <div class="flex items-center gap-1.5">
+                            <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-1.5 sm:p-2 border border-slate-300 rounded-lg font-bold text-xs sm:text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
                             <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
                         </div>
-                        <button onclick="changeAssignmentDay(1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
+                        <button onclick="changeAssignmentDay(1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
                     </div>
 
-                    <div class="flex items-center gap-4 text-xs font-bold" id="daily-course-stats"></div>
+                    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                        <div class="flex items-center gap-2 text-xs font-bold" id="daily-course-stats"></div>
+                        <button type="button" id="toggle-course-palette-btn" onclick="toggleCoursePalette()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none">
+                            <span id="toggle-course-palette-icon">▲</span>
+                            <span id="toggle-course-palette-text">一覧を折りたたむ</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 未割り当てコース詳細一覧エリア -->
-                <div id="unassigned-courses-container" class="pt-2 border-t border-slate-100"></div>
+                <div id="unassigned-courses-container" class="pt-2 border-t border-slate-100 max-h-52 overflow-y-auto pr-1"></div>
             </div>
 
             <!-- コース配車テーブル（前後3日のシフト・コース付き） -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse text-xs">
+                <div class="force-horizontal-scroll overflow-auto w-full transition-all duration-200" id="assignment-table-container" style="max-height: 580px;">
+                    <table class="w-full text-left border-collapse text-xs" id="course-assignment-table">
                         <thead>
                             <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold select-none">
-                                <th class="p-3 w-40 sticky-col-left shadow-2xs border-r border-slate-200">担当スタッフ</th>
+                                <th class="p-3 w-40 tab3-sticky-corner shadow-2xs border-r border-slate-200">担当スタッフ</th>
                                 <!-- 前3日間 -->
-                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-prev-3"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-prev-2"></th>
-                                <th class="p-2 w-14 text-center border-r-2 border-indigo-300" id="th-prev-1"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-3"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-2"></th>
+                                <th class="p-2 w-14 text-center border-r-2 border-indigo-300 tab3-sticky-th" id="th-prev-1"></th>
 
                                 <!-- 指定日（当日）：メイン配車枠 -->
-                                <th class="p-2.5 w-24 text-center bg-indigo-50/70 border-r border-indigo-200 text-indigo-900 font-extrabold">当日のシフト</th>
-                                <th class="p-2.5 w-28 text-center bg-indigo-50/70 border-r border-indigo-200 text-indigo-900 font-extrabold">割当形式</th>
-                                <th class="p-2.5 min-w-[340px] bg-indigo-50/70 border-r-2 border-indigo-300 text-indigo-900 font-extrabold">担当コース割り当て (本日)</th>
+                                <th class="p-2.5 w-24 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">当日のシフト</th>
+                                <th class="p-2.5 w-28 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">割当形式</th>
+                                <th class="p-2.5 min-w-[340px] bg-indigo-50/90 border-r-2 border-indigo-300 text-indigo-900 font-extrabold tab3-sticky-th">担当コース割り当て (本日)</th>
 
                                 <!-- 翌3日間 -->
-                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-1"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-2"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200" id="th-next-3"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-1"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-2"></th>
+                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-3"></th>
 
-                                <th class="p-3 w-16 text-center">操作</th>
+                                <th class="p-3 w-16 text-center tab3-sticky-th">操作</th>
                             </tr>
                         </thead>
                         <tbody id="course-assignment-table-body"></tbody>

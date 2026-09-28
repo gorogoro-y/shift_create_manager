@@ -96,3 +96,40 @@ thead th {
     transition: all 0.15s ease-in-out;
 }
 
+/* タブ3 テーブル内固定ヘッダー */
+.tab3-sticky-th {
+    position: sticky !important;
+    top: 0 !important;
+    background-color: #f8fafc !important;
+    z-index: 20 !important;
+    border-bottom: 2.5px solid #334155 !important;
+}
+
+.tab3-sticky-corner {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    background-color: #f1f5f9 !important;
+    z-index: 30 !important;
+    border-bottom: 2.5px solid #334155 !important;
+    border-right: 1.5px solid #64748b !important;
+}
+
+#unassigned-courses-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#unassigned-courses-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+#unassigned-courses-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+#unassigned-courses-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
