@@ -11,6 +11,9 @@ function renderAll(triggerSave = true) {
     renderMatrixMode2();
     renderAssignmentFilterToolbar();
     renderCourseAssignmentTab();
+    if (typeof renderPrintTab === 'function') {
+        renderPrintTab();
+    }
     renderMode4();
     updatePinnedStats();
 }
@@ -18,11 +21,17 @@ function renderAll(triggerSave = true) {
 
 window.changeMonth = changeMonth;
 window.switchTab = switchTab;
+window.setPrintMode = setPrintMode;
+window.setPrintPeriod = setPrintPeriod;
+window.onPrintCutoffChange = onPrintCutoffChange;
+window.executePrint = executePrint;
+window.renderPrintTab = renderPrintTab;
 window.selectStamp = selectStamp;
 window.toggleStamp = toggleStamp;
 window.setMemberAllHoliday = setMemberAllHoliday;
 window.setMemberAllWait = setMemberAllWait;
 window.updateDailyRequired = updateDailyRequired;
+window.updateDailyEvent = updateDailyEvent;
 window.applyDefaultRequired = applyDefaultRequired;
 window.openStaffImportModal = openStaffImportModal;
 window.closeStaffImportModal = closeStaffImportModal;

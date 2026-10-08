@@ -133,3 +133,80 @@ thead th {
     background: #94a3b8;
 }
 
+/* =====================================================
+   印刷用スタイルシート（B4縦サイズ / 帳票出力専用）
+   ===================================================== */
+@page {
+    size: B4 portrait;
+    margin: 8mm 6mm;
+}
+
+@media print {
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-size: 8.5pt !important;
+    }
+
+    /* 画面操作用UI、ヘッダー、ナビゲーション、他タブ等の非表示 */
+    header,
+    footer,
+    nav,
+    .no-print,
+    #auth-lock-overlay,
+    #message-modal,
+    #view-mode-1,
+    #view-mode-2,
+    #view-mode-3,
+    #view-mode-settings {
+        display: none !important;
+    }
+
+    #view-mode-4 {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    #print-sheet-wrapper {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    #print-table-container {
+        overflow: visible !important;
+    }
+
+    .print-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto !important;
+    }
+
+    .print-table tr {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+    }
+
+    .print-table th,
+    .print-table td {
+        border: 1px solid #1e293b !important;
+        padding: 2.5px 1.5px !important;
+        line-height: 1.15 !important;
+    }
+
+    .print-table thead th {
+        background-color: #f1f5f9 !important;
+        border-bottom: 2px solid #0f172a !important;
+    }
+
+    .print-table tfoot td {
+        border-top: 2px solid #0f172a !important;
+    }
+}
+
+

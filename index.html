@@ -59,10 +59,10 @@
         </div>
     </header>
 
-    <main id="main-container" class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6 transition-all duration-300">
+    <main id="main-container" class="flex-1 max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1600px] w-full mx-auto px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 transition-all duration-300">
 
         <!-- 年月・全体ツールバー -->
-        <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+        <div class="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-3">
             <div class="flex items-center gap-3">
                 <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前月</button>
                 <div id="current-month-display" class="text-xl sm:text-2xl font-black text-slate-800 min-w-[140px] text-center">2026年 9月</div>
@@ -81,13 +81,16 @@
                     3. シフト作成
                 </button>
                 <button id="tab-btn-4" onclick="switchTab(4)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
-                    4. 設定
+                    4. 印刷
+                </button>
+                <button id="tab-btn-settings" onclick="switchTab('settings')" class="ml-auto px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold flex items-center gap-1.5 border border-slate-200 bg-white/70 hover:bg-white shadow-2xs" title="各種マスター・スタッフ・コースの設定">
+                    <span>⚙️</span><span>設定</span>
                 </button>
             </div>
         </div>
 
         <!-- タブ1: メンバー休み設定 -->
-        <div id="view-mode-1" class="space-y-4">
+        <div id="view-mode-1" class="space-y-2.5 sm:space-y-3">
             <div class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
                 <div class="flex items-center gap-2 flex-wrap">
                     <div id="holiday-stamps-bar" class="flex items-center gap-2 flex-wrap"></div>
@@ -109,13 +112,13 @@
                 </div>
             </div>
 
-            <!-- マトリクス表 1 (常時スクロールバーを保持) -->
+            <!-- マトリクス表 1 (常時スクロールバーを保持・画面下部まで最大表示) -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="force-horizontal-scroll max-h-[620px] w-full" id="matrix-container-1"></div>
+                <div class="force-horizontal-scroll w-full" id="matrix-container-1" style="height: calc(100vh - 230px); min-height: 400px;"></div>
             </div>
 
-            <div class="text-xs text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
+            <div class="text-[11px] text-slate-500 bg-white border border-slate-200 py-1.5 px-3 rounded-lg flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
                     <span>💡</span>
                     <span><strong>月跨ぎ勤務間隔表示:</strong> 休みと休みの間にある連続勤務日数が自動計算されます（前月・翌月に実在する休みに挟まれた期間のみ正確に計算、10日以上の場合は「ー」表示）。</span>
                 </div>
@@ -123,9 +126,9 @@
         </div>
 
         <!-- タブ2: 属性設定 -->
-        <div id="view-mode-2" class="space-y-4 hidden">
+        <div id="view-mode-2" class="space-y-2.5 sm:space-y-3 hidden">
             <!-- スタッフ属性絞り込みフィルター & ジェネレーター実行バー -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2.5">
                 <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
                 
                 <div class="flex items-center gap-2">
@@ -147,15 +150,15 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 space-y-2">
                 <!-- シフト属性スタンプ ＋ ピン留めツール -->
                 <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container"></div>
 
                 <!-- カラー属性スタンプ -->
-                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100" id="color-stamp-container"></div>
+                <div class="flex items-center gap-2 flex-wrap pt-1.5 border-t border-slate-100" id="color-stamp-container"></div>
 
-                <div class="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
+                <div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
                         <span>💡</span>
                         <span>「📌 ピン留め」を選択してマスをクリックすると保護ロック（📌）され、自動ジェネレートで上書きされなくなります。各スタッフ名の横の「クリア」でピン留め・休み以外を一括解除できます。</span>
                     </div>
@@ -163,89 +166,156 @@
                 </div>
             </div>
 
-            <!-- マトリクス表 2 (常時スクロールバーを保持) -->
+            <!-- マトリクス表 2 (常時スクロールバーを保持・画面下部まで最大表示) -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="force-horizontal-scroll max-h-[620px] w-full" id="matrix-container-2"></div>
+                <div class="force-horizontal-scroll w-full" id="matrix-container-2" style="height: calc(100vh - 335px); min-height: 400px;"></div>
             </div>
         </div>
 
         <!-- タブ3: シフト作成（日別コース配車 ＆ 前後シフト連動タイムライン） -->
-        <div id="view-mode-3" class="space-y-4 hidden">
-            <!-- 絞り込みフィルターバー -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2 flex-wrap" id="assignment-attribute-filter-container"></div>
-                <div class="text-xs text-slate-500 font-bold" id="assignment-filter-status-info"></div>
+        <div id="view-mode-3" class="space-y-2.5 sm:space-y-3 hidden">
+            <!-- 上部ツールバー: 日付切替 ＆ 属性絞り込みフィルター -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="changeAssignmentDay(-1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
+                    <div class="flex items-center gap-1.5">
+                        <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-1.5 sm:p-2 border border-slate-300 rounded-lg font-bold text-xs sm:text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+                        <span id="assignment-day-event-badge" class="hidden"></span>
+                    </div>
+                    <button onclick="changeAssignmentDay(1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap" id="assignment-attribute-filter-container"></div>
+                    <div class="text-xs text-slate-500 font-bold" id="assignment-filter-status-info"></div>
+                </div>
             </div>
 
-            <!-- 日付選択バー ＆ 配車サマリー（コース一覧パレット） -->
-            <div id="assignment-sticky-panel" class="bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 space-y-2.5">
-                <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="changeAssignmentDay(-1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
-                        <div class="flex items-center gap-1.5">
-                            <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-1.5 sm:p-2 border border-slate-300 rounded-lg font-bold text-xs sm:text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
-                            <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+            <!-- メイン配車エリア: 左側配車テーブル ＆ 右側コース一覧パレット（左右2分割） -->
+            <div class="flex flex-col lg:flex-row gap-3 items-start w-full">
+                <!-- 左側: 配車テーブル -->
+                <div class="flex-1 min-w-0 w-full space-y-2">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="force-horizontal-scroll overflow-auto w-full transition-all duration-200" id="assignment-table-container" style="height: calc(100vh - 240px); min-height: 420px;">
+                            <table class="w-full text-left border-collapse text-xs" id="course-assignment-table">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold select-none">
+                                        <th class="p-3 w-36 sm:w-40 tab3-sticky-corner shadow-2xs border-r border-slate-200">担当スタッフ</th>
+                                        <!-- 前3日間 -->
+                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-3"></th>
+                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-2"></th>
+                                        <th class="p-2 w-13 text-center border-r-2 border-indigo-300 tab3-sticky-th" id="th-prev-1"></th>
+
+                                        <!-- 指定日（当日）：メイン配車枠 -->
+                                        <th class="p-2 w-20 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">当日のシフト</th>
+                                        <th class="p-2 w-24 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">割当形式</th>
+                                        <th class="p-2.5 min-w-[240px] bg-indigo-50/90 border-r-2 border-indigo-300 text-indigo-900 font-extrabold tab3-sticky-th" id="th-today-assignment">担当コース割り当て (本日)</th>
+
+                                        <!-- 翌3日間 -->
+                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-1"></th>
+                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-2"></th>
+                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-3"></th>
+
+                                        <th class="p-3 w-14 text-center tab3-sticky-th">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="course-assignment-table-body"></tbody>
+                            </table>
                         </div>
-                        <button onclick="changeAssignmentDay(1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
                     </div>
 
-                    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-                        <div class="flex items-center gap-2 text-xs font-bold" id="daily-course-stats"></div>
-                        <button type="button" id="toggle-course-palette-btn" onclick="toggleCoursePalette()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs cursor-pointer select-none">
-                            <span id="toggle-course-palette-icon">▲</span>
-                            <span id="toggle-course-palette-text">一覧を折りたたむ</span>
-                        </button>
+                    <div class="text-[11px] text-slate-500 bg-white border border-slate-200 py-1.5 px-3 rounded-lg flex items-center justify-between gap-2 flex-wrap">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span>💡</span>
+                            <span><strong>配車ヒント:</strong> 右側一覧や他スタッフ枠から<strong>ドラッグ＆ドロップ</strong>でコースの割当・交換・移動ができます。「🎓同乗」にチェックを入れると担当不可（NG）コースの割当も許可されます。</span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="inline-block w-3 h-3 bg-indigo-50 border border-indigo-300 rounded"></span>
+                            <span class="font-bold text-slate-700">青枠が本日の指定日</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 未割り当てコース詳細一覧エリア -->
-                <div id="unassigned-courses-container" class="pt-2 border-t border-slate-100 max-h-52 overflow-y-auto pr-1"></div>
-            </div>
+                <!-- 右側: コース一覧パレット（幅約300px・常時表示・独自縦スクロール） -->
+                <div class="w-full lg:w-72 xl:w-80 shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col" style="height: calc(100vh - 240px); min-height: 420px;">
+                    <!-- パレット上部: サマリー ＆ 絞り込みタブ -->
+                    <div class="space-y-2 pb-2.5 border-b border-slate-200 shrink-0">
+                        <div class="flex items-center justify-between">
+                            <span class="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                                <span>🚚</span>
+                                <span>運行コース一覧</span>
+                            </span>
+                            <div class="text-[11px] font-black text-indigo-700" id="daily-course-stats"></div>
+                        </div>
 
-            <!-- コース配車テーブル（前後3日のシフト・コース付き） -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="force-horizontal-scroll overflow-auto w-full transition-all duration-200" id="assignment-table-container" style="max-height: 580px;">
-                    <table class="w-full text-left border-collapse text-xs" id="course-assignment-table">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold select-none">
-                                <th class="p-3 w-40 tab3-sticky-corner shadow-2xs border-r border-slate-200">担当スタッフ</th>
-                                <!-- 前3日間 -->
-                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-3"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-2"></th>
-                                <th class="p-2 w-14 text-center border-r-2 border-indigo-300 tab3-sticky-th" id="th-prev-1"></th>
+                        <!-- フィルタ切り替えタブ -->
+                        <div class="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-bold">
+                            <button type="button" id="course-filter-unassigned-btn" onclick="setCourseFilterMode('unassigned')" class="flex-1 py-1 rounded-md transition text-center font-bold text-xs text-slate-600 hover:text-slate-900">
+                                未割当のみ
+                            </button>
+                            <button type="button" id="course-filter-all-btn" onclick="setCourseFilterMode('all')" class="flex-1 py-1 rounded-md transition text-center font-bold text-xs bg-white text-indigo-700 shadow-2xs">
+                                すべて
+                            </button>
+                        </div>
+                    </div>
 
-                                <!-- 指定日（当日）：メイン配車枠 -->
-                                <th class="p-2.5 w-24 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">当日のシフト</th>
-                                <th class="p-2.5 w-28 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">割当形式</th>
-                                <th class="p-2.5 min-w-[340px] bg-indigo-50/90 border-r-2 border-indigo-300 text-indigo-900 font-extrabold tab3-sticky-th">担当コース割り当て (本日)</th>
-
-                                <!-- 翌3日間 -->
-                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-1"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-2"></th>
-                                <th class="p-2 w-14 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-3"></th>
-
-                                <th class="p-3 w-16 text-center tab3-sticky-th">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="course-assignment-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="text-[11px] text-slate-500 bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-2 flex-wrap">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                    <span>💡</span>
-                    <span><strong>配車ヒント:</strong> 上部一覧や他スタッフ枠から<strong>ドラッグ＆ドロップ</strong>でコースの割当・交換・移動ができます。「🎓 教育・同乗」にチェックを入れると担当不可（NG）コースの割当も許可されます。</span>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span class="inline-block w-3 h-3 bg-indigo-50 border border-indigo-300 rounded"></span>
-                    <span class="font-bold text-slate-700">青枠が本日の指定日</span>
+                    <!-- パレット本体: 縦スクロール可能エリア -->
+                    <div id="unassigned-courses-container" class="flex-1 overflow-y-auto pt-2 space-y-3 pr-1"></div>
                 </div>
             </div>
         </div>
 
-        <!-- タブ4: 設定（マスター設定・スタッフ管理・コース設定） -->
-        <div id="view-mode-4" class="space-y-6 hidden">
+        <!-- タブ4: 帳票印刷（思考モード ＆ 印刷モード） -->
+        <div id="view-mode-4" class="space-y-3 hidden">
+            <!-- 印刷ツールバー（画面操作用、@media printで非表示） -->
+            <div class="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- 表示モード切替（思考モード / 印刷モード） -->
+                    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200" id="print-mode-toggle">
+                        <button type="button" onclick="setPrintMode('thinking')" id="btn-mode-thinking" class="px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-indigo-700 shadow-xs">
+                            🧠 思考モード
+                        </button>
+                        <button type="button" onclick="setPrintMode('print')" id="btn-mode-print" class="px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                            🖨️ 印刷モード
+                        </button>
+                    </div>
+
+                    <!-- 期間切替（上旬 / 下旬） -->
+                    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200" id="print-period-toggle">
+                        <button type="button" onclick="setPrintPeriod('first')" id="btn-period-first" class="px-3 py-1.5 rounded-md text-xs font-bold transition bg-white text-indigo-700 shadow-xs">
+                            📅 上旬 (1日〜15日)
+                        </button>
+                        <button type="button" onclick="setPrintPeriod('second')" id="btn-period-second" class="px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                            📅 下旬 (16日〜末日)
+                        </button>
+                    </div>
+
+                    <!-- 印刷モード専用: コース印刷対象日セレクター -->
+                    <div id="print-cutoff-container" class="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-200 hidden">
+                        <span class="text-xs font-bold text-slate-700">コース印刷:</span>
+                        <select id="print-cutoff-select" onchange="onPrintCutoffChange(this.value)" class="p-1 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"></select>
+                        <span class="text-xs font-bold text-slate-700">日まで</span>
+                        <span class="text-[10px] text-slate-400 font-medium ml-1">※指定日以降は休み情報のみ印字</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="executePrint()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-98">
+                        <span class="text-sm">🖨️</span>
+                        <span>B4縦で印刷 / PDF出力</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 印刷帳票プレビュー / 出力エリア -->
+            <div id="print-sheet-wrapper" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
+                <div id="print-table-container" class="w-full overflow-x-auto"></div>
+            </div>
+        </div>
+
+        <!-- 設定タブ（マスター設定・スタッフ管理・コース設定） -->
+        <div id="view-mode-settings" class="space-y-6 hidden">
             <!-- デフォルト設定保存・復元ツールバー -->
             <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
                 <div>
@@ -977,6 +1047,7 @@
     <script src="js/tab1_holiday.js"></script>
     <script src="js/tab2_shift.js"></script>
     <script src="js/tab3_assignment.js"></script>
+    <script src="js/tab4_print.js"></script>
     <script src="js/tab4_settings.js"></script>
     <script src="js/app.js"></script>
 </body>

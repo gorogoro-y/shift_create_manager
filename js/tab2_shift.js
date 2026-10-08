@@ -258,10 +258,16 @@ function renderMatrixMode2() {
             dayBadgeStyle = "bg-sky-200 text-sky-900 font-extrabold";
         }
 
+        const eventVal = state.dailyEvents?.[d.dateStr] || '';
+        const eventDisplayHTML = eventVal
+            ? `<div class="w-full px-1 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 truncate shadow-2xs text-center leading-tight select-none" title="特別イベント: ${eventVal}">${eventVal}</div>`
+            : `<div class="w-full h-3"></div>`;
+
         html += `
             <th class="p-1 border-r border-b border-slate-300 min-w-[72px] sticky-col-header font-bold align-top ${headerBg}">
                 <div class="flex flex-col items-center gap-1">
                     <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
+                    ${eventDisplayHTML}
                     <div class="font-black text-xs w-full py-0.5 rounded-md ${dayBadgeStyle}">
                         ${d.day} <span class="text-[10px] font-bold">(${d.dayOfWeek})</span>
                     </div>

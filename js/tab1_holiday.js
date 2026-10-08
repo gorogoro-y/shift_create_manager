@@ -146,14 +146,23 @@ function renderMatrixMode1() {
             dayTextClass = "text-sky-700 font-extrabold";
         }
 
+        const eventVal = state.dailyEvents?.[d.dateStr] || '';
+
         html += `
-            <th class="p-1.5 border-r border-b border-slate-300 min-w-[42px] sticky-col-header font-bold ${headerBg}">
+            <th class="p-1 border-r border-b border-slate-300 min-w-[46px] sticky-col-header font-bold ${headerBg}">
                 <div class="flex flex-col items-center gap-1">
                     <span class="px-1 py-0.5 border rounded text-[9px] font-black ${badgeClass}">${badgeText}</span>
                     <div class="flex items-center gap-0.5 text-[10px] text-slate-500">
                         <span>必要:</span>
                         <input type="number" min="0" value="${required}" onchange="updateDailyRequired('${d.dateStr}', this.value)" class="w-8 px-0.5 py-0.5 border border-slate-300 rounded text-center font-bold bg-white text-slate-800">
                     </div>
+                    <input type="text"
+                           value="${eventVal}"
+                           placeholder="行事"
+                           title="特別イベント: ${eventVal || '未設定（クリックして入力）'}"
+                           onchange="updateDailyEvent('${d.dateStr}', this.value)"
+                           onkeydown="if(event.key==='Enter') this.blur()"
+                           class="w-full max-w-[46px] px-0.5 py-0.5 text-[9px] border rounded text-center font-bold outline-none transition select-text ${eventVal ? 'bg-amber-100 text-amber-900 border-amber-300 ring-1 ring-amber-300 shadow-2xs' : 'bg-white/90 text-slate-600 border-slate-300 placeholder:text-slate-300 hover:border-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-1 focus:ring-indigo-300'}">
                     <div class="font-extrabold text-sm ${dayTextClass}">
                         ${d.day} <span class="text-[10px] font-bold">(${d.dayOfWeek})</span>
                     </div>
@@ -406,6 +415,21 @@ function updateDailyRequired(dateStr, val) {
     state.dailyRequired[dateStr] = num;
     renderAll();
     syncDailyRequiredToCloud(dateStr, num);
+}
+
+function updateDailyEvent(dateStr, val) {
+    if (!state.dailyEvents) state.dailyEvents = {};
+    const text = (val || '').trim();
+    if (text) {
+        state.dailyEvents[dateStr] = text;
+    } else {
+        delete state.dailyEvents[dateStr];
+    }
+    saveData();
+    if (typeof syncDailyEventToCloud === 'function') {
+        syncDailyEventToCloud(dateStr, text);
+    }
+    renderAll();
 }
 
 function applyDefaultRequired() {

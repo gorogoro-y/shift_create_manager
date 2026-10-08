@@ -76,11 +76,15 @@ let state = {
         oddRemainderPriority: 'single'
     },
     dailyRequired: {},
+    dailyEvents: {},
     selectedStamp: '休',
     selectedTool: { category: 'shift', id: 't1' },
     activeTab: 1,
     activeStaffFilter: null,
-    activeAssignmentStaffFilter: null
+    activeAssignmentStaffFilter: null,
+    printMode: 'thinking',
+    printPeriod: 'first',
+    printCutoffDay: 15
 };
 
 
@@ -90,6 +94,7 @@ function saveData() {
         const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
         localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
         localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
+        localStorage.setItem(`shift_app_events_${monthDocId}`, JSON.stringify(state.dailyEvents || {}));
         if (!state.adjacentSchedules) state.adjacentSchedules = {};
         state.adjacentSchedules[monthDocId] = JSON.parse(JSON.stringify(state.schedule));
     } catch (e) {
@@ -103,6 +108,7 @@ function loadData() {
         try {
             const parsed = JSON.parse(saved);
             state = { ...state, ...parsed };
+            if (!state.dailyEvents) state.dailyEvents = {};
             if (!state.courses || state.courses.length === 0) {
                 initDefaultCourses();
             }
@@ -222,6 +228,10 @@ function changeMonth(delta) {
     state.schedule = cachedMonth ? JSON.parse(cachedMonth) : {};
     const cachedCourses = localStorage.getItem(`shift_app_courses_${newMonthDocId}`);
     state.courseAssignments = cachedCourses ? JSON.parse(cachedCourses) : {};
+    const cachedEvents = localStorage.getItem(`shift_app_events_${newMonthDocId}`);
+    if (cachedEvents) {
+        state.dailyEvents = { ...(state.dailyEvents || {}), ...JSON.parse(cachedEvents) };
+    }
 
     fetchAdjacentMonthSchedules();
     if (isCloudConnected) {
@@ -233,16 +243,25 @@ function changeMonth(delta) {
 
 function switchTab(tabNum) {
     state.activeTab = tabNum;
-    [1, 2, 3, 4].forEach(num => {
-        const view = document.getElementById(`view-mode-${num}`);
-        const btn = document.getElementById(`tab-btn-${num}`);
+    const tabKeys = [1, 2, 3, 4, 'settings'];
+    tabKeys.forEach(key => {
+        const view = document.getElementById(`view-mode-${key}`);
+        const btn = document.getElementById(`tab-btn-${key}`);
         if (view && btn) {
-            if (num === tabNum) {
+            if (key === tabNum) {
                 view.classList.remove('hidden');
-                btn.className = "px-3 sm:px-4 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition font-bold";
+                if (key === 'settings') {
+                    btn.className = "ml-auto px-3 sm:px-4 py-2 rounded-lg bg-slate-800 text-white shadow-sm transition font-bold flex items-center gap-1.5";
+                } else {
+                    btn.className = "px-3 sm:px-4 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition font-bold";
+                }
             } else {
                 view.classList.add('hidden');
-                btn.className = "px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold";
+                if (key === 'settings') {
+                    btn.className = "ml-auto px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold flex items-center gap-1.5 border border-slate-200 bg-white/70 hover:bg-white shadow-2xs";
+                } else {
+                    btn.className = "px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold";
+                }
             }
         }
     });
@@ -502,6 +521,7 @@ function importData(event) {
     reader.onload = function(e) {
         try {
             state = JSON.parse(e.target.result);
+            if (!state.dailyEvents) state.dailyEvents = {};
             currentFileHandle = null;
             updateFileStatusUI();
             renderAll();
@@ -534,3 +554,9 @@ function scrollToPosition(containerId, pos) {
         container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
     }
 }
+
+function getDailyEvent(dateStr) {
+    if (!state.dailyEvents || !dateStr) return '';
+    return state.dailyEvents[dateStr] || '';
+}
+window.getDailyEvent = getDailyEvent;

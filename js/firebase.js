@@ -233,22 +233,26 @@ function listenToCurrentMonthShift() {
             const data = docSnap.data();
             const cloudSchedule = data.schedule ? (typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule) : {};
             const cloudDailyRequired = data.dailyRequired ? (typeof data.dailyRequired === 'string' ? JSON.parse(data.dailyRequired) : data.dailyRequired) : {};
+            const cloudDailyEvents = data.dailyEvents ? (typeof data.dailyEvents === 'string' ? JSON.parse(data.dailyEvents) : data.dailyEvents) : {};
             const cloudCourseAssignments = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
 
             state.schedule = { ...cloudSchedule };
             state.dailyRequired = { ...cloudDailyRequired };
+            state.dailyEvents = { ...cloudDailyEvents };
             state.courseAssignments = { ...cloudCourseAssignments };
 
             updateCloudStatus('同期完了', 'success');
         } else {
             state.schedule = {};
             state.dailyRequired = {};
+            state.dailyEvents = {};
             state.courseAssignments = {};
             updateCloudStatus('新規月 (未保存)', 'normal');
         }
         
         localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
         localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
+        localStorage.setItem(`shift_app_events_${monthDocId}`, JSON.stringify(state.dailyEvents));
         renderAll(false);
         isSyncingFromCloud = false;
 
@@ -366,6 +370,29 @@ async function syncDailyRequiredToCloud(dateStr, val) {
     }
 }
 
+// 特別イベントのクラウド同期
+async function syncDailyEventToCloud(dateStr, val) {
+    if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+
+    try {
+        updateCloudStatus('同期中...', 'syncing');
+        const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+        const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+        await setDoc(shiftRef, {
+            dailyEvents: {
+                [dateStr]: val || ''
+            },
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        updateCloudStatus('同期完了', 'success');
+    } catch (err) {
+        console.error('Daily event sync error:', err);
+        updateCloudStatus('同期エラー', 'error');
+    }
+}
+
 // 複数マスの一括更新
 async function syncBatchCellsToCloud(cellUpdates) {
     if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
@@ -416,6 +443,7 @@ async function saveCurrentMonthShiftToCloud(isSilent = false) {
             month: state.currentMonth,
             schedule: state.schedule,
             dailyRequired: state.dailyRequired,
+            dailyEvents: state.dailyEvents || {},
             courseAssignments: state.courseAssignments,
             updatedAt: new Date().toISOString()
         }, { merge: true });
