@@ -82,10 +82,20 @@ let state = {
     activeTab: 1,
     activeStaffFilter: null,
     activeAssignmentStaffFilter: null,
+    activeAssignmentShiftFilter: null,
     printMode: 'thinking',
     printPeriod: 'first',
-    printCutoffDay: 15
+    printCutoffDay: 15,
+    printBranchTitle: '福岡支店 (ローソンB/C便)'
 };
+
+function getMemberRole(member) {
+    if (!member) return 'normal';
+    if (member.role) return member.role;
+    if (member.name && member.name.includes('リーダー')) return 'leader';
+    return 'normal';
+}
+window.getMemberRole = getMemberRole;
 
 
 function saveData() {

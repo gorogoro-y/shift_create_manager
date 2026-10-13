@@ -1,16 +1,38 @@
 // js/tab4_settings.js
 // 【タブ4】設定（スタッフ・コース・グループ・属性各種マスター管理）
 
+function onPrintBranchTitleChange(val) {
+    state.printBranchTitle = val.trim() || '福岡支店 (ローソンB/C便)';
+    const settingInput = document.getElementById('setting-branch-title-input');
+    const printInput = document.getElementById('print-branch-title-input');
+    if (settingInput) settingInput.value = state.printBranchTitle;
+    if (printInput) printInput.value = state.printBranchTitle;
+    saveData();
+    if (typeof saveMasterToCloud === 'function') {
+        saveMasterToCloud(true);
+    }
+    if (typeof renderPrintTab === 'function') {
+        renderPrintTab();
+    }
+}
+window.onPrintBranchTitleChange = onPrintBranchTitleChange;
+
 function renderMode4() {
     const staffCountBadge = document.getElementById('staff-count-badge');
     if (staffCountBadge) staffCountBadge.innerText = state.members.length;
+
+    // 帳票拠点名入力欄の同期
+    const settingBranchInput = document.getElementById('setting-branch-title-input');
+    const printBranchInput = document.getElementById('print-branch-title-input');
+    if (settingBranchInput) settingBranchInput.value = state.printBranchTitle || '福岡支店 (ローソンB/C便)';
+    if (printBranchInput) printBranchInput.value = state.printBranchTitle || '福岡支店 (ローソンB/C便)';
 
     const staffTableBody = document.getElementById('staff-master-table-body');
     if (staffTableBody) {
         if (state.members.length === 0) {
             staffTableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="p-6 text-center text-slate-400 font-bold bg-slate-50">
+                    <td colspan="6" class="p-6 text-center text-slate-400 font-bold bg-slate-50">
                         登録されているスタッフがいません。「＋ スタッフを追加」または「📋 スプレッドシート取り込み」から追加してください。
                     </td>
                 </tr>
@@ -21,6 +43,19 @@ function renderMode4() {
                 const ngCount = (m.ngCourses || []).length;
                 const isFirst = idx === 0;
                 const isLast = idx === state.members.length - 1;
+                const role = getMemberRole(m);
+
+                let roleBadge = '';
+                if (role === 'leader') {
+                    roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-black bg-indigo-100 text-indigo-800 border border-indigo-300 shadow-2xs">👑 リーダー</span>`;
+                } else if (role === 'training_only') {
+                    roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">🎓 同乗専門</span>`;
+                } else if (role === 'standby') {
+                    roleBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-black bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs">⏳ 待機</span>`;
+                } else {
+                    roleBadge = `<span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">一般</span>`;
+                }
+
                 return `
                     <tr class="border-b border-slate-200 hover:bg-slate-50">
                         <td class="p-3 text-center">
@@ -32,6 +67,7 @@ function renderMode4() {
                                 <span class="font-bold text-slate-600 text-xs w-5 text-right">${idx + 1}</span>
                             </div>
                         </td>
+                        <td class="p-3">${roleBadge}</td>
                         <td class="p-3 font-bold text-slate-800">${m.name}</td>
                         <td class="p-3">
                             <div class="flex items-center gap-1 flex-wrap">
@@ -438,13 +474,17 @@ function openMemberEditModal(memberId = null) {
 
     document.getElementById('member-edit-id').value = memberId || '';
 
+    const roleSelect = document.getElementById('member-edit-role');
+
     if (member) {
         titleEl.innerText = '👤 スタッフ情報の編集';
         document.getElementById('member-edit-name').value = member.name;
+        if (roleSelect) roleSelect.value = getMemberRole(member);
         deleteContainer.classList.remove('hidden');
     } else {
         titleEl.innerText = '👤 スタッフの新規追加';
         document.getElementById('member-edit-name').value = '';
+        if (roleSelect) roleSelect.value = 'normal';
         deleteContainer.classList.add('hidden');
     }
 
@@ -488,6 +528,9 @@ function saveMemberEdit() {
         return;
     }
 
+    const roleSelect = document.getElementById('member-edit-role');
+    const selectedRole = roleSelect ? roleSelect.value : 'normal';
+
     const attrCbs = document.querySelectorAll('.member-attr-checkbox:checked');
     const selectedAttrs = Array.from(attrCbs).map(cb => cb.value);
 
@@ -498,6 +541,7 @@ function saveMemberEdit() {
         const member = state.members.find(m => m.id === memberId);
         if (member) {
             member.name = newName;
+            member.role = selectedRole;
             member.attributes = selectedAttrs;
             member.ngCourses = selectedNGs;
         }
@@ -505,6 +549,7 @@ function saveMemberEdit() {
         state.members.push({
             id: 'm_' + Date.now(),
             name: newName,
+            role: selectedRole,
             attributes: selectedAttrs,
             ngCourses: selectedNGs
         });

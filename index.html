@@ -174,19 +174,21 @@
 
         <!-- タブ3: シフト作成（日別コース配車 ＆ 前後シフト連動タイムライン） -->
         <div id="view-mode-3" class="space-y-2.5 sm:space-y-3 hidden">
-            <!-- 上部ツールバー: 日付切替 ＆ 属性絞り込みフィルター -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button onclick="changeAssignmentDay(-1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">◀ 前日</button>
-                    <div class="flex items-center gap-1.5">
-                        <input type="date" id="assignment-target-date" onchange="onAssignmentDateChange(this.value)" class="p-1.5 sm:p-2 border border-slate-300 rounded-lg font-bold text-xs sm:text-sm bg-white text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500">
-                        <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
-                        <span id="assignment-day-event-badge" class="hidden"></span>
-                    </div>
-                    <button onclick="changeAssignmentDay(1)" class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg text-slate-700 font-bold border border-slate-200 text-xs sm:text-sm">翌日 ▶</button>
+            <!-- 上部ツールバー: 選択日表示 ＆ 属性絞り込みフィルター -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                <!-- 選択中日付インジケーター -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-xs font-bold text-slate-500">選択中:</span>
+                    <span id="assignment-day-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+                    <span id="assignment-day-event-badge" class="hidden"></span>
                 </div>
 
+                <!-- 絞り込みフィルター: 当日シフト（通し・単独等） ＆ スタッフ属性 -->
                 <div class="flex items-center gap-2 flex-wrap">
+                    <!-- 当日シフト絞り込み（通し・単独など） -->
+                    <div class="flex items-center gap-1.5 flex-wrap" id="assignment-shift-filter-container"></div>
+                    <div class="h-4 w-px bg-slate-300 hidden sm:block"></div>
+                    <!-- スタッフ基本属性絞り込み（1t等） -->
                     <div class="flex items-center gap-1.5 flex-wrap" id="assignment-attribute-filter-container"></div>
                     <div class="text-xs text-slate-500 font-bold" id="assignment-filter-status-info"></div>
                 </div>
@@ -194,32 +196,12 @@
 
             <!-- メイン配車エリア: 左側配車テーブル ＆ 右側コース一覧パレット（左右2分割） -->
             <div class="flex flex-col lg:flex-row gap-3 items-start w-full">
-                <!-- 左側: 配車テーブル -->
+                <!-- 左側: 配車テーブル（月間横スクロール ＆ 選択日アコーディオン展開） -->
                 <div class="flex-1 min-w-0 w-full space-y-2">
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div class="force-horizontal-scroll overflow-auto w-full transition-all duration-200" id="assignment-table-container" style="height: calc(100vh - 240px); min-height: 420px;">
                             <table class="w-full text-left border-collapse text-xs" id="course-assignment-table">
-                                <thead>
-                                    <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold select-none">
-                                        <th class="p-3 w-36 sm:w-40 tab3-sticky-corner shadow-2xs border-r border-slate-200">担当スタッフ</th>
-                                        <!-- 前3日間 -->
-                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-3"></th>
-                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-prev-2"></th>
-                                        <th class="p-2 w-13 text-center border-r-2 border-indigo-300 tab3-sticky-th" id="th-prev-1"></th>
-
-                                        <!-- 指定日（当日）：メイン配車枠 -->
-                                        <th class="p-2 w-20 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">当日のシフト</th>
-                                        <th class="p-2 w-24 text-center bg-indigo-50/90 border-r border-indigo-200 text-indigo-900 font-extrabold tab3-sticky-th">割当形式</th>
-                                        <th class="p-2.5 min-w-[240px] bg-indigo-50/90 border-r-2 border-indigo-300 text-indigo-900 font-extrabold tab3-sticky-th" id="th-today-assignment">担当コース割り当て (本日)</th>
-
-                                        <!-- 翌3日間 -->
-                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-1"></th>
-                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-2"></th>
-                                        <th class="p-2 w-13 text-center border-r border-slate-200 tab3-sticky-th" id="th-next-3"></th>
-
-                                        <th class="p-3 w-14 text-center tab3-sticky-th">操作</th>
-                                    </tr>
-                                </thead>
+                                <thead id="course-assignment-table-head"></thead>
                                 <tbody id="course-assignment-table-body"></tbody>
                             </table>
                         </div>
@@ -228,11 +210,11 @@
                     <div class="text-[11px] text-slate-500 bg-white border border-slate-200 py-1.5 px-3 rounded-lg flex items-center justify-between gap-2 flex-wrap">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span>💡</span>
-                            <span><strong>配車ヒント:</strong> 右側一覧や他スタッフ枠から<strong>ドラッグ＆ドロップ</strong>でコースの割当・交換・移動ができます。「🎓同乗」にチェックを入れると担当不可（NG）コースの割当も許可されます。</span>
+                            <span><strong>配車ヒント:</strong> 表内の日付ヘッダーをクリックすると該当日の配車枠がアコーディオン展開されます。右側一覧から<strong>ドラッグ＆ドロップ</strong>でコースを割当できます。セル内の「[分割]」で前後半の個別割当に切り替わります。</span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
-                            <span class="inline-block w-3 h-3 bg-indigo-50 border border-indigo-300 rounded"></span>
-                            <span class="font-bold text-slate-700">青枠が本日の指定日</span>
+                            <span class="inline-block w-3 h-3 bg-indigo-50 border border-indigo-400 rounded"></span>
+                            <span class="font-bold text-slate-700">青枠が展開・編集中</span>
                         </div>
                     </div>
                 </div>
@@ -298,12 +280,18 @@
                         <span class="text-xs font-bold text-slate-700">日まで</span>
                         <span class="text-[10px] text-slate-400 font-medium ml-1">※指定日以降は休み情報のみ印字</span>
                     </div>
+
+                    <!-- 帳票右上 拠点名・便名入力欄 -->
+                    <div class="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-200">
+                        <span class="text-xs font-bold text-slate-700 shrink-0">🏢 拠点名:</span>
+                        <input type="text" id="print-branch-title-input" onchange="onPrintBranchTitleChange(this.value)" placeholder="例: 福岡支店 (ローソンB/C便)" class="p-1 px-2 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 w-44 sm:w-56" title="帳票右上に印字される支店・便名">
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-2">
                     <button type="button" onclick="executePrint()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-98">
                         <span class="text-sm">🖨️</span>
-                        <span>B4縦で印刷 / PDF出力</span>
+                        <span>印刷 / PDF出力</span>
                     </button>
                 </div>
             </div>
@@ -334,12 +322,26 @@
                 </div>
             </div>
 
+            <!-- 印刷帳票・拠点設定 -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800">🏢 印刷帳票・拠点設定 <span class="text-xs font-normal text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">帳票ヘッダー</span></h2>
+                        <p class="text-xs text-slate-500">印刷帳票の右上に印字される支店名・便名を自由に設定できます。</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 max-w-md">
+                    <label class="block text-xs font-bold text-slate-600 shrink-0">拠点名・便名</label>
+                    <input type="text" id="setting-branch-title-input" onchange="onPrintBranchTitleChange(this.value)" placeholder="例: 福岡支店 (ローソンB/C便)" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+
             <!-- スタッフマスター管理 -->
             <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
                 <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
                     <div>
                         <h2 class="font-bold text-lg text-slate-800">スタッフマスター管理 <span class="text-xs font-normal text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">在籍メンバー (<span id="staff-count-badge">0</span>名)</span></h2>
-                        <p class="text-xs text-slate-500">スタッフの登録・編集、保有属性、担当不可NGコースの指定を行います。</p>
+                        <p class="text-xs text-slate-500">スタッフの登録・編集、区分（リーダー・同乗専門・待機）、保有属性、担当不可NGコースの指定を行います。</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="openStaffImportModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1">
@@ -356,7 +358,8 @@
                         <thead class="sticky top-0 bg-slate-50 z-10">
                             <tr class="text-slate-600 border-b border-slate-200">
                                 <th class="p-3 font-bold w-12 text-center">No.</th>
-                                <th class="p-3 font-bold w-48">スタッフ名</th>
+                                <th class="p-3 font-bold w-32">区分</th>
+                                <th class="p-3 font-bold w-44">スタッフ名</th>
                                 <th class="p-3 font-bold">保有属性</th>
                                 <th class="p-3 font-bold">担当不可コース</th>
                                 <th class="p-3 font-bold text-right">操作</th>
@@ -657,9 +660,20 @@
 
             <div class="overflow-y-auto space-y-4 pr-1 flex-1">
                 <input type="hidden" id="member-edit-id">
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">スタッフ名</label>
-                    <input type="text" id="member-edit-name" placeholder="氏名を入力" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">スタッフ名</label>
+                        <input type="text" id="member-edit-name" placeholder="氏名を入力" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">区分・役割（太線・配置連動）</label>
+                        <select id="member-edit-role" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                            <option value="normal">一般スタッフ</option>
+                            <option value="leader">👑 リーダー (班の先頭・太線区切り)</option>
+                            <option value="training_only">🎓 同乗専門スタッフ (専用ブロック)</option>
+                            <option value="standby">⏳ 待機スタッフ (最下部ブロック)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div>

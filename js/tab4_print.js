@@ -100,6 +100,61 @@ function getFormattedCourseName(ca) {
     }
 }
 
+function getFormattedPrintTimestamp() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const s = String(d.getSeconds()).padStart(2, '0');
+    return `${y}/${m}/${day} ${h}:${min}:${s}`;
+}
+
+// コース表示名バッジ（文字長に応じた自動フォントサイズ調整で枠内に確実に収める）
+function renderCourseBadge(courseName) {
+    if (!courseName) return '';
+    const len = courseName.length;
+    let sizeClass = 'text-[11px]';
+    if (len >= 9) {
+        sizeClass = 'text-[7.5px] tracking-tighter leading-tight';
+    } else if (len >= 6) {
+        sizeClass = 'text-[9px] tracking-tight leading-tight';
+    } else if (len >= 4) {
+        sizeClass = 'text-[10px] leading-tight';
+    }
+    return `<span class="font-black ${sizeClass} text-slate-950 inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none" title="${courseName}">${courseName}</span>`;
+}
+
+// 日付・曜日ヘッダー行のHTML生成（上部および中間地点用）
+function renderDateHeaderRowsHtml(days, isMiddle = false) {
+    const topBorderClass = isMiddle ? 'border-thick-top' : '';
+    let dayNumCells = `<th class="p-1 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider"></th>`;
+    let dayOfWeekCells = `<th class="p-0.5 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider"></th>`;
+
+    days.forEach(d => {
+        let dayColor = "text-slate-900";
+        if (d.isSunday) dayColor = "text-rose-600 font-black";
+        else if (d.isSaturday) dayColor = "text-sky-600 font-black";
+
+        dayNumCells += `
+            <th class="p-1 border border-slate-700 bg-sky-50 text-center font-black text-xs sm:text-sm text-slate-900 overflow-hidden">
+                ${d.day}
+            </th>
+        `;
+        dayOfWeekCells += `
+            <th class="p-0.5 border border-slate-700 bg-sky-50 text-center font-black text-xs ${dayColor} overflow-hidden">
+                ${d.dayOfWeek}
+            </th>
+        `;
+    });
+
+    return `
+        <tr class="header-days-row ${topBorderClass}">${dayNumCells}</tr>
+        <tr class="header-weekdays-row border-thick-bottom">${dayOfWeekCells}</tr>
+    `;
+}
+
 function renderPrintTab() {
     const container = document.getElementById('print-table-container');
     if (!container) return;
@@ -107,90 +162,64 @@ function renderPrintTab() {
     updatePrintToolbarUI();
     initCutoffSelectOptions();
 
+    // 拠点名インプットの同期
+    const printBranchInput = document.getElementById('print-branch-title-input');
+    if (printBranchInput) printBranchInput.value = state.printBranchTitle || '福岡支店 (ローソンB/C便)';
+
     const allDays = getMonthDays();
     const numDays = allDays.length;
 
     // 期間（上旬 / 下旬）の抽出
     let days = [];
-    let periodTitle = '';
     if (state.printPeriod === 'first') {
         days = allDays.slice(0, 15);
-        periodTitle = '上旬（1日 〜 15日）';
     } else {
         days = allDays.slice(15);
-        periodTitle = `下旬（16日 〜 ${numDays}日）`;
     }
 
     const cutoffDay = state.printCutoffDay || (state.printPeriod === 'first' ? 15 : numDays);
     const isThinking = state.printMode === 'thinking';
+    const branchTitle = state.printBranchTitle || '福岡支店 (ローソンB/C便)';
 
-    // 帳票タイトルヘッダー
-    let html = `
-        <div class="print-header mb-3 flex justify-between items-end border-b-2 border-slate-800 pb-2">
-            <div>
-                <span class="text-xs font-bold text-slate-500 tracking-wider">SHIFT ROSTER MANAGEMENT</span>
-                <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none mt-0.5">
-                    ${state.currentYear}年 ${state.currentMonth}月 運行シフト表
-                    <span class="text-sm sm:text-base font-bold text-indigo-700 ml-2">【${periodTitle}】</span>
-                </h2>
-            </div>
-            <div class="text-right">
-                <span class="inline-block px-2.5 py-0.5 rounded text-xs font-black ${isThinking ? 'bg-indigo-100 text-indigo-900 border border-indigo-300' : 'bg-slate-800 text-white'}">
-                    ${isThinking ? '🧠 思考確認モード' : '🖨️ 運行配車表（印刷）'}
-                </span>
-                <div class="text-[10px] text-slate-400 mt-1">作成日: ${new Date().toLocaleDateString('ja-JP')}</div>
-            </div>
-        </div>
-    `;
+    // スタッフの分類（一般班、同乗専門、待機）
+    const regularMembers = [];
+    const trainingMembers = [];
+    const standbyMembers = [];
 
-    // 帳票テーブル
-    html += `
-        <table class="w-full text-center border-collapse text-xs print-table border border-slate-700">
-            <thead>
-                <tr class="bg-slate-100 text-slate-800 font-extrabold border-b border-slate-700">
-                    <th class="p-1.5 border border-slate-700 w-28 sm:w-36 text-center text-xs tracking-wider">
-                        担当スタッフ
-                    </th>
-    `;
-
-    // 日付ヘッダー
-    days.forEach(d => {
-        let colBg = "bg-slate-100";
-        let dayColor = "text-slate-900";
-        if (d.isSunday) {
-            colBg = "bg-rose-50";
-            dayColor = "text-rose-600 font-black";
-        } else if (d.isSaturday) {
-            colBg = "bg-sky-50";
-            dayColor = "text-sky-600 font-black";
+    state.members.forEach(m => {
+        const role = getMemberRole(m);
+        if (role === 'training_only') {
+            trainingMembers.push(m);
+        } else if (role === 'standby') {
+            standbyMembers.push(m);
+        } else {
+            regularMembers.push(m);
         }
-
-        html += `
-            <th class="p-1 border border-slate-700 text-center ${colBg}">
-                <div class="flex flex-col items-center justify-center leading-tight">
-                    <span class="text-sm font-black text-slate-800">${d.day}</span>
-                    <span class="text-[10px] ${dayColor}">(${d.dayOfWeek})</span>
-                </div>
-            </th>
-        `;
     });
 
-    html += `</tr></thead><tbody>`;
+    // 一般班におけるリーダーインデックスの検出
+    const leaderIndices = [];
+    regularMembers.forEach((m, idx) => {
+        if (getMemberRole(m) === 'leader') {
+            leaderIndices.push(idx);
+        }
+    });
 
-    // スタッフ行
-    state.members.forEach((member, idx) => {
-        const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
-        html += `
-            <tr class="${rowBg} border-b border-slate-600">
-                <td class="p-1.5 border border-slate-700 font-bold text-slate-900 text-left pl-2 whitespace-nowrap">
-                    <div class="flex items-center justify-between gap-1">
-                        <span class="font-extrabold text-xs">${member.name}</span>
-                        ${member.attributes && member.attributes.length > 0 && isThinking ? `
-                            <span class="text-[9px] px-1 py-0.2 rounded bg-slate-200 text-slate-700 font-bold">
-                                ${state.staffAttributes.find(a => a.id === member.attributes[0])?.shortName || ''}
-                            </span>
-                        ` : ''}
-                    </div>
+    // 中間地点の決定（リーダー班の中間、またはスタッフ数の中間）
+    let midPointIndex = -1;
+    if (leaderIndices.length >= 2) {
+        const midLeaderNum = Math.ceil(leaderIndices.length / 2);
+        midPointIndex = leaderIndices[midLeaderNum] !== undefined ? leaderIndices[midLeaderNum] : Math.floor(regularMembers.length / 2);
+    } else if (regularMembers.length > 10) {
+        midPointIndex = Math.floor(regularMembers.length / 2);
+    }
+
+    // 単一スタッフ行の描画ヘルパー
+    const renderMemberRow = (member, extraRowClass = '') => {
+        let rowHtml = `
+            <tr class="border-b border-slate-700 bg-white hover:bg-slate-50 ${extraRowClass}">
+                <td class="p-1 px-1.5 border border-slate-700 font-extrabold text-slate-900 text-left whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm">
+                    ${member.name}
                 </td>
         `;
 
@@ -209,39 +238,20 @@ function renderPrintTab() {
                 if (isHoliday) {
                     const hType = getHolidayType(cell.shiftId);
                     const shortName = hType ? hType.shortName : cell.shiftId;
-                    // 休みは一律グレー塗りつぶし＋文字表示
-                    cellContent = `<span class="font-extrabold text-xs text-slate-700">${shortName}</span>`;
+                    cellContent = `<span class="font-black text-xs text-slate-800">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (courseName) {
-                    // タブ3にてコース割当あり: 黒文字でコース名を表示、背景/属性バッジ併記
-                    const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
-                    const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
-
-                    let attrDot = '';
-                    if (colorObj) {
-                        attrDot = `<span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5" style="background-color: ${colorObj.color}" title="${colorObj.name}"></span>`;
-                    } else if (shiftObj) {
-                        attrDot = `<span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5" style="background-color: ${shiftObj.color}" title="${shiftObj.name}"></span>`;
-                    }
-
-                    cellContent = `
-                        <div class="flex items-center justify-center font-black text-xs text-slate-900 leading-tight">
-                            ${attrDot}<span>${courseName}</span>
-                        </div>
-                    `;
-                    // 通し/単独等の背景色を極薄く適用
-                    if (shiftObj) {
-                        cellStyle = `background-color: ${shiftObj.color}15;`;
-                    }
+                    // コース割当あり: 自動サイズ調整付きで表示
+                    cellContent = renderCourseBadge(courseName);
                 } else {
-                    // コース未割当: タブ2と同じ属性（通し・単独、点呼等）を表示
+                    // コース未割当: タブ2のシフト属性（通し・単独、点呼等）
                     const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
 
                     if (colorObj) {
-                        cellContent = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs inline-block" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
+                        cellContent = `<span class="px-0.5 py-0.2 rounded text-[9px] font-bold text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
                     } else if (shiftObj) {
-                        cellContent = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs inline-block" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
+                        cellContent = `<span class="px-0.5 py-0.2 rounded text-[9px] font-bold text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
                     } else {
                         cellContent = `<span class="text-slate-300 text-[10px]">ー</span>`;
                     }
@@ -253,51 +263,180 @@ function renderPrintTab() {
                     const shortName = hType ? hType.shortName : cell.shiftId;
                     const isPaidLeave = (shortName === '有' || cell.shiftId === '有' || cell.shiftId === 'h_paid');
 
-                    // 休みはグレー塗りつぶし。有給のみ赤文字、他は黒文字
                     if (isPaidLeave) {
                         cellContent = `<span class="font-black text-xs text-rose-600">${shortName}</span>`;
                     } else {
-                        cellContent = `<span class="font-black text-xs text-slate-900">${shortName}</span>`;
+                        cellContent = `<span class="font-black text-xs text-slate-950">${shortName}</span>`;
                     }
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (isBeyondCutoff) {
-                    // カットオフ日以降: コースは印刷せず、出勤枠は空欄
-                    cellContent = `<span class="text-slate-300 text-[10px]">ー</span>`;
+                    // カットオフ日以降: コースは印刷せず空欄
+                    cellContent = '';
                 } else if (courseName) {
-                    // タブ3で決まったコースのみ黒文字で表示（タブ2の内容は非表示）
-                    cellContent = `<span class="font-black text-xs text-slate-900">${courseName}</span>`;
+                    // タブ3で決まったコース名のみを自動サイズ調整付きで表示
+                    cellContent = renderCourseBadge(courseName);
                 } else {
-                    cellContent = `<span class="text-slate-300 text-[10px]">ー</span>`;
+                    cellContent = '';
                 }
             }
 
-            html += `
-                <td class="p-1 border border-slate-700 text-center align-middle" style="${cellStyle}">
+            rowHtml += `
+                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden" style="${cellStyle}">
                     ${cellContent}
                 </td>
             `;
         });
 
-        html += `</tr>`;
+        rowHtml += `</tr>`;
+        return rowHtml;
+    };
+
+    // 列幅の均等計算（氏名列 14%、残り 86% を日付数で完全均等分割）
+    const dayColWidthPercent = (86 / days.length).toFixed(4);
+
+    // 帳票HTMLの構築
+    let html = `
+        <style>
+            /* 画面表示 & 印刷共通のテーブル基本設定（太線・細線の2種類のみ） */
+            .print-roster-table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+                border: 2px solid #0f172a !important; /* 一番外の枠: 太線(2px) */
+            }
+            .print-roster-table th,
+            .print-roster-table td {
+                border: 1px solid #334155 !important; /* 全内部セル基本罫線: 細線(1px) */
+                overflow: hidden;
+            }
+            /* 太線（強調境界線: 2px / 重複なし） */
+            .print-roster-table tr.border-thick-top > th,
+            .print-roster-table tr.border-thick-top > td {
+                border-top: 2px solid #0f172a !important;
+            }
+            .print-roster-table tr.border-thick-bottom > th,
+            .print-roster-table tr.border-thick-bottom > td {
+                border-bottom: 2px solid #0f172a !important;
+            }
+
+            @media print {
+                @page {
+                    size: B4 portrait;
+                    margin: 6mm 5mm;
+                }
+                body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                .no-print {
+                    display: none !important;
+                }
+                .print-roster-table {
+                    table-layout: fixed !important;
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                    border: 2px solid #0f172a !important;
+                }
+                .print-roster-table th,
+                .print-roster-table td {
+                    border: 1px solid #0f172a !important;
+                }
+                .print-roster-table tr.border-thick-top > th,
+                .print-roster-table tr.border-thick-top > td {
+                    border-top: 2px solid #0f172a !important;
+                }
+                .print-roster-table tr.border-thick-bottom > th,
+                .print-roster-table tr.border-thick-bottom > td {
+                    border-bottom: 2px solid #0f172a !important;
+                }
+            }
+        </style>
+
+        <div class="w-full">
+            <table class="w-full text-center border-collapse text-xs print-roster-table shadow-sm">
+                <!-- 列幅の完全固定・均等化 -->
+                <colgroup>
+                    <col style="width: 14%;">
+                    ${days.map(() => `<col style="width: ${dayColWidthPercent}%;">`).join('')}
+                </colgroup>
+                <thead>
+                    <!-- 最上段: 3分割タイトルヘッダー (年月 | シフト表 | 支店・便名) -->
+                    <tr class="bg-white text-slate-900 border-thick-bottom">
+                        <th class="p-2 border-r-2 border-slate-900 text-center font-black text-sm tracking-wider overflow-hidden">
+                            ${state.currentYear}年${state.currentMonth}月
+                        </th>
+                        <th colspan="${Math.floor(days.length / 2) + 1}" class="p-2 border-r-2 border-slate-900 text-center font-black text-lg sm:text-xl tracking-widest overflow-hidden">
+                            シフト表
+                        </th>
+                        <th colspan="${days.length - Math.floor(days.length / 2)}" class="p-2 text-center font-black text-xs sm:text-sm tracking-wide overflow-hidden">
+                            ${branchTitle}
+                        </th>
+                    </tr>
+
+                    <!-- 上部 日付・曜日ヘッダー -->
+                    ${renderDateHeaderRowsHtml(days, false)}
+                </thead>
+                <tbody>
+    `;
+
+    // 1. 一般乗務班（リーダー ＆ メンバー）
+    regularMembers.forEach((member, idx) => {
+        // 中間地点に到達した場合は、日付・曜日ヘッダーを再挿入
+        if (idx === midPointIndex) {
+            html += renderDateHeaderRowsHtml(days, true);
+        }
+
+        // 太線区切り判定（リーダーの括り: 先頭・中間直後以外のリーダー行に太線）
+        // ※idx===0およびidx===midPointIndexの直前はヘッダー曜日行の下端太線があるため、重複防止で除外
+        const isLeader = getMemberRole(member) === 'leader';
+        let extraClass = '';
+        if (isLeader && idx > 0 && idx !== midPointIndex) {
+            extraClass = 'border-thick-top';
+        }
+
+        html += renderMemberRow(member, extraClass);
     });
 
-    html += `</tbody>`;
+    // 2. 同乗専門スタッフブロック（太線区切り: 先頭上部に太線）
+    trainingMembers.forEach((member, idx) => {
+        let extraClass = '';
+        if (idx === 0) {
+            extraClass = 'border-thick-top';
+        }
+        html += renderMemberRow(member, extraClass);
+    });
 
-    // 最下部フッター行: 行事・イベント名
+    // 3. 待機スタッフブロック（太線区切り: 先頭上部に太線）
+    standbyMembers.forEach((member, idx) => {
+        let extraClass = '';
+        if (idx === 0) {
+            extraClass = 'border-thick-top';
+        }
+        html += renderMemberRow(member, extraClass);
+    });
+
+    // 4. 空行（PDF下部のレイアウト余白を再現: 上部に太線）
     html += `
-        <tfoot>
-            <tr class="bg-amber-50/70 border-t-2 border-slate-800 font-bold">
-                <td class="p-1.5 border border-slate-700 text-center font-black text-xs text-amber-950 bg-amber-100/90 whitespace-nowrap">
-                    行事・イベント
-                </td>
+        <tr class="border-b border-slate-700 bg-white h-7 border-thick-top">
+            <td class="p-1 border border-slate-700"></td>
+            ${days.map(() => `<td class="p-1 border border-slate-700"></td>`).join('')}
+        </tr>
+    `;
+
+    // 5. 行事・イベント名行（一番下に表示: 上部に太線）
+    html += `
+        <tr class="bg-amber-50/70 font-bold border-thick-top">
+            <td class="p-1.5 border border-slate-700 text-center font-black text-xs text-amber-950 bg-amber-100/90 whitespace-nowrap overflow-hidden">
+                行事・イベント
+            </td>
     `;
 
     days.forEach(d => {
         const eventVal = state.dailyEvents?.[d.dateStr] || '';
         html += `
-            <td class="p-1 border border-slate-700 text-center align-middle bg-amber-50/60">
+            <td class="p-0.5 border border-slate-700 text-center align-middle bg-amber-50/60 overflow-hidden">
                 ${eventVal ? `
-                    <div class="px-1 py-0.5 rounded text-[9px] font-black text-amber-950 bg-amber-200/80 border border-amber-300/80 leading-tight truncate shadow-2xs" title="${eventVal}">
+                    <div class="px-0.5 py-0.5 rounded text-[8.5px] font-black text-amber-950 bg-amber-200/90 border border-amber-300 leading-tight w-full overflow-hidden text-ellipsis whitespace-nowrap" title="${eventVal}">
                         ${eventVal}
                     </div>
                 ` : `<span class="text-slate-300 text-[10px]">ー</span>`}
@@ -306,9 +445,16 @@ function renderPrintTab() {
     });
 
     html += `
-            </tr>
-        </tfoot>
-    </table>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 最下部 右下 印刷日時タイムスタンプ -->
+        <div class="flex justify-between items-center mt-1 text-[11px] font-mono text-slate-700 select-none px-1">
+            <span class="text-[10px] text-slate-400 no-print">※B4縦 / A4縦サイズでの印刷・PDF保存に最適化されています</span>
+            <span class="ml-auto font-bold tracking-wider">${getFormattedPrintTimestamp()}</span>
+        </div>
+    </div>
     `;
 
     container.innerHTML = html;
@@ -319,3 +465,4 @@ window.setPrintPeriod = setPrintPeriod;
 window.onPrintCutoffChange = onPrintCutoffChange;
 window.executePrint = executePrint;
 window.renderPrintTab = renderPrintTab;
+window.getFormattedPrintTimestamp = getFormattedPrintTimestamp;
