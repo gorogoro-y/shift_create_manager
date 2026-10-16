@@ -219,8 +219,8 @@ function renderPrintTab() {
     // 単一スタッフ行の描画ヘルパー
     const renderMemberRow = (member, extraRowClass = '') => {
         let rowHtml = `
-            <tr class="border-b border-slate-700 bg-white hover:bg-slate-50 ${extraRowClass}">
-                <td class="p-1 px-1.5 border border-slate-700 font-extrabold text-slate-900 text-left whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm">
+            <tr class="border-b border-slate-700 bg-white hover:bg-slate-50 print-member-row ${extraRowClass}">
+                <td class="p-1 px-1.5 border border-slate-700 font-extrabold text-slate-900 text-left whitespace-nowrap overflow-hidden text-ellipsis text-xs sm:text-sm print-member-name">
                     ${member.name}
                 </td>
         `;
@@ -240,7 +240,7 @@ function renderPrintTab() {
                 if (isHoliday) {
                     const hType = getHolidayType(cell.shiftId);
                     const shortName = hType ? hType.shortName : cell.shiftId;
-                    cellContent = `<span class="font-black text-xs text-slate-800">${shortName}</span>`;
+                    cellContent = `<span class="font-black text-xs text-slate-800 print-holiday-text">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (courseName) {
                     // コース割当あり: 自動サイズ調整付きで大きく表示
@@ -251,9 +251,9 @@ function renderPrintTab() {
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
 
                     if (colorObj) {
-                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
+                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap print-stamp-badge" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
                     } else if (shiftObj) {
-                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
+                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap print-stamp-badge" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
                     } else {
                         cellContent = `<span class="text-slate-300 text-xs">ー</span>`;
                     }
@@ -272,9 +272,9 @@ function renderPrintTab() {
                         cellStyle = '';
                     } else {
                         if (isPaidLeave) {
-                            cellContent = `<span class="font-black text-xs text-rose-600">${shortName}</span>`;
+                            cellContent = `<span class="font-black text-xs text-rose-600 print-holiday-text">${shortName}</span>`;
                         } else {
-                            cellContent = `<span class="font-black text-xs text-slate-950">${shortName}</span>`;
+                            cellContent = `<span class="font-black text-xs text-slate-950 print-holiday-text">${shortName}</span>`;
                         }
                         cellStyle = 'background-color: #cbd5e1;'; // slate-300
                     }
@@ -290,7 +290,7 @@ function renderPrintTab() {
             }
 
             rowHtml += `
-                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden" style="${cellStyle}">
+                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell" style="${cellStyle}">
                     ${cellContent}
                 </td>
             `;
@@ -331,20 +331,32 @@ function renderPrintTab() {
             @media print {
                 @page {
                     size: B4 portrait;
-                    margin: 6mm 5mm;
+                    margin: 5mm 4mm;
                 }
-                body {
+                html, body {
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
                 }
-                .no-print {
+                .no-print, header, nav, footer {
                     display: none !important;
+                }
+                #print-table-container {
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    page-break-after: avoid !important;
+                    break-after: avoid !important;
                 }
                 .print-roster-table {
                     table-layout: fixed !important;
                     width: 100% !important;
                     border-collapse: collapse !important;
                     border: 2px solid #0f172a !important;
+                    page-break-after: avoid !important;
+                    break-after: avoid !important;
                 }
                 .print-roster-table th,
                 .print-roster-table td {
@@ -358,6 +370,79 @@ function renderPrintTab() {
                 .print-roster-table tr.border-thick-bottom > td {
                     border-bottom: 2px solid #0f172a !important;
                 }
+
+                /* === 50人規模をB4縦1枚（350mm内）に確実に収める最適化 === */
+                .print-roster-table tr {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                }
+                /* スタッフ行 */
+                .print-roster-table tr.print-member-row td {
+                    padding: 0.4px 0.5px !important;
+                    height: 5.4mm !important;
+                    max-height: 5.7mm !important;
+                    line-height: 1.1 !important;
+                }
+                .print-roster-table tr.print-member-row td.print-member-name {
+                    font-size: 8pt !important;
+                    line-height: 1.1 !important;
+                    padding-left: 2px !important;
+                }
+                /* コース名・バッジ */
+                .print-course-badge {
+                    font-size: 8.5pt !important;
+                    line-height: 1.05 !important;
+                }
+                .print-stamp-badge {
+                    font-size: 8pt !important;
+                    padding: 0 1px !important;
+                    line-height: 1.05 !important;
+                }
+                .print-holiday-text {
+                    font-size: 8pt !important;
+                    line-height: 1.05 !important;
+                }
+                /* タイトル行 */
+                .print-title-row th {
+                    padding: 1.5px 3px !important;
+                    height: 6.5mm !important;
+                    line-height: 1.1 !important;
+                }
+                .print-title-center {
+                    font-size: 13pt !important;
+                    letter-spacing: 0.15em !important;
+                }
+                .print-title-sub {
+                    font-size: 8.5pt !important;
+                }
+                /* 日付・曜日ヘッダー行 */
+                .print-roster-table tr.header-days-row th {
+                    padding: 0.5px 0 !important;
+                    height: 4.8mm !important;
+                    font-size: 8pt !important;
+                    line-height: 1.1 !important;
+                }
+                .print-roster-table tr.header-weekdays-row th {
+                    padding: 0.3px 0 !important;
+                    height: 4.3mm !important;
+                    font-size: 7.5pt !important;
+                    line-height: 1.1 !important;
+                }
+                /* 空行 */
+                .print-empty-row {
+                    height: 4.8mm !important;
+                }
+                /* イベント行 */
+                .print-event-row td {
+                    height: 5.2mm !important;
+                    padding: 0.3px 0.5px !important;
+                    font-size: 7.5pt !important;
+                }
+                /* 最下部タイムスタンプ */
+                .print-timestamp-row {
+                    margin-top: 0.8mm !important;
+                    font-size: 7pt !important;
+                }
             }
         </style>
 
@@ -370,14 +455,14 @@ function renderPrintTab() {
                 </colgroup>
                 <thead>
                     <!-- 最上段: 3分割タイトルヘッダー (年月 | シフト表 | 支店・便名) -->
-                    <tr class="bg-white text-slate-900 border-thick-bottom">
-                        <th class="p-2 border-r-2 border-slate-900 text-center font-black text-sm tracking-wider overflow-hidden">
+                    <tr class="bg-white text-slate-900 border-thick-bottom print-title-row">
+                        <th class="p-2 border-r-2 border-slate-900 text-center font-black text-sm tracking-wider overflow-hidden print-title-sub">
                             ${state.currentYear}年${state.currentMonth}月
                         </th>
-                        <th colspan="${Math.floor(days.length / 2) + 1}" class="p-2 border-r-2 border-slate-900 text-center font-black text-lg sm:text-xl tracking-widest overflow-hidden">
+                        <th colspan="${Math.floor(days.length / 2) + 1}" class="p-2 border-r-2 border-slate-900 text-center font-black text-lg sm:text-xl tracking-widest overflow-hidden print-title-center">
                             シフト表
                         </th>
-                        <th colspan="${days.length - Math.floor(days.length / 2)}" class="p-2 text-center font-black text-xs sm:text-sm tracking-wide overflow-hidden">
+                        <th colspan="${days.length - Math.floor(days.length / 2)}" class="p-2 text-center font-black text-xs sm:text-sm tracking-wide overflow-hidden print-title-sub">
                             ${branchTitle}
                         </th>
                     </tr>
@@ -426,7 +511,7 @@ function renderPrintTab() {
 
     // 4. 空行（PDF下部のレイアウト余白を再現: 上部に太線）
     html += `
-        <tr class="border-b border-slate-700 bg-white h-7 border-thick-top">
+        <tr class="border-b border-slate-700 bg-white h-7 border-thick-top print-empty-row">
             <td class="p-1 border border-slate-700"></td>
             ${days.map(() => `<td class="p-1 border border-slate-700"></td>`).join('')}
         </tr>
@@ -434,7 +519,7 @@ function renderPrintTab() {
 
     // 5. 行事・イベント名行（一番下に表示: 上部に太線）
     html += `
-        <tr class="bg-amber-50/70 font-bold border-thick-top">
+        <tr class="bg-amber-50/70 font-bold border-thick-top print-event-row">
             <td class="p-1.5 border border-slate-700 text-center font-black text-xs text-amber-950 bg-amber-100/90 whitespace-nowrap overflow-hidden">
                 行事・イベント
             </td>
@@ -459,7 +544,7 @@ function renderPrintTab() {
         </table>
 
         <!-- 最下部 右下 印刷日時タイムスタンプ -->
-        <div class="flex justify-between items-center mt-1 text-[11px] font-mono text-slate-700 select-none px-1">
+        <div class="flex justify-between items-center mt-1 text-[11px] font-mono text-slate-700 select-none px-1 print-timestamp-row">
             <span class="text-[10px] text-slate-400 no-print">※B4縦 / A4縦サイズでの印刷・PDF保存に最適化されています</span>
             <span class="ml-auto font-bold tracking-wider">${getFormattedPrintTimestamp()}</span>
         </div>
