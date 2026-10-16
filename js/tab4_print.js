@@ -111,17 +111,19 @@ function getFormattedPrintTimestamp() {
     return `${y}/${m}/${day} ${h}:${min}:${s}`;
 }
 
-// コース表示名バッジ（文字長に応じた自動フォントサイズ調整で枠内に確実に収める）
+// コース表示名バッジ（文字長に応じた自動フォントサイズ調整で大きく読みやすく枠内に収める）
 function renderCourseBadge(courseName) {
     if (!courseName) return '';
     const len = courseName.length;
-    let sizeClass = 'text-[11px]';
-    if (len >= 9) {
-        sizeClass = 'text-[7.5px] tracking-tighter leading-tight';
-    } else if (len >= 6) {
-        sizeClass = 'text-[9px] tracking-tight leading-tight';
-    } else if (len >= 4) {
-        sizeClass = 'text-[10px] leading-tight';
+    let sizeClass = 'text-sm sm:text-base';
+    if (len >= 10) {
+        sizeClass = 'text-[9px] sm:text-[10px] tracking-tighter leading-tight';
+    } else if (len >= 7) {
+        sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
+    } else if (len >= 5) {
+        sizeClass = 'text-xs sm:text-[13px] tracking-tight leading-tight';
+    } else if (len >= 3) {
+        sizeClass = 'text-[13px] sm:text-sm leading-tight';
     }
     return `<span class="font-black ${sizeClass} text-slate-950 inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none" title="${courseName}">${courseName}</span>`;
 }
@@ -241,19 +243,19 @@ function renderPrintTab() {
                     cellContent = `<span class="font-black text-xs text-slate-800">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (courseName) {
-                    // コース割当あり: 自動サイズ調整付きで表示
+                    // コース割当あり: 自動サイズ調整付きで大きく表示
                     cellContent = renderCourseBadge(courseName);
                 } else {
-                    // コース未割当: タブ2のシフト属性（通し・単独、点呼等）
+                    // コース未割当: タブ2のシフト属性（通し・単独、点呼等）を大きく表示
                     const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
 
                     if (colorObj) {
-                        cellContent = `<span class="px-0.5 py-0.2 rounded text-[9px] font-bold text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
+                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
                     } else if (shiftObj) {
-                        cellContent = `<span class="px-0.5 py-0.2 rounded text-[9px] font-bold text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
+                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
                     } else {
-                        cellContent = `<span class="text-slate-300 text-[10px]">ー</span>`;
+                        cellContent = `<span class="text-slate-300 text-xs">ー</span>`;
                     }
                 }
             } else {
@@ -262,18 +264,25 @@ function renderPrintTab() {
                     const hType = getHolidayType(cell.shiftId);
                     const shortName = hType ? hType.shortName : cell.shiftId;
                     const isPaidLeave = (shortName === '有' || cell.shiftId === '有' || cell.shiftId === 'h_paid');
+                    const isStandby = (shortName === '待' || cell.shiftId === '待' || cell.shiftId === 'h_standby');
 
-                    if (isPaidLeave) {
-                        cellContent = `<span class="font-black text-xs text-rose-600">${shortName}</span>`;
+                    if (isStandby) {
+                        // 待機(待)の枠は空白（色も文字も入れない）
+                        cellContent = '';
+                        cellStyle = '';
                     } else {
-                        cellContent = `<span class="font-black text-xs text-slate-950">${shortName}</span>`;
+                        if (isPaidLeave) {
+                            cellContent = `<span class="font-black text-xs text-rose-600">${shortName}</span>`;
+                        } else {
+                            cellContent = `<span class="font-black text-xs text-slate-950">${shortName}</span>`;
+                        }
+                        cellStyle = 'background-color: #cbd5e1;'; // slate-300
                     }
-                    cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (isBeyondCutoff) {
                     // カットオフ日以降: コースは印刷せず空欄
                     cellContent = '';
                 } else if (courseName) {
-                    // タブ3で決まったコース名のみを自動サイズ調整付きで表示
+                    // タブ3で決まったコース名のみを自動サイズ調整付きで大きく表示
                     cellContent = renderCourseBadge(courseName);
                 } else {
                     cellContent = '';
