@@ -821,6 +821,144 @@ function renderPrintTab() {
     container.innerHTML = html;
 }
 
+// スプレッドシート形式エクスポート用データ生成
+// 期間（上旬/下旬）およびカットオフ日を反映し、確定コース名と休み（すべて「休」）のみを抽出
+function getSpreadsheetExportData() {
+    const allDays = getMonthDays();
+    const numDays = allDays.length;
+
+    // 期間（上旬 / 下旬）の抽出
+    let days = [];
+    if (state.printPeriod === 'first') {
+        days = allDays.slice(0, 15);
+    } else {
+        days = allDays.slice(15);
+    }
+
+    const cutoffDay = state.printCutoffDay || (state.printPeriod === 'first' ? 15 : numDays);
+
+    // スタッフの分類と順序（帳票テーブルの表示順: 一般班、同乗専門、待機）
+    const regularMembers = [];
+    const trainingMembers = [];
+    const standbyMembers = [];
+
+    state.members.forEach(m => {
+        const role = getMemberRole(m);
+        if (role === 'training_only') {
+            trainingMembers.push(m);
+        } else if (role === 'standby') {
+            standbyMembers.push(m);
+        } else {
+            regularMembers.push(m);
+        }
+    });
+
+    const allMembersInOrder = [...regularMembers, ...trainingMembers, ...standbyMembers];
+
+    // 1行目: 氏名, 1日(水), 2日(木), ...
+    const headerRow = ['氏名', ...days.map(d => `${d.day}日(${d.dayOfWeek})`)];
+
+    // 各スタッフの行データ
+    const dataRows = allMembersInOrder.map(member => {
+        const row = [member.name];
+        days.forEach(d => {
+            const cell = getCellData(`${member.id}_${d.dateStr}`);
+            const isHoliday = isHolidayValue(cell.shiftId);
+
+            if (isHoliday) {
+                // 休みは公休・有休・待機などの区別関係なくすべて「休」
+                row.push('休');
+            } else if (d.day <= cutoffDay) {
+                // コース印刷対象日以内で確定コース名があれば出力
+                const ca = getCourseAssignment(member.id, d.dateStr);
+                const courseName = getFormattedCourseName(ca) || '';
+                row.push(courseName);
+            } else {
+                // カットオフ日以降またはコース未割当は空欄
+                row.push('');
+            }
+        });
+        return row;
+    });
+
+    return {
+        headerRow,
+        dataRows,
+        periodLabel: state.printPeriod === 'first' ? '上旬' : '下旬'
+    };
+}
+
+// クリップボードへコピー（スプレッドシートやExcelに直接Ctrl+Vで貼り付け可能）
+function copySpreadsheetData() {
+    const { headerRow, dataRows, periodLabel } = getSpreadsheetExportData();
+    const tsvContent = [headerRow, ...dataRows]
+        .map(row => row.join('\t'))
+        .join('\n');
+
+    const onSuccess = () => {
+        if (typeof showMessageModal === 'function') {
+            showMessageModal(`【${state.currentYear}年${state.currentMonth}月 ${periodLabel}】の確定シフト表をクリップボードにコピーしました！\n\nGoogleスプレッドシートやExcelのシートを開き、そのまま貼り付け（Ctrl+V / Cmd+V）してご利用ください。`);
+        } else {
+            alert('クリップボードにコピーしました！');
+        }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsvContent)
+            .then(onSuccess)
+            .catch(() => fallbackCopy(tsvContent, onSuccess));
+    } else {
+        fallbackCopy(tsvContent, onSuccess);
+    }
+}
+
+// クリップボードAPIが使えない場合のフォールバックコピー
+function fallbackCopy(text, callback) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        if (callback) callback();
+    } catch (err) {
+        alert('クリップボードへのコピーに失敗しました。お使いのブラウザ設定をご確認ください。');
+    }
+    document.body.removeChild(textarea);
+}
+
+// CSVファイルダウンロード（Excelで文字化けしないUTF-8 BOM付き）
+function downloadSpreadsheetCsv() {
+    const { headerRow, dataRows, periodLabel } = getSpreadsheetExportData();
+
+    const escapeCsv = (val) => {
+        const str = String(val || '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows]
+        .map(row => row.map(escapeCsv).join(','))
+        .join('\r\n');
+
+    const fileName = `${state.currentYear}年${state.currentMonth}月_${periodLabel}_確定シフト表.csv`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 window.setPrintMode = setPrintMode;
 window.setPrintPeriod = setPrintPeriod;
 window.onPrintCutoffChange = onPrintCutoffChange;
@@ -830,3 +968,5 @@ window.setPrintRowHeightPreset = setPrintRowHeightPreset;
 window.executePrint = executePrint;
 window.renderPrintTab = renderPrintTab;
 window.getFormattedPrintTimestamp = getFormattedPrintTimestamp;
+window.copySpreadsheetData = copySpreadsheetData;
+window.downloadSpreadsheetCsv = downloadSpreadsheetCsv;

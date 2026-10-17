@@ -310,7 +310,15 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" onclick="copySpreadsheetData()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow active:scale-98" title="表示期間の確定コースと休み（休）をクリップボードにコピーします。スプレッドシートやExcelに直接Ctrl+Vで貼り付けできます。">
+                        <span class="text-sm">📋</span>
+                        <span>シート用にコピー</span>
+                    </button>
+                    <button type="button" onclick="downloadSpreadsheetCsv()" class="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow active:scale-98" title="表示期間の確定コースと休み（休）をExcel/スプレッドシート用CSVファイルとしてダウンロードします。">
+                        <span class="text-sm">📥</span>
+                        <span>CSV出力</span>
+                    </button>
                     <button type="button" onclick="executePrint()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-98">
                         <span class="text-sm">🖨️</span>
                         <span>印刷 / PDF出力</span>
