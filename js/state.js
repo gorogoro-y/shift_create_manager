@@ -52,11 +52,11 @@ let state = {
         { id: 't2', name: '単独', shortName: '単', count: 17, color: '#10b981' }
     ],
     colorTypes: [
-        { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444' },
-        { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6' },
-        { id: 'c3', name: '1t', shortName: '1t', color: '#06b6d4' },
-        { id: 'c4', name: '教育', shortName: '教', color: '#10b981' },
-        { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b' }
+        { id: 'c1', name: '点呼', shortName: '点', color: '#ef4444', printFill: false },
+        { id: 'c2', name: 'ナイト', shortName: '夜', color: '#8b5cf6', printFill: false },
+        { id: 'c3', name: '1t', shortName: '1t', color: '#06b6d4', printFill: false },
+        { id: 'c4', name: '教育', shortName: '教', color: '#10b981', printFill: false },
+        { id: 'c5', name: '臨時', shortName: '臨', color: '#f59e0b', printFill: false }
     ],
     staffAttributes: [
         { id: 'attr_1t', name: '1t', shortName: '1t', color: '#0284c7' },
@@ -86,7 +86,9 @@ let state = {
     printMode: 'thinking',
     printPeriod: 'first',
     printCutoffDay: 15,
-    printBranchTitle: '福岡支店 (ローソンB/C便)'
+    printBranchTitle: '福岡支店 (ローソンB/C便)',
+    printScale: 100,
+    printRowHeight: 5.5
 };
 
 function getMemberRole(member) {
@@ -133,6 +135,9 @@ function loadData() {
                     { id: 'h_standby', name: '待機', shortName: '待', color: '#8b5cf6' },
                     { id: 'h_checkup', name: '健康診断', shortName: '健診', color: '#14b8a6' }
                 ];
+            }
+            if (state.printRowHeight === undefined || state.printRowHeight === null || isNaN(state.printRowHeight)) {
+                state.printRowHeight = 5.5;
             }
         } catch (e) {
             console.error('Failed to load state', e);

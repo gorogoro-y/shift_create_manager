@@ -19,12 +19,46 @@ function onPrintCutoffChange(val) {
     renderPrintTab();
 }
 
+function onPrintScaleChange(val) {
+    state.printScale = parseInt(val) || 100;
+    saveData();
+    renderPrintTab();
+}
+
+function onPrintRowHeightChange(val) {
+    let num = parseFloat(val);
+    if (isNaN(num)) num = 5.5;
+    num = Math.max(4.0, Math.min(10.0, num));
+    num = Math.round(num * 10) / 10;
+    state.printRowHeight = num;
+    try {
+        localStorage.setItem('shift_print_row_height', String(num));
+    } catch (e) {}
+    saveData();
+    renderPrintTab();
+}
+
+function setPrintRowHeightPreset(val) {
+    onPrintRowHeightChange(val);
+}
+
 function updatePrintToolbarUI() {
     const btnThinking = document.getElementById('btn-mode-thinking');
     const btnPrint = document.getElementById('btn-mode-print');
     const btnFirst = document.getElementById('btn-period-first');
     const btnSecond = document.getElementById('btn-period-second');
     const cutoffContainer = document.getElementById('print-cutoff-container');
+    const scaleSelect = document.getElementById('print-scale-select');
+    const rowHeightInput = document.getElementById('print-row-height-input');
+
+    if (scaleSelect) {
+        scaleSelect.value = String(state.printScale || 100);
+    }
+
+    if (rowHeightInput) {
+        const h = (state.printRowHeight !== undefined && state.printRowHeight !== null) ? Number(state.printRowHeight) : 5.5;
+        rowHeightInput.value = h.toFixed(1);
+    }
 
     if (btnThinking && btnPrint) {
         if (state.printMode === 'thinking') {
@@ -111,11 +145,41 @@ function getFormattedPrintTimestamp() {
     return `${y}/${m}/${day} ${h}:${min}:${s}`;
 }
 
+// 背景色の輝度（明るさ）から最適なテキスト文字色（黒 or 白）を判定する
+function getContrastTextColor(hexColor) {
+    if (!hexColor) return '#0f172a';
+    let hex = hexColor.replace('#', '').trim();
+    if (hex.length === 3) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    // YIQ計算（人間の視覚における明度加重）
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 140) ? '#0f172a' : '#ffffff';
+}
+
 // コース表示名バッジ（文字長に応じた自動フォントサイズ調整で大きく読みやすく枠内に収める）
-function renderCourseBadge(courseName) {
+function renderCourseBadge(courseName, isCompact = false, customColor = null) {
     if (!courseName) return '';
     const len = courseName.length;
     let sizeClass = 'text-sm sm:text-base';
+    const colorStyle = customColor ? `color: ${customColor} !important;` : '';
+    const defaultColorClass = customColor ? '' : 'text-slate-950';
+
+    if (isCompact) {
+        if (len >= 10) {
+            sizeClass = 'text-[8px] sm:text-[9px] tracking-tighter leading-tight';
+        } else if (len >= 7) {
+            sizeClass = 'text-[9px] sm:text-[10px] tracking-tight leading-tight';
+        } else if (len >= 5) {
+            sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
+        } else {
+            sizeClass = 'text-[11px] sm:text-xs leading-tight';
+        }
+        return `<span class="font-black ${sizeClass} ${defaultColorClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+    }
     if (len >= 10) {
         sizeClass = 'text-[9px] sm:text-[10px] tracking-tighter leading-tight';
     } else if (len >= 7) {
@@ -125,27 +189,31 @@ function renderCourseBadge(courseName) {
     } else if (len >= 3) {
         sizeClass = 'text-[13px] sm:text-sm leading-tight';
     }
-    return `<span class="font-black ${sizeClass} text-slate-950 inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none" title="${courseName}">${courseName}</span>`;
+    return `<span class="font-black ${sizeClass} ${defaultColorClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
 }
 
 // 日付・曜日ヘッダー行のHTML生成（上部および中間地点用）
 function renderDateHeaderRowsHtml(days, isMiddle = false) {
     const topBorderClass = isMiddle ? 'border-thick-top' : '';
-    let dayNumCells = `<th class="p-1 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider"></th>`;
-    let dayOfWeekCells = `<th class="p-0.5 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider"></th>`;
+    let dayNumCells = `<th class="p-1 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider print-header-day-cell"></th>`;
+    let dayOfWeekCells = `<th class="p-0.5 border border-slate-700 bg-sky-50 text-slate-800 text-center font-bold text-xs tracking-wider print-header-weekday-cell"></th>`;
 
-    days.forEach(d => {
+    days.forEach((d, idx) => {
         let dayColor = "text-slate-900";
         if (d.isSunday) dayColor = "text-rose-600 font-black";
         else if (d.isSaturday) dayColor = "text-sky-600 font-black";
 
+        const isLast = (idx === days.length - 1);
+        const rightBorderCss = isLast ? 'border-right: 3px solid #0f172a !important;' : '';
+        const lastClass = isLast ? 'print-col-last' : '';
+
         dayNumCells += `
-            <th class="p-1 border border-slate-700 bg-sky-50 text-center font-black text-xs sm:text-sm text-slate-900 overflow-hidden">
+            <th class="p-1 border border-slate-700 bg-sky-50 text-center font-black text-xs sm:text-sm text-slate-900 overflow-hidden print-header-day-cell ${lastClass}" style="${rightBorderCss}">
                 ${d.day}
             </th>
         `;
         dayOfWeekCells += `
-            <th class="p-0.5 border border-slate-700 bg-sky-50 text-center font-black text-xs ${dayColor} overflow-hidden">
+            <th class="p-0.5 border border-slate-700 bg-sky-50 text-center font-black text-xs ${dayColor} overflow-hidden print-header-weekday-cell ${lastClass}" style="${rightBorderCss}">
                 ${d.dayOfWeek}
             </th>
         `;
@@ -225,12 +293,15 @@ function renderPrintTab() {
                 </td>
         `;
 
-        days.forEach(d => {
+        days.forEach((d, idx) => {
             const cell = getCellData(`${member.id}_${d.dateStr}`);
             const isHoliday = isHolidayValue(cell.shiftId);
             const ca = getCourseAssignment(member.id, d.dateStr);
             const courseName = getFormattedCourseName(ca);
             const isBeyondCutoff = !isThinking && (d.day > cutoffDay);
+            const isLast = (idx === days.length - 1);
+            const rightBorderCss = isLast ? 'border-right: 3px solid #0f172a !important;' : '';
+            const lastClass = isLast ? 'print-col-last' : '';
 
             let cellContent = '';
             let cellStyle = '';
@@ -243,17 +314,25 @@ function renderPrintTab() {
                     cellContent = `<span class="font-black text-xs text-slate-800 print-holiday-text">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
                 } else if (courseName) {
-                    // コース割当あり: 自動サイズ調整付きで大きく表示
-                    cellContent = renderCourseBadge(courseName);
+                    // コース割当あり: コース名のみを表示（スタンプ・カラー四角は非表示で高さ統一）
+                    cellContent = renderCourseBadge(courseName, false);
                 } else {
-                    // コース未割当: タブ2のシフト属性（通し・単独、点呼等）を大きく表示
+                    // コース未割当: 左にシフトスタンプ [通/単]、右にカラーマーカー ■ を横並び（中央揃え・1行）で表示
                     const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
 
-                    if (colorObj) {
-                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap print-stamp-badge" style="background-color: ${colorObj.color}">${colorObj.shortName}</span>`;
-                    } else if (shiftObj) {
-                        cellContent = `<span class="px-1 py-0.5 rounded text-xs sm:text-sm font-black text-white inline-block leading-tight max-w-full overflow-hidden text-ellipsis whitespace-nowrap print-stamp-badge" style="background-color: ${shiftObj.color}">${shiftObj.shortName}</span>`;
+                    let badgesHtml = '';
+                    if (shiftObj || colorObj) {
+                        badgesHtml = `
+                            <div class="flex items-center justify-center gap-1 leading-none select-none">
+                                ${shiftObj ? `<span class="print-shift-stamp" style="background-color: ${shiftObj.color}" title="${shiftObj.name}">${shiftObj.shortName}</span>` : ''}
+                                ${colorObj ? `<span class="print-color-marker" style="background-color: ${colorObj.color}" title="${colorObj.name}"></span>` : ''}
+                            </div>
+                        `;
+                    }
+
+                    if (badgesHtml) {
+                        cellContent = badgesHtml;
                     } else {
                         cellContent = `<span class="text-slate-300 text-xs">ー</span>`;
                     }
@@ -261,6 +340,7 @@ function renderPrintTab() {
             } else {
                 // === 印刷モード ===
                 if (isHoliday) {
+                    // 休み（公休・有給・待機等）を最優先
                     const hType = getHolidayType(cell.shiftId);
                     const shortName = hType ? hType.shortName : cell.shiftId;
                     const isPaidLeave = (shortName === '有' || cell.shiftId === '有' || cell.shiftId === 'h_paid');
@@ -279,18 +359,37 @@ function renderPrintTab() {
                         cellStyle = 'background-color: #cbd5e1;'; // slate-300
                     }
                 } else if (isBeyondCutoff) {
-                    // カットオフ日以降: コースは印刷せず空欄
+                    // カットオフ日以降: コースもカラー塗りつぶしも行わず空欄
                     cellContent = '';
-                } else if (courseName) {
-                    // タブ3で決まったコース名のみを自動サイズ調整付きで大きく表示
-                    cellContent = renderCourseBadge(courseName);
                 } else {
-                    cellContent = '';
+                    // 出勤枠（カットオフ日以内）
+                    const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+                    const isPrintFill = !!(colorObj && colorObj.printFill);
+
+                    if (isPrintFill) {
+                        // 🖨️ カラーマーカーの背景塗りつぶし属性がON
+                        const textColor = getContrastTextColor(colorObj.color);
+                        cellStyle = `background-color: ${colorObj.color} !important;`;
+
+                        if (courseName) {
+                            // コース割当あり: コース名を表示（文字色は背景コントラスト色）
+                            cellContent = renderCourseBadge(courseName, false, textColor);
+                        } else {
+                            // コース未割当: カラーマーカーの略称文字（例：「点」「夜」など）を中央に表示
+                            const label = colorObj.shortName || colorObj.name || '';
+                            cellContent = `<span class="font-black text-xs sm:text-sm inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-color-fill-text" style="color: ${textColor} !important;" title="${colorObj.name}">${label}</span>`;
+                        }
+                    } else if (courseName) {
+                        // 通常のコース名表示（白背景＋黒文字）
+                        cellContent = renderCourseBadge(courseName);
+                    } else {
+                        cellContent = '';
+                    }
                 }
             }
 
             rowHtml += `
-                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell" style="${cellStyle}">
+                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell ${lastClass}" style="${cellStyle} ${rightBorderCss}">
                     ${cellContent}
                 </td>
             `;
@@ -304,6 +403,14 @@ function renderPrintTab() {
     const dayColWidthPercent = (86 / days.length).toFixed(4);
 
     // 帳票HTMLの構築
+    const scaleFactor = ((state.printScale || 100) / 100).toFixed(2);
+    const rowHeightMm = (state.printRowHeight !== undefined && state.printRowHeight !== null) ? Number(state.printRowHeight) : 5.5;
+    const memberFontSizePt = (Math.min(9, Math.max(7.2, 7.2 + (rowHeightMm - 4.8) * 0.35))).toFixed(1);
+
+    // タイトル行のcolspan計算（合計が 1 + days.length になるよう厳密に配分）
+    const titleCenterSpan = Math.ceil(days.length / 2);
+    const titleBranchSpan = days.length - titleCenterSpan;
+
     let html = `
         <style>
             /* 画面表示 & 印刷共通のテーブル基本設定（太線・細線の2種類のみ） */
@@ -311,27 +418,82 @@ function renderPrintTab() {
                 table-layout: fixed !important;
                 width: 100% !important;
                 border-collapse: collapse !important;
-                border: 2px solid #0f172a !important; /* 一番外の枠: 太線(2px) */
+                border: 3px solid #0f172a !important; /* 一番外の枠: 太線(3px) */
+                font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
             }
             .print-roster-table th,
             .print-roster-table td {
                 border: 1px solid #334155 !important; /* 全内部セル基本罫線: 細線(1px) */
                 overflow: hidden;
             }
-            /* 太線（強調境界線: 2px / 重複なし） */
+            /* 一番右端・左端・上端・下端の罫線を確実に太線(3px)にする（collapseでの競合解決） */
+            .print-roster-table th:last-child,
+            .print-roster-table td:last-child,
+            .print-roster-table .print-col-last {
+                border-right: 3px solid #0f172a !important;
+            }
+            .print-roster-table th:first-child,
+            .print-roster-table td:first-child {
+                border-left: 3px solid #0f172a !important;
+            }
+            .print-roster-table thead tr:first-child > th {
+                border-top: 3px solid #0f172a !important;
+            }
+            .print-roster-table tbody tr:last-child > td {
+                border-bottom: 3px solid #0f172a !important;
+            }
+            /* 太線（強調境界線: 2.5px / 重複なし） */
             .print-roster-table tr.border-thick-top > th,
             .print-roster-table tr.border-thick-top > td {
-                border-top: 2px solid #0f172a !important;
+                border-top: 2.5px solid #0f172a !important;
             }
             .print-roster-table tr.border-thick-bottom > th,
             .print-roster-table tr.border-thick-bottom > td {
-                border-bottom: 2px solid #0f172a !important;
+                border-bottom: 2.5px solid #0f172a !important;
+            }
+
+            /* 画面プレビューでも行の高さを反映 */
+            .print-roster-table tr.print-member-row {
+                height: ${rowHeightMm}mm !important;
+            }
+            .print-roster-table tr.print-member-row td {
+                padding: 0 1px !important;
+                height: ${rowHeightMm}mm !important;
+                line-height: 1 !important;
+                vertical-align: middle !important;
+            }
+            .print-roster-table tr.print-member-row td.print-member-name {
+                font-size: ${memberFontSizePt}pt !important;
+                font-weight: 800 !important;
+            }
+
+            /* 思考モード: シフトスタンプ（白文字入り正方形） */
+            .print-shift-stamp {
+                width: 14px;
+                height: 14px;
+                font-size: 9.5px;
+                font-weight: 900;
+                line-height: 1;
+                color: #ffffff;
+                border-radius: 2px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            /* 思考モード: カラーマーカー（文字なし塗りつぶし正方形） */
+            .print-color-marker {
+                width: 14px;
+                height: 14px;
+                border-radius: 2px;
+                display: inline-block;
+                flex-shrink: 0;
             }
 
             @media print {
                 @page {
                     size: B4 portrait;
-                    margin: 5mm 4mm;
+                    margin: 4mm 4mm;
                 }
                 html, body {
                     width: 100% !important;
@@ -340,118 +502,215 @@ function renderPrintTab() {
                     background: #ffffff !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
                 }
                 .no-print, header, nav, footer {
                     display: none !important;
                 }
                 #print-table-container {
-                    padding: 0 !important;
+                    padding: 0 1.5mm 0 0 !important;
                     margin: 0 !important;
+                    overflow: visible !important;
                     page-break-after: avoid !important;
                     break-after: avoid !important;
+                    zoom: var(--print-scale, ${scaleFactor}) !important;
                 }
                 .print-roster-table {
                     table-layout: fixed !important;
                     width: 100% !important;
                     border-collapse: collapse !important;
-                    border: 2px solid #0f172a !important;
+                    border: 3px solid #0f172a !important;
                     page-break-after: avoid !important;
                     break-after: avoid !important;
+                    font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
                 }
                 .print-roster-table th,
                 .print-roster-table td {
-                    border: 1px solid #0f172a !important;
+                    border: 0.8px solid #0f172a !important;
+                    box-sizing: border-box !important;
+                }
+                /* 印刷時も外周4辺（特に一番右端）を確実に太線(3px)にする */
+                .print-roster-table th:last-child,
+                .print-roster-table td:last-child,
+                .print-roster-table .print-col-last {
+                    border-right: 3px solid #0f172a !important;
+                }
+                .print-roster-table th:first-child,
+                .print-roster-table td:first-child {
+                    border-left: 3px solid #0f172a !important;
+                }
+                .print-roster-table thead tr:first-child > th {
+                    border-top: 3px solid #0f172a !important;
+                }
+                .print-roster-table tbody tr:last-child > td {
+                    border-bottom: 3px solid #0f172a !important;
                 }
                 .print-roster-table tr.border-thick-top > th,
                 .print-roster-table tr.border-thick-top > td {
-                    border-top: 2px solid #0f172a !important;
+                    border-top: 2.2px solid #0f172a !important;
                 }
                 .print-roster-table tr.border-thick-bottom > th,
                 .print-roster-table tr.border-thick-bottom > td {
-                    border-bottom: 2px solid #0f172a !important;
+                    border-bottom: 2.2px solid #0f172a !important;
                 }
 
-                /* === 50人規模をB4縦1枚（350mm内）に確実に収める最適化 === */
-                .print-roster-table tr {
+                /* スタッフ通常行（微調整値反映） */
+                .print-roster-table tr.print-member-row {
+                    height: ${rowHeightMm}mm !important;
                     page-break-inside: avoid !important;
                     break-inside: avoid !important;
                 }
-                /* スタッフ行 */
                 .print-roster-table tr.print-member-row td {
-                    padding: 0.4px 0.5px !important;
-                    height: 5.4mm !important;
-                    max-height: 5.7mm !important;
-                    line-height: 1.1 !important;
+                    padding: 0 1px !important;
+                    height: ${rowHeightMm}mm !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
                 }
                 .print-roster-table tr.print-member-row td.print-member-name {
-                    font-size: 8pt !important;
-                    line-height: 1.1 !important;
-                    padding-left: 2px !important;
+                    font-size: ${memberFontSizePt}pt !important;
+                    font-weight: 800 !important;
+                    line-height: 1 !important;
+                    padding-left: 1.5px !important;
+                    white-space: nowrap !important;
                 }
-                /* コース名・バッジ */
+                /* コース名バッジ */
                 .print-course-badge {
-                    font-size: 8.5pt !important;
-                    line-height: 1.05 !important;
+                    font-size: ${memberFontSizePt}pt !important;
+                    font-weight: 800 !important;
+                    line-height: 1 !important;
+                    display: block !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                 }
+                /* 思考モード: シフトスタンプ（白文字入り正方形） */
+                .print-shift-stamp {
+                    width: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
+                    height: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
+                    font-size: ${(Math.min(6.5, Math.max(5.0, 5.0 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}pt !important;
+                    font-weight: 900 !important;
+                    line-height: 1 !important;
+                    color: #ffffff !important;
+                    border-radius: 0.3mm !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    flex-shrink: 0 !important;
+                }
+                /* 思考モード: カラーマーカー（文字なし塗りつぶし正方形） */
+                .print-color-marker {
+                    width: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
+                    height: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
+                    border-radius: 0.3mm !important;
+                    display: inline-block !important;
+                    flex-shrink: 0 !important;
+                }
+                /* 思考モード2段時コース名 */
+                .print-course-badge-compact {
+                    font-size: ${(Math.min(7.5, Math.max(6.2, 6.2 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}pt !important;
+                    font-weight: 800 !important;
+                    line-height: 1 !important;
+                    display: block !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                /* 思考モードスタンプバッジ（レガシー互換） */
                 .print-stamp-badge {
-                    font-size: 8pt !important;
+                    font-size: 7pt !important;
+                    font-weight: 800 !important;
                     padding: 0 1px !important;
-                    line-height: 1.05 !important;
+                    line-height: 1 !important;
+                    display: inline-block !important;
                 }
+                /* 休み文字 */
                 .print-holiday-text {
-                    font-size: 8pt !important;
-                    line-height: 1.05 !important;
+                    font-size: ${memberFontSizePt}pt !important;
+                    font-weight: 800 !important;
+                    line-height: 1 !important;
+                    display: block !important;
                 }
-                /* タイトル行 */
+                /* タイトル行（年月 / シフト表 / 拠点名） */
+                .print-title-row {
+                    height: 5.5mm !important;
+                }
                 .print-title-row th {
-                    padding: 1.5px 3px !important;
-                    height: 6.5mm !important;
-                    line-height: 1.1 !important;
+                    padding: 0 2px !important;
+                    height: 5.5mm !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
                 }
                 .print-title-center {
-                    font-size: 13pt !important;
-                    letter-spacing: 0.15em !important;
+                    font-size: 11pt !important;
+                    letter-spacing: 0.1em !important;
                 }
                 .print-title-sub {
-                    font-size: 8.5pt !important;
+                    font-size: 8pt !important;
                 }
                 /* 日付・曜日ヘッダー行 */
-                .print-roster-table tr.header-days-row th {
-                    padding: 0.5px 0 !important;
-                    height: 4.8mm !important;
-                    font-size: 8pt !important;
-                    line-height: 1.1 !important;
+                .print-roster-table tr.header-days-row {
+                    height: 4.2mm !important;
                 }
-                .print-roster-table tr.header-weekdays-row th {
-                    padding: 0.3px 0 !important;
-                    height: 4.3mm !important;
+                .print-roster-table tr.header-days-row th,
+                .print-header-day-cell {
+                    padding: 0 !important;
+                    height: 4.2mm !important;
                     font-size: 7.5pt !important;
-                    line-height: 1.1 !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
+                }
+                .print-roster-table tr.header-weekdays-row {
+                    height: 3.8mm !important;
+                }
+                .print-roster-table tr.header-weekdays-row th,
+                .print-header-weekday-cell {
+                    padding: 0 !important;
+                    height: 3.8mm !important;
+                    font-size: 7pt !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
                 }
                 /* 空行 */
                 .print-empty-row {
-                    height: 4.8mm !important;
+                    height: 3.0mm !important;
+                }
+                .print-empty-row td {
+                    height: 3.0mm !important;
+                    padding: 0 !important;
                 }
                 /* イベント行 */
+                .print-event-row {
+                    height: 4.5mm !important;
+                }
                 .print-event-row td {
-                    height: 5.2mm !important;
-                    padding: 0.3px 0.5px !important;
-                    font-size: 7.5pt !important;
+                    height: 4.5mm !important;
+                    padding: 0 !important;
+                    font-size: 6.8pt !important;
+                    line-height: 1 !important;
+                    vertical-align: middle !important;
+                }
+                .print-event-row div {
+                    font-size: 6.8pt !important;
+                    padding: 0 1px !important;
+                    line-height: 1 !important;
                 }
                 /* 最下部タイムスタンプ */
                 .print-timestamp-row {
-                    margin-top: 0.8mm !important;
-                    font-size: 7pt !important;
+                    margin-top: 0.4mm !important;
+                    font-size: 6.5pt !important;
+                    line-height: 1 !important;
                 }
             }
         </style>
 
-        <div class="w-full">
+        <div class="w-full pr-1" style="--print-scale: ${scaleFactor};">
             <table class="w-full text-center border-collapse text-xs print-roster-table shadow-sm">
                 <!-- 列幅の完全固定・均等化 -->
                 <colgroup>
                     <col style="width: 14%;">
-                    ${days.map(() => `<col style="width: ${dayColWidthPercent}%;">`).join('')}
+                    ${days.map((d, idx) => {
+                        const isLast = (idx === days.length - 1);
+                        const rBorder = isLast ? 'border-right: 3px solid #0f172a;' : '';
+                        return `<col style="width: ${dayColWidthPercent}%; ${rBorder}">`;
+                    }).join('')}
                 </colgroup>
                 <thead>
                     <!-- 最上段: 3分割タイトルヘッダー (年月 | シフト表 | 支店・便名) -->
@@ -459,10 +718,10 @@ function renderPrintTab() {
                         <th class="p-2 border-r-2 border-slate-900 text-center font-black text-sm tracking-wider overflow-hidden print-title-sub">
                             ${state.currentYear}年${state.currentMonth}月
                         </th>
-                        <th colspan="${Math.floor(days.length / 2) + 1}" class="p-2 border-r-2 border-slate-900 text-center font-black text-lg sm:text-xl tracking-widest overflow-hidden print-title-center">
+                        <th colspan="${titleCenterSpan}" class="p-2 border-r-2 border-slate-900 text-center font-black text-lg sm:text-xl tracking-widest overflow-hidden print-title-center">
                             シフト表
                         </th>
-                        <th colspan="${days.length - Math.floor(days.length / 2)}" class="p-2 text-center font-black text-xs sm:text-sm tracking-wide overflow-hidden print-title-sub">
+                        <th colspan="${titleBranchSpan}" class="p-2 border-r-2 border-slate-900 text-center font-black text-xs sm:text-sm tracking-wide overflow-hidden print-title-sub print-col-last" style="border-right: 3px solid #0f172a !important;">
                             ${branchTitle}
                         </th>
                     </tr>
@@ -513,7 +772,12 @@ function renderPrintTab() {
     html += `
         <tr class="border-b border-slate-700 bg-white h-7 border-thick-top print-empty-row">
             <td class="p-1 border border-slate-700"></td>
-            ${days.map(() => `<td class="p-1 border border-slate-700"></td>`).join('')}
+            ${days.map((d, idx) => {
+                const isLast = (idx === days.length - 1);
+                const rStyle = isLast ? 'style="border-right: 3px solid #0f172a !important;"' : '';
+                const lastCls = isLast ? 'print-col-last' : '';
+                return `<td class="p-1 border border-slate-700 ${lastCls}" ${rStyle}></td>`;
+            }).join('')}
         </tr>
     `;
 
@@ -525,10 +789,13 @@ function renderPrintTab() {
             </td>
     `;
 
-    days.forEach(d => {
+    days.forEach((d, idx) => {
+        const isLast = (idx === days.length - 1);
+        const rightBorderCss = isLast ? 'border-right: 3px solid #0f172a !important;' : '';
+        const lastClass = isLast ? 'print-col-last' : '';
         const eventVal = state.dailyEvents?.[d.dateStr] || '';
         html += `
-            <td class="p-0.5 border border-slate-700 text-center align-middle bg-amber-50/60 overflow-hidden">
+            <td class="p-0.5 border border-slate-700 text-center align-middle bg-amber-50/60 overflow-hidden ${lastClass}" style="${rightBorderCss}">
                 ${eventVal ? `
                     <div class="px-0.5 py-0.5 rounded text-[8.5px] font-black text-amber-950 bg-amber-200/90 border border-amber-300 leading-tight w-full overflow-hidden text-ellipsis whitespace-nowrap" title="${eventVal}">
                         ${eventVal}
@@ -557,6 +824,9 @@ function renderPrintTab() {
 window.setPrintMode = setPrintMode;
 window.setPrintPeriod = setPrintPeriod;
 window.onPrintCutoffChange = onPrintCutoffChange;
+window.onPrintScaleChange = onPrintScaleChange;
+window.onPrintRowHeightChange = onPrintRowHeightChange;
+window.setPrintRowHeightPreset = setPrintRowHeightPreset;
 window.executePrint = executePrint;
 window.renderPrintTab = renderPrintTab;
 window.getFormattedPrintTimestamp = getFormattedPrintTimestamp;

@@ -230,6 +230,9 @@ function renderMode4() {
                     </td>
                     <td class="p-3 font-bold text-slate-800">${ct.name}</td>
                     <td class="p-3 font-black text-slate-700">${ct.shortName || 'なし'}</td>
+                    <td class="p-3 text-center">
+                        ${ct.printFill ? '<span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-bold border border-indigo-200">塗りつぶす</span>' : '<span class="text-xs text-slate-400 font-medium">なし</span>'}
+                    </td>
                     <td class="p-3 text-xs text-slate-400 font-medium">カウント対象外</td>
                     <td class="p-3 text-right space-x-2">
                         <button onclick="openColorModal('${ct.id}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">編集</button>
@@ -881,7 +884,8 @@ function executeColorImport() {
                 id: 'c_' + Date.now() + '_' + idx,
                 name: colorName,
                 shortName: shortName,
-                color: getRandomColor()
+                color: getRandomColor(),
+                printFill: false
             });
             count++;
         }
@@ -966,11 +970,15 @@ function openColorModal(id = null) {
             document.getElementById('color-modal-name').value = ct.name;
             document.getElementById('color-modal-short').value = ct.shortName || '';
             document.getElementById('color-modal-color').value = ct.color;
+            const printFillEl = document.getElementById('color-modal-print-fill');
+            if (printFillEl) printFillEl.checked = !!ct.printFill;
         }
     } else {
         document.getElementById('color-modal-name').value = '';
         document.getElementById('color-modal-short').value = '';
         document.getElementById('color-modal-color').value = getRandomColor();
+        const printFillEl = document.getElementById('color-modal-print-fill');
+        if (printFillEl) printFillEl.checked = false;
     }
     document.getElementById('color-modal').classList.remove('hidden');
 }
@@ -984,6 +992,8 @@ function saveColorType() {
     const name = document.getElementById('color-modal-name').value.trim();
     const shortName = document.getElementById('color-modal-short').value.trim();
     const color = document.getElementById('color-modal-color').value;
+    const printFillEl = document.getElementById('color-modal-print-fill');
+    const printFill = printFillEl ? printFillEl.checked : false;
 
     if (!name) return;
 
@@ -993,13 +1003,15 @@ function saveColorType() {
             ct.name = name;
             ct.shortName = shortName;
             ct.color = color;
+            ct.printFill = printFill;
         }
     } else {
         state.colorTypes.push({
             id: 'c_' + Date.now(),
             name: name,
             shortName: shortName,
-            color: color
+            color: color,
+            printFill: printFill
         });
     }
 

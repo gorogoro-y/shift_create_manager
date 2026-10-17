@@ -6,7 +6,7 @@
     <title>2/3便シフト作成システム</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col font-sans antialiased">
@@ -286,6 +286,28 @@
                         <span class="text-xs font-bold text-slate-700 shrink-0">🏢 拠点名:</span>
                         <input type="text" id="print-branch-title-input" onchange="onPrintBranchTitleChange(this.value)" placeholder="例: 福岡支店 (ローソンB/C便)" class="p-1 px-2 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 w-44 sm:w-56" title="帳票右上に印字される支店・便名">
                     </div>
+
+                    <!-- 印刷倍率（拡大縮小）セレクター -->
+                    <div class="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-200">
+                        <span class="text-xs font-bold text-slate-700 shrink-0">📏 印刷倍率:</span>
+                        <select id="print-scale-select" onchange="onPrintScaleChange(this.value)" class="p-1 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500" title="印刷時の全体サイズ微調整">
+                            <option value="100">100% (自動最適化)</option>
+                            <option value="95">95% (やや小さめ)</option>
+                            <option value="90">90% (50人収容推奨)</option>
+                            <option value="85">85% (最小コンパクト)</option>
+                        </select>
+                    </div>
+
+                    <!-- 縦の高さ（行の高さ微調整） -->
+                    <div class="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-200">
+                        <span class="text-xs font-bold text-slate-700 shrink-0">↕️ 行の高さ:</span>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="print-row-height-input" onchange="onPrintRowHeightChange(this.value)" min="4.0" max="10.0" step="0.1" value="5.5" class="w-16 p-1 border border-slate-300 rounded font-bold text-xs text-center bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500" title="スタッフデータ行の高さ（mm単位・0.1mm刻みで微調整）">
+                            <span class="text-xs font-bold text-slate-500">mm</span>
+                            <button type="button" onclick="setPrintRowHeightPreset(5.5)" class="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold transition ml-0.5" title="標準の高さ（5.5mm）にリセット">標準</button>
+                            <button type="button" onclick="setPrintRowHeightPreset(4.8)" class="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold transition" title="50人規模収容向け極小（4.8mm）">50人向</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -297,8 +319,8 @@
             </div>
 
             <!-- 印刷帳票プレビュー / 出力エリア -->
-            <div id="print-sheet-wrapper" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4">
-                <div id="print-table-container" class="w-full overflow-x-auto"></div>
+            <div id="print-sheet-wrapper" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4 print:border-none print:shadow-none print:p-0 print:m-0 print:bg-transparent print:rounded-none">
+                <div id="print-table-container" class="w-full overflow-x-auto p-0.5"></div>
             </div>
         </div>
 
@@ -522,6 +544,7 @@
                                 <th class="p-3 font-bold">カラー</th>
                                 <th class="p-3 font-bold">カラー属性名</th>
                                 <th class="p-3 font-bold">略称/表示文字</th>
+                                <th class="p-3 font-bold text-center">印刷塗りつぶし</th>
                                 <th class="p-3 font-bold text-slate-400">人数カウント</th>
                                 <th class="p-3 font-bold text-right">操作</th>
                             </tr>
@@ -976,6 +999,15 @@
             <div>
                 <label class="block text-xs font-bold text-slate-600 mb-1">表示カラー</label>
                 <input type="color" id="color-modal-color" value="#ef4444" class="w-full h-10 border border-slate-300 rounded-xl cursor-pointer p-1">
+            </div>
+            <div class="pt-1">
+                <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer select-none transition">
+                    <input type="checkbox" id="color-modal-print-fill" class="w-4 h-4 mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                    <div>
+                        <span class="text-xs font-bold text-slate-800">🖨️ 印刷モードで背景を塗りつぶす</span>
+                        <p class="text-[11px] text-slate-500 mt-0.5 leading-tight">オンにするとタブ4の印刷モードで、このカラーでマス全体が塗りつぶされます（コース未割当時は略称文字を表示）。</p>
+                    </div>
+                </label>
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeColorModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>

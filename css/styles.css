@@ -1,5 +1,5 @@
-body {
-    font-family: 'Inter', sans-serif;
+body, button, input, select, textarea, table {
+    font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
 
 .sticky-col-left {
@@ -41,18 +41,19 @@ body {
     box-shadow: -2px 0 5px rgba(0,0,0,0.05);
 }
 
-/* 濃いくっきりとした罫線スタイル */
-table {
+/* 濃いくっきりとした罫線スタイル（タブ4の印刷帳票テーブルを除く） */
+table:not(.print-roster-table) {
     border-collapse: separate !important;
     border-spacing: 0 !important;
 }
 
-th, td {
+table:not(.print-roster-table) th,
+table:not(.print-roster-table) td {
     border-bottom: 1.5px solid #64748b !important;
     border-right: 1.5px solid #64748b !important;
 }
 
-thead th {
+table:not(.print-roster-table) thead th {
     border-bottom: 2.5px solid #334155 !important;
 }
 
@@ -178,6 +179,14 @@ thead th {
         padding: 0 !important;
         margin: 0 !important;
         width: 100% !important;
+    }
+
+    #print-sheet-wrapper {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
     }
 
     #print-table-container {
