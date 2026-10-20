@@ -14,6 +14,9 @@ function renderAll(triggerSave = true) {
     if (typeof renderPrintTab === 'function') {
         renderPrintTab();
     }
+    if (typeof renderCourseHistoryTab === 'function') {
+        renderCourseHistoryTab();
+    }
     renderMode4();
     updatePinnedStats();
 }

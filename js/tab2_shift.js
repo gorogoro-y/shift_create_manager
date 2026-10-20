@@ -155,20 +155,41 @@ function getCourseBadgeSummary(memberId, dateStr) {
         return c ? c.name.replace('コース', '') : '';
     };
 
+    const recentColor = state.courseHistoryRecentColor || '#f97316';
+
     if (ca.isSplit) {
         const c1 = findName(ca.firstHalf?.courseId);
         const c2 = findName(ca.secondHalf?.courseId);
         if (!c1 && !c2) return '';
+
+        const r1 = ca.firstHalf?.courseId ? isCourseRecentRun(memberId, ca.firstHalf.courseId, dateStr) : { isRecent: false, days: null };
+        const r2 = ca.secondHalf?.courseId ? isCourseRecentRun(memberId, ca.secondHalf.courseId, dateStr) : { isRecent: false, days: null };
+
+        const span1Style = r1.isRecent ? `background-color: ${recentColor}; color: #000000; font-weight: 900; padding: 0.5px 2px; border-radius: 2px;` : '';
+        const span2Style = r2.isRecent ? `background-color: ${recentColor}; color: #000000; font-weight: 900; padding: 0.5px 2px; border-radius: 2px;` : '';
+
+        const title1 = c1 ? `${c1}${r1.days !== null ? ` (${r1.days}日ぶり)` : ''}` : '未定';
+        const title2 = c2 ? `${c2}${r2.days !== null ? ` (${r2.days}日ぶり)` : ''}` : '未定';
+
         return `
-            <div class="mt-0.5 text-[8px] bg-sky-950/80 text-sky-200 px-1 py-0.2 rounded font-black tracking-tight flex items-center justify-center gap-0.5" title="前半: ${c1 || '未定'} / 後半: ${c2 || '未定'}">
-                <span>${c1 || 'ー'}</span>/<span>${c2 || 'ー'}</span>
+            <div class="mt-0.5 text-[8px] bg-slate-900/90 text-white px-1 py-0.2 rounded font-black tracking-tight flex items-center justify-center gap-0.5 shadow-2xs" title="前半: ${title1} / 後半: ${title2}">
+                <span style="${span1Style}">${c1 || 'ー'}</span>/<span style="${span2Style}">${c2 || 'ー'}</span>
             </div>
         `;
     } else {
         const c = findName(ca.courseId);
         if (!c) return '';
+
+        const recentCheck = isCourseRecentRun(memberId, ca.courseId, dateStr);
+        let style = 'background-color: rgba(15, 23, 42, 0.88); color: #ffffff;';
+        let title = `コース: ${c}`;
+        if (recentCheck.isRecent) {
+            style = `background-color: ${recentColor}; color: #000000; font-weight: 900;`;
+            title = `コース: ${c} (${recentCheck.days}日ぶり)`;
+        }
+
         return `
-            <div class="mt-0.5 text-[9px] bg-slate-900/80 text-white px-1 py-0.2 rounded font-black tracking-tight" title="コース: ${c}">
+            <div class="mt-0.5 text-[9px] px-1 py-0.2 rounded font-black tracking-tight shadow-2xs" style="${style}" title="${title}">
                 ${c}
             </div>
         `;

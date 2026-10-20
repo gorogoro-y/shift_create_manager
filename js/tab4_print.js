@@ -122,13 +122,13 @@ function getFormattedCourseName(ca) {
         const first = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
         const second = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
         // 略記（「01コース」などの場合は数字部分を優先、またはフル名）
-        const formatC = (str) => str.replace(/コース$/, '');
+        const formatC = (str) => str.replace(/コース$/, '').trim();
         if (first && second) {
-            return `${formatC(first)} / ${formatC(second)}`;
+            return `${formatC(first)}/${formatC(second)}`;
         } else if (first) {
-            return `${formatC(first)} / ー`;
+            return `${formatC(first)}/ー`;
         } else if (second) {
-            return `ー / ${formatC(second)}`;
+            return `ー/${formatC(second)}`;
         }
         return '';
     }
@@ -167,6 +167,7 @@ function renderCourseBadge(courseName, isCompact = false, customColor = null) {
     let sizeClass = 'text-sm sm:text-base';
     const colorStyle = customColor ? `color: ${customColor} !important;` : '';
     const defaultColorClass = customColor ? '' : 'text-slate-950';
+    const longClass = (len >= 5) ? 'print-course-long' : '';
 
     if (isCompact) {
         if (len >= 10) {
@@ -178,7 +179,7 @@ function renderCourseBadge(courseName, isCompact = false, customColor = null) {
         } else {
             sizeClass = 'text-[11px] sm:text-xs leading-tight';
         }
-        return `<span class="font-black ${sizeClass} ${defaultColorClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+        return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
     }
     if (len >= 10) {
         sizeClass = 'text-[9px] sm:text-[10px] tracking-tighter leading-tight';
@@ -189,7 +190,7 @@ function renderCourseBadge(courseName, isCompact = false, customColor = null) {
     } else if (len >= 3) {
         sizeClass = 'text-[13px] sm:text-sm leading-tight';
     }
-    return `<span class="font-black ${sizeClass} ${defaultColorClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+    return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
 }
 
 // 日付・曜日ヘッダー行のHTML生成（上部および中間地点用）
@@ -399,8 +400,9 @@ function renderPrintTab() {
         return rowHtml;
     };
 
-    // 列幅の均等計算（氏名列 14%、残り 86% を日付数で完全均等分割）
-    const dayColWidthPercent = (86 / days.length).toFixed(4);
+    // 列幅の均等計算（氏名列 11%に狭め、残り 89% を日付数で均等分割して日付枠を拡大）
+    const nameColWidthPercent = 11;
+    const dayColWidthPercent = ((100 - nameColWidthPercent) / days.length).toFixed(4);
 
     // 帳票HTMLの構築
     const scaleFactor = ((state.printScale || 100) / 100).toFixed(2);
@@ -465,6 +467,48 @@ function renderPrintTab() {
             .print-roster-table tr.print-member-row td.print-member-name {
                 font-size: ${memberFontSizePt}pt !important;
                 font-weight: 800 !important;
+            }
+
+            /* タイトル行（年月 / シフト表 / 拠点名）: 画面・印刷共通 */
+            .print-title-row {
+                height: 8.0mm !important;
+            }
+            .print-title-row th {
+                padding: 0 2px !important;
+                height: 8.0mm !important;
+                line-height: 1 !important;
+                vertical-align: middle !important;
+            }
+            .print-title-center {
+                font-size: 13pt !important;
+                letter-spacing: 0.15em !important;
+            }
+            .print-title-sub {
+                font-size: 9pt !important;
+            }
+
+            /* 日付・曜日ヘッダー行: 画面・印刷共通 */
+            .print-roster-table tr.header-days-row {
+                height: 6.0mm !important;
+            }
+            .print-roster-table tr.header-days-row th,
+            .print-header-day-cell {
+                padding: 0 !important;
+                height: 6.0mm !important;
+                font-size: 8.5pt !important;
+                line-height: 1 !important;
+                vertical-align: middle !important;
+            }
+            .print-roster-table tr.header-weekdays-row {
+                height: 5.2mm !important;
+            }
+            .print-roster-table tr.header-weekdays-row th,
+            .print-header-weekday-cell {
+                padding: 0 !important;
+                height: 5.2mm !important;
+                font-size: 8pt !important;
+                line-height: 1 !important;
+                vertical-align: middle !important;
             }
 
             /* 思考モード: シフトスタンプ（白文字入り正方形） */
@@ -582,6 +626,11 @@ function renderPrintTab() {
                     margin: 0 !important;
                     padding: 0 !important;
                 }
+                /* 分割シフト等の長めコース名: 印刷時の文字詰まり・途切れ防止 */
+                .print-course-badge.print-course-long {
+                    font-size: ${(Number(memberFontSizePt) * 0.90).toFixed(1)}pt !important;
+                    letter-spacing: -0.04em !important;
+                }
                 /* 思考モード: シフトスタンプ（白文字入り正方形） */
                 .print-shift-stamp {
                     width: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
@@ -630,41 +679,41 @@ function renderPrintTab() {
                 }
                 /* タイトル行（年月 / シフト表 / 拠点名） */
                 .print-title-row {
-                    height: 5.5mm !important;
+                    height: 8.0mm !important;
                 }
                 .print-title-row th {
                     padding: 0 2px !important;
-                    height: 5.5mm !important;
+                    height: 8.0mm !important;
                     line-height: 1 !important;
                     vertical-align: middle !important;
                 }
                 .print-title-center {
-                    font-size: 11pt !important;
-                    letter-spacing: 0.1em !important;
+                    font-size: 13pt !important;
+                    letter-spacing: 0.15em !important;
                 }
                 .print-title-sub {
-                    font-size: 8pt !important;
+                    font-size: 9pt !important;
                 }
                 /* 日付・曜日ヘッダー行 */
                 .print-roster-table tr.header-days-row {
-                    height: 4.2mm !important;
+                    height: 6.0mm !important;
                 }
                 .print-roster-table tr.header-days-row th,
                 .print-header-day-cell {
                     padding: 0 !important;
-                    height: 4.2mm !important;
-                    font-size: 7.5pt !important;
+                    height: 6.0mm !important;
+                    font-size: 8.5pt !important;
                     line-height: 1 !important;
                     vertical-align: middle !important;
                 }
                 .print-roster-table tr.header-weekdays-row {
-                    height: 3.8mm !important;
+                    height: 5.2mm !important;
                 }
                 .print-roster-table tr.header-weekdays-row th,
                 .print-header-weekday-cell {
                     padding: 0 !important;
-                    height: 3.8mm !important;
-                    font-size: 7pt !important;
+                    height: 5.2mm !important;
+                    font-size: 8pt !important;
                     line-height: 1 !important;
                     vertical-align: middle !important;
                 }
@@ -703,9 +752,9 @@ function renderPrintTab() {
 
         <div class="w-full pr-1" style="--print-scale: ${scaleFactor};">
             <table class="w-full text-center border-collapse text-xs print-roster-table shadow-sm">
-                <!-- 列幅の完全固定・均等化 -->
+                <!-- 列幅の完全固定・均等化（氏名欄11% / 日付欄89%） -->
                 <colgroup>
-                    <col style="width: 14%;">
+                    <col style="width: ${nameColWidthPercent}%;">
                     ${days.map((d, idx) => {
                         const isLast = (idx === days.length - 1);
                         const rBorder = isLast ? 'border-right: 3px solid #0f172a;' : '';

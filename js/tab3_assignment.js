@@ -209,6 +209,7 @@ function onAssignmentDateChange(newDateStr) {
     const newMonthDocId = `${newY}-${String(newM).padStart(2, '0')}`;
 
     state.selectedAssignmentDate = newDateStr;
+    state.courseHistoryTargetDate = newDateStr;
 
     if (oldMonthDocId !== newMonthDocId) {
         // 月をまたぐ場合：まず現在月（旧月）のメモリ内データをローカルストレージに確実に保存
@@ -484,6 +485,26 @@ function renderDraggableCourseChip(crs, assignedMap, isGroup = false) {
     const isSecondAssigned = assigned.second.length > 0;
     const isAnyAssigned = isFullAssigned || isFirstAssigned || isSecondAssigned;
 
+    const focusedMember = state.activeFocusedMemberId ? state.members.find(m => m.id === state.activeFocusedMemberId) : null;
+    const alertDays = state.courseHistoryAlertDays !== undefined ? Number(state.courseHistoryAlertDays) : 20;
+    const alertColor = state.courseHistoryAlertColor || '#fef08a';
+
+    let blankDaysBadge = '';
+    let isNGForFocused = false;
+
+    if (focusedMember) {
+        const ngList = focusedMember.ngCourses || [];
+        isNGForFocused = ngList.includes(crs.id);
+        const info = getCourseBlankDisplayInfo(focusedMember.id, crs.id, state.selectedAssignmentDate, false);
+        if (info.isAlert) {
+            // 20日以上または90日以上/未経験（薄黄色バッジ）
+            blankDaysBadge = `<span class="text-[10px] px-1.5 py-0.2 rounded font-black border border-amber-300 shadow-2xs shrink-0" style="background-color: ${alertColor}; color: #78350f;" title="${focusedMember.name}: ${info.text === '-' ? '90日以上/未経験' : info.text + '日ぶり'}">${info.text}</span>`;
+        } else {
+            // 20日未満（通常グレーバッジ）
+            blankDaysBadge = `<span class="text-[10px] px-1.5 py-0.2 rounded font-black bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs shrink-0" title="${focusedMember.name}: ${info.text}日ぶり">${info.text}</span>`;
+        }
+    }
+
     let staffLabels = [];
     if (isFullAssigned) {
         staffLabels.push(assigned.full.map(a => `${a.memberName}${a.isTrainee ? '(🎓同乗)' : ''}`).join(', '));
@@ -496,37 +517,40 @@ function renderDraggableCourseChip(crs, assignedMap, isGroup = false) {
     }
     const staffText = staffLabels.join(' / ');
 
+    // NGコース時のグレーアウト用クラス
+    const ngClass = isNGForFocused ? 'opacity-40 grayscale bg-slate-100 border-slate-300' : '';
+    const ngBadge = isNGForFocused ? '<span class="text-[9px] px-1 bg-slate-300 text-slate-700 rounded font-black shrink-0">✕不可</span>' : '';
+
     if (isAnyAssigned) {
         return `
             <div draggable="true"
                  ondragstart="handleCourseDragStart(event, '${crs.id}')"
-                 class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100/90 text-slate-500 border border-slate-200 shadow-2xs cursor-grab active:cursor-grabbing hover:bg-slate-200/90 hover:border-slate-300 transition select-none"
-                 title="${crs.order}. ${crs.name} (担当: ${staffText}) - ドラッグして他スタッフへ移動・交代可能">
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-[10px] text-slate-400 font-black shrink-0">${crs.order}.</span>
+                 class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100/90 text-slate-500 border border-slate-200 shadow-2xs cursor-grab active:cursor-grabbing hover:bg-slate-200/90 hover:border-slate-300 transition select-none ${ngClass}"
+                 title="${crs.name} (担当: ${staffText})${isNGForFocused ? ' - ⚠️選択中スタッフの走行不可コース' : ''}">
+                <div class="flex items-center gap-1.5 min-w-0 truncate">
                     <span class="truncate line-through decoration-slate-400">${crs.name}</span>
+                    ${blankDaysBadge}
+                    ${ngBadge}
                 </div>
                 <span class="text-[10px] font-black text-indigo-700 bg-white px-1.5 py-0.5 rounded border border-indigo-200 shadow-2xs truncate max-w-[110px] text-right shrink-0" title="${staffText}">${staffText}</span>
             </div>
         `;
     } else {
         let badgeBorderClass = "bg-white text-slate-800 border-amber-300 hover:border-amber-500 hover:bg-amber-50/50";
-        let orderColorClass = "text-amber-600";
         if (isGroup) {
             badgeBorderClass = "bg-white text-violet-800 border-violet-300 hover:border-violet-500 hover:bg-violet-50";
-            orderColorClass = "text-violet-600";
         } else if (crs.isRequired === false) {
             badgeBorderClass = "bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50";
-            orderColorClass = "text-slate-400";
         }
         return `
             <div draggable="true"
                  ondragstart="handleCourseDragStart(event, '${crs.id}')"
-                 class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-xs transition select-none ${badgeBorderClass}"
-                 title="${crs.order}. ${crs.name} - ドラッグしてスタッフ枠へドロップ">
-                <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-[10px] font-black ${orderColorClass} shrink-0">${crs.order}.</span>
+                 class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-2xs cursor-grab active:cursor-grabbing hover:shadow-xs transition select-none ${ngClass || badgeBorderClass}"
+                 title="${crs.name} - ドラッグしてスタッフ枠へドロップ${isNGForFocused ? ' (⚠️選択中スタッフの走行不可コース)' : ''}">
+                <div class="flex items-center gap-1.5 min-w-0 truncate">
                     <span class="truncate">${crs.name}</span>
+                    ${blankDaysBadge}
+                    ${ngBadge}
                     ${crs.isRequired === false ? '<span class="text-[9px] px-1 bg-slate-100 text-slate-500 rounded font-normal shrink-0">任意</span>' : ''}
                 </div>
                 <span class="text-[10px] px-1.5 py-0.5 rounded font-black bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">未割当</span>
@@ -541,21 +565,61 @@ function renderCollapsedCell(memberId, dayInfo) {
     const ca = getCourseAssignment(memberId, dayInfo.dateStr);
 
     const findName = (cid) => {
-        const c = state.courses.find(item => item.id === cid);
-        return c ? c.name.replace('コース', '') : '';
+        if (!cid) return '';
+        const c = state.courses.find(item => item.id === cid || item.name === cid);
+        return c ? c.name.replace('コース', '') : cid.replace('コース', '');
     };
 
     let courseText = '';
     let isTrainee = false;
+    let courseBadgeHtml = '';
+    const recentColor = state.courseHistoryRecentColor || '#f97316';
+
     if (ca) {
         if (ca.isSplit) {
             const c1 = findName(ca.firstHalf?.courseId);
             const c2 = findName(ca.secondHalf?.courseId);
-            if (c1 || c2) courseText = `${c1 || '-'}/${c2 || '-'}`;
             if (ca.firstHalf?.isTrainee || ca.secondHalf?.isTrainee) isTrainee = true;
+
+            if (c1 || c2) {
+                courseText = `${c1 || '-'}/${c2 || '-'}`;
+                const r1 = ca.firstHalf?.courseId ? isCourseRecentRun(memberId, ca.firstHalf.courseId, dayInfo.dateStr) : { isRecent: false, days: null };
+                const r2 = ca.secondHalf?.courseId ? isCourseRecentRun(memberId, ca.secondHalf.courseId, dayInfo.dateStr) : { isRecent: false, days: null };
+
+                const s1 = r1.isRecent ? `background-color: ${recentColor}; color: #000000; font-weight: 900; padding: 0.5px 2px; border-radius: 2px;` : '';
+                const s2 = r2.isRecent ? `background-color: ${recentColor}; color: #000000; font-weight: 900; padding: 0.5px 2px; border-radius: 2px;` : '';
+
+                const t1 = c1 ? `${c1}${r1.days !== null ? ` (${r1.days}日ぶり)` : ''}` : '未定';
+                const t2 = c2 ? `${c2}${r2.days !== null ? ` (${r2.days}日ぶり)` : ''}` : '未定';
+
+                courseBadgeHtml = `
+                    <span class="w-full text-center text-[9px] font-black bg-slate-900/90 text-white py-0.5 rounded leading-tight shadow-2xs truncate flex items-center justify-center gap-0.5" title="前半: ${t1} / 後半: ${t2}">
+                        ${isTrainee ? '<span class="text-[8px] text-amber-300">🎓</span>' : ''}
+                        <span style="${s1}">${c1 || 'ー'}</span>/<span style="${s2}">${c2 || 'ー'}</span>
+                    </span>
+                `;
+            }
         } else if (ca.courseId) {
-            courseText = findName(ca.courseId);
+            const c = findName(ca.courseId);
             if (ca.isTrainee) isTrainee = true;
+
+            if (c) {
+                courseText = c;
+                const r = isCourseRecentRun(memberId, ca.courseId, dayInfo.dateStr);
+                let bStyle = 'background-color: #0f172a; color: #ffffff;';
+                let bTitle = `割当コース: ${c}`;
+                if (r.isRecent) {
+                    bStyle = `background-color: ${recentColor}; color: #000000; font-weight: 900;`;
+                    bTitle = `割当コース: ${c} (${r.days}日ぶり)`;
+                }
+
+                courseBadgeHtml = `
+                    <span class="w-full text-center text-[10px] font-black py-0.5 rounded leading-tight shadow-2xs truncate flex items-center justify-center gap-0.5" style="${bStyle}" title="${bTitle}">
+                        ${isTrainee ? '<span class="text-[8px] text-amber-300">🎓</span>' : ''}
+                        <span class="truncate">${c}</span>
+                    </span>
+                `;
+            }
         }
     }
 
@@ -573,10 +637,10 @@ function renderCollapsedCell(memberId, dayInfo) {
         `;
     }
 
-    const shift = state.shiftTypes.find(s => s.id === shiftId);
+    const shift = state.shiftTypes.find(s => s.id === shiftId || s.name === shiftId || s.shortName === shiftId);
     const color = state.colorTypes.find(c => c.id === cell.colorId);
 
-    if (!shift && !color && !courseText) {
+    if (!shift && !color && !cell.shiftId && !courseText && !courseBadgeHtml) {
         return `
             <div class="w-full flex items-center justify-center p-1 cursor-pointer hover:bg-slate-50 transition rounded select-none min-h-[46px]"
                  onclick="onAssignmentDateChange('${dayInfo.dateStr}')"
@@ -590,6 +654,8 @@ function renderCollapsedCell(memberId, dayInfo) {
     let label = '';
     if (shift) {
         label = shift.shortName || shift.name;
+    } else if (cell.shiftId) {
+        label = cell.shiftId;
     } else if (color) {
         label = color.name;
     }
@@ -598,9 +664,11 @@ function renderCollapsedCell(memberId, dayInfo) {
         bgStyle = `background-color: ${color.color}`;
     } else if (shift) {
         bgStyle = `background-color: ${shift.color}`;
+    } else {
+        bgStyle = 'background-color: #64748b;';
     }
 
-    const badgeTitle = `${shift ? shift.name : ''}${shift && color ? ' [' + color.name + ']' : (!shift && color ? color.name : '')}`;
+    const badgeTitle = `${shift ? shift.name : (cell.shiftId || '')}${shift && color ? ' [' + color.name + ']' : (!shift && color ? color.name : '')}`;
 
     return `
         <div class="w-full flex flex-col items-center justify-center gap-0.5 p-1 cursor-pointer hover:bg-indigo-50/70 transition rounded select-none min-h-[46px]"
@@ -611,23 +679,29 @@ function renderCollapsedCell(memberId, dayInfo) {
                     ${label}
                 </span>
             ` : ''}
-            ${courseText ? `
-                <span class="w-full text-center text-[10px] font-black bg-slate-900 text-white py-0.5 rounded leading-tight shadow-2xs truncate flex items-center justify-center gap-0.5" title="割当コース: ${courseText}">
-                    ${isTrainee ? '<span class="text-[8px] text-amber-300">🎓</span>' : ''}
-                    <span class="truncate">${courseText}</span>
-                </span>
-            ` : (label ? `
+            ${courseBadgeHtml || (label ? `
                 <span class="w-full text-center text-[9px] font-bold text-slate-300 py-0.5 leading-tight">未割当</span>
             ` : '')}
         </div>
     `;
 }
 
+function setFocusedAssignmentMember(memberId) {
+    state.activeFocusedMemberId = (state.activeFocusedMemberId === memberId) ? null : memberId;
+    renderCoursePalette();
+    renderCourseAssignmentTab();
+}
+window.setFocusedAssignmentMember = setFocusedAssignmentMember;
+
 function renderExpandedCell(member, dayInfo) {
-    const cell = getCellData(`${member.id}_${dayInfo.dateStr}`);
+    const cell = getCellDataForAnyDate(member.id, dayInfo.dateStr);
     const isHoliday = isHolidayValue(cell.shiftId);
-    const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
+    const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId || s.name === cell.shiftId || s.shortName === cell.shiftId);
     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+
+    const alertDays = state.courseHistoryAlertDays !== undefined ? Number(state.courseHistoryAlertDays) : 20;
+    const alertColor = state.courseHistoryAlertColor || '#fef08a';
+    const isFocused = state.activeFocusedMemberId === member.id;
 
     let shiftLabel = '未定';
     if (shiftObj) {
@@ -645,7 +719,7 @@ function renderExpandedCell(member, dayInfo) {
         shiftBadgeBg = shiftObj.color;
     }
 
-    const shiftBadgeTitle = `${shiftObj ? shiftObj.name : ''}${shiftObj && colorObj ? ' [' + colorObj.name + ']' : (!shiftObj && colorObj ? colorObj.name : '')}`;
+    const shiftBadgeTitle = `${shiftObj ? shiftObj.name : (cell.shiftId || '')}${shiftObj && colorObj ? ' [' + colorObj.name + ']' : (!shiftObj && colorObj ? colorObj.name : '')}`;
     const ca = getCourseAssignment(member.id, dayInfo.dateStr);
 
     if (isHoliday) {
@@ -668,8 +742,15 @@ function renderExpandedCell(member, dayInfo) {
 
     let slotHtml = '';
     if (!ca.isSplit) {
-        const currentCrs = ca.courseId ? state.courses.find(c => c.id === ca.courseId) : null;
+        const currentCrs = ca.courseId ? (state.courses.find(c => c.id === ca.courseId || c.name === ca.courseId) || { id: ca.courseId, name: ca.courseId }) : null;
         const isNG = currentCrs && ngCourses.includes(currentCrs.id);
+
+        let blankBadge = '';
+        if (currentCrs) {
+            const info = getCourseBlankDisplayInfo(member.id, currentCrs.id, dayInfo.dateStr, false);
+            const bStyle = info.isAlert ? `background-color: ${alertColor}; color: #78350f;` : 'background-color: rgba(255,255,255,0.25); color: #ffffff;';
+            blankBadge = `<span class="text-[9px] px-1 py-0.2 rounded font-black shadow-2xs shrink-0" style="${bStyle}" title="${info.text === '-' ? '90日以上/未経験' : info.text + '日ぶり'}">${info.text}</span>`;
+        }
 
         slotHtml = `
             <div class="flex items-center gap-1.5 w-full">
@@ -688,22 +769,29 @@ function renderExpandedCell(member, dayInfo) {
                 <div ondragover="handleCourseDragOver(event)"
                      ondragleave="handleCourseDragLeave(event)"
                      ondrop="handleCourseDrop(event, '${member.id}', 'full')"
-                     class="flex-1 min-w-[130px] min-h-[30px] p-0.5 rounded-lg transition flex items-center">
-                    ${currentCrs ? `
+                     onclick="setFocusedAssignmentMember('${member.id}')"
+                     class="flex-1 min-w-[130px] min-h-[30px] p-0.5 rounded-lg transition flex items-center cursor-pointer ${isFocused ? 'ring-2 ring-indigo-500 bg-indigo-100/50' : ''}">
+                    ${currentCrs ? (() => {
+                        const recentCheck = isCourseRecentRun(member.id, currentCrs.id, dayInfo.dateStr);
+                        let fullSlotBg = isNG && !ca.isTrainee ? 'bg-rose-600 text-white' : (recentCheck.isRecent ? 'text-slate-950 font-black' : 'bg-indigo-600 text-white');
+                        let fullSlotStyle = (!isNG || ca.isTrainee) && recentCheck.isRecent ? `background-color: ${state.courseHistoryRecentColor || '#f97316'};` : '';
+                        return `
                         <div draggable="true"
                              ondragstart="handleCourseDragStart(event, '${currentCrs.id}', '${member.id}', 'full')"
-                             class="w-full flex items-center justify-between px-2 py-1 rounded-md ${isNG && !ca.isTrainee ? 'bg-rose-600' : 'bg-indigo-600'} text-white font-bold text-xs shadow-2xs cursor-grab active:cursor-grabbing hover:opacity-95 transition select-none"
-                             title="${currentCrs.order}. ${currentCrs.name}">
+                             class="w-full flex items-center justify-between px-2 py-1 rounded-md ${fullSlotBg} font-bold text-xs shadow-2xs cursor-grab active:cursor-grabbing hover:opacity-95 transition select-none"
+                             style="${fullSlotStyle}"
+                             title="${currentCrs.name}${recentCheck.days !== null ? ` (${recentCheck.days}日ぶり)` : ''}">
                             <span class="flex items-center gap-1 min-w-0 truncate">
-                                <span class="text-[9px] px-1 py-0.2 rounded bg-black/25 text-white font-black shrink-0">${currentCrs.order}.</span>
                                 <span class="truncate">${currentCrs.name}</span>
+                                ${blankBadge}
                                 ${ca.isTrainee ? '<span class="text-[8px] px-0.5 bg-amber-400 text-slate-900 rounded font-black shrink-0">🎓</span>' : ''}
                                 ${isNG ? '<span class="text-[8px] px-0.5 bg-rose-300 text-rose-950 rounded font-black shrink-0">⚠️NG</span>' : ''}
                             </span>
-                            <button type="button" onclick="clearCourseSlot('${member.id}', 'full')" class="ml-1 text-white/80 hover:text-white rounded px-0.5 text-xs font-black shrink-0" title="コース割当を解除">✕</button>
+                            <button type="button" onclick="event.stopPropagation(); clearCourseSlot('${member.id}', 'full');" class="ml-1 text-slate-900/60 hover:text-slate-950 rounded px-0.5 text-xs font-black shrink-0" title="コース割当を解除">✕</button>
                         </div>
-                    ` : `
-                        <div class="w-full text-center text-[11px] font-bold text-slate-400 border border-dashed border-indigo-300 rounded-md py-1 bg-white/80 hover:bg-indigo-50/80 hover:border-indigo-400 transition cursor-pointer select-none">
+                        `;
+                    })() : `
+                        <div class="w-full text-center text-[11px] font-bold ${isFocused ? 'text-indigo-700 bg-indigo-100/90 border-indigo-400 ring-2 ring-indigo-400' : 'text-slate-400 bg-white/80 border-indigo-300 hover:bg-indigo-50/80 hover:border-indigo-400'} border border-dashed rounded-md py-1 transition select-none">
                             ＋ ドロップ
                         </div>
                     `}
@@ -722,10 +810,24 @@ function renderExpandedCell(member, dayInfo) {
             </div>
         `;
     } else {
-        const firstCrs = ca.firstHalf?.courseId ? state.courses.find(c => c.id === ca.firstHalf.courseId) : null;
-        const secondCrs = ca.secondHalf?.courseId ? state.courses.find(c => c.id === ca.secondHalf.courseId) : null;
+        const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId || c.name === ca.firstHalf.courseId) || { id: ca.firstHalf.courseId, name: ca.firstHalf.courseId }) : null;
+        const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId || c.name === ca.secondHalf.courseId) || { id: ca.secondHalf.courseId, name: ca.secondHalf.courseId }) : null;
         const isFirstNG = firstCrs && ngCourses.includes(firstCrs.id);
         const isSecondNG = secondCrs && ngCourses.includes(secondCrs.id);
+
+        let firstBlankBadge = '';
+        if (firstCrs) {
+            const info1 = getCourseBlankDisplayInfo(member.id, firstCrs.id, dayInfo.dateStr, false);
+            const bStyle1 = info1.isAlert ? `background-color: ${alertColor}; color: #78350f;` : 'background-color: rgba(255,255,255,0.25); color: #ffffff;';
+            firstBlankBadge = `<span class="text-[8px] px-0.8 py-0.2 rounded font-black shadow-2xs shrink-0" style="${bStyle1}" title="${info1.text === '-' ? '90日以上/未経験' : info1.text + '日ぶり'}">${info1.text}</span>`;
+        }
+
+        let secondBlankBadge = '';
+        if (secondCrs) {
+            const info2 = getCourseBlankDisplayInfo(member.id, secondCrs.id, dayInfo.dateStr, false);
+            const bStyle2 = info2.isAlert ? `background-color: ${alertColor}; color: #78350f;` : 'background-color: rgba(255,255,255,0.25); color: #ffffff;';
+            secondBlankBadge = `<span class="text-[8px] px-0.8 py-0.2 rounded font-black shadow-2xs shrink-0" style="${bStyle2}" title="${info2.text === '-' ? '90日以上/未経験' : info2.text + '日ぶり'}">${info2.text}</span>`;
+        }
 
         slotHtml = `
             <div class="space-y-1 w-full">
@@ -750,17 +852,27 @@ function renderExpandedCell(member, dayInfo) {
                         <div ondragover="handleCourseDragOver(event)"
                              ondragleave="handleCourseDragLeave(event)"
                              ondrop="handleCourseDrop(event, '${member.id}', 'first')"
-                             class="flex-1 min-w-0 min-h-[26px] p-0.2 rounded transition flex items-center">
-                            ${firstCrs ? `
+                             onclick="setFocusedAssignmentMember('${member.id}')"
+                             class="flex-1 min-w-0 min-h-[26px] p-0.2 rounded transition flex items-center cursor-pointer ${isFocused ? 'ring-2 ring-indigo-400 bg-indigo-50/50' : ''}">
+                            ${firstCrs ? (() => {
+                                const r1 = isCourseRecentRun(member.id, firstCrs.id, dayInfo.dateStr);
+                                let slot1Bg = isFirstNG && !ca.firstHalf?.isTrainee ? 'bg-rose-600 text-white' : (r1.isRecent ? 'text-slate-950 font-black' : 'bg-sky-700 text-white');
+                                let slot1Style = (!isFirstNG || ca.firstHalf?.isTrainee) && r1.isRecent ? `background-color: ${state.courseHistoryRecentColor || '#f97316'};` : '';
+                                return `
                                 <div draggable="true"
                                      ondragstart="handleCourseDragStart(event, '${firstCrs.id}', '${member.id}', 'first')"
-                                     class="w-full flex items-center justify-between px-1 py-0.5 rounded ${isFirstNG && !ca.firstHalf?.isTrainee ? 'bg-rose-600' : 'bg-sky-700'} text-white font-bold text-[10px] shadow-2xs cursor-grab select-none truncate"
-                                     title="${firstCrs.order}. ${firstCrs.name}">
-                                    <span class="truncate">${firstCrs.name}</span>
-                                    <button type="button" onclick="clearCourseSlot('${member.id}', 'first')" class="ml-0.5 text-white/80 hover:text-white rounded text-[10px] font-black shrink-0">✕</button>
+                                     class="w-full flex items-center justify-between px-1 py-0.5 rounded ${slot1Bg} font-bold text-[10px] shadow-2xs cursor-grab select-none truncate"
+                                     style="${slot1Style}"
+                                     title="${firstCrs.name}${r1.days !== null ? ` (${r1.days}日ぶり)` : ''}">
+                                    <span class="truncate flex items-center gap-0.5">
+                                        <span>${firstCrs.name}</span>
+                                        ${firstBlankBadge}
+                                    </span>
+                                    <button type="button" onclick="event.stopPropagation(); clearCourseSlot('${member.id}', 'first');" class="ml-0.5 text-slate-900/60 hover:text-slate-950 rounded text-[10px] font-black shrink-0">✕</button>
                                 </div>
-                            ` : `
-                                <div class="w-full text-center text-[10px] font-bold text-slate-400 border border-dashed border-sky-300 rounded py-0.5 bg-sky-50/50 hover:bg-sky-100/60 transition cursor-pointer select-none truncate">
+                                `;
+                            })() : `
+                                <div class="w-full text-center text-[10px] font-bold ${isFocused ? 'text-indigo-700 bg-indigo-100/80 border-indigo-400' : 'text-slate-400 bg-sky-50/50 border-sky-300 hover:bg-sky-100/60'} border border-dashed rounded py-0.5 transition cursor-pointer select-none truncate">
                                     ＋前半
                                 </div>
                             `}
@@ -776,17 +888,27 @@ function renderExpandedCell(member, dayInfo) {
                         <div ondragover="handleCourseDragOver(event)"
                              ondragleave="handleCourseDragLeave(event)"
                              ondrop="handleCourseDrop(event, '${member.id}', 'second')"
-                             class="flex-1 min-w-0 min-h-[26px] p-0.2 rounded transition flex items-center">
-                            ${secondCrs ? `
+                             onclick="setFocusedAssignmentMember('${member.id}')"
+                             class="flex-1 min-w-0 min-h-[26px] p-0.2 rounded transition flex items-center cursor-pointer ${isFocused ? 'ring-2 ring-indigo-400 bg-indigo-50/50' : ''}">
+                            ${secondCrs ? (() => {
+                                const r2 = isCourseRecentRun(member.id, secondCrs.id, dayInfo.dateStr);
+                                let slot2Bg = isSecondNG && !ca.secondHalf?.isTrainee ? 'bg-rose-600 text-white' : (r2.isRecent ? 'text-slate-950 font-black' : 'bg-indigo-700 text-white');
+                                let slot2Style = (!isSecondNG || ca.secondHalf?.isTrainee) && r2.isRecent ? `background-color: ${state.courseHistoryRecentColor || '#f97316'};` : '';
+                                return `
                                 <div draggable="true"
                                      ondragstart="handleCourseDragStart(event, '${secondCrs.id}', '${member.id}', 'second')"
-                                     class="w-full flex items-center justify-between px-1 py-0.5 rounded ${isSecondNG && !ca.secondHalf?.isTrainee ? 'bg-rose-600' : 'bg-indigo-700'} text-white font-bold text-[10px] shadow-2xs cursor-grab select-none truncate"
-                                     title="${secondCrs.order}. ${secondCrs.name}">
-                                    <span class="truncate">${secondCrs.name}</span>
-                                    <button type="button" onclick="clearCourseSlot('${member.id}', 'second')" class="ml-0.5 text-white/80 hover:text-white rounded text-[10px] font-black shrink-0">✕</button>
+                                     class="w-full flex items-center justify-between px-1 py-0.5 rounded ${slot2Bg} font-bold text-[10px] shadow-2xs cursor-grab select-none truncate"
+                                     style="${slot2Style}"
+                                     title="${secondCrs.name}${r2.days !== null ? ` (${r2.days}日ぶり)` : ''}">
+                                    <span class="truncate flex items-center gap-0.5">
+                                        <span>${secondCrs.name}</span>
+                                        ${secondBlankBadge}
+                                    </span>
+                                    <button type="button" onclick="event.stopPropagation(); clearCourseSlot('${member.id}', 'second');" class="ml-0.5 text-slate-900/60 hover:text-slate-950 rounded text-[10px] font-black shrink-0">✕</button>
                                 </div>
-                            ` : `
-                                <div class="w-full text-center text-[10px] font-bold text-slate-400 border border-dashed border-indigo-300 rounded py-0.5 bg-indigo-50/50 hover:bg-indigo-100/60 transition cursor-pointer select-none truncate">
+                                `;
+                            })() : `
+                                <div class="w-full text-center text-[10px] font-bold ${isFocused ? 'text-indigo-700 bg-indigo-100/80 border-indigo-400' : 'text-slate-400 bg-indigo-50/50 border-indigo-300 hover:bg-indigo-100/60'} border border-dashed rounded py-0.5 transition cursor-pointer select-none truncate">
                                     ＋後半
                                 </div>
                             `}
@@ -802,7 +924,7 @@ function renderExpandedCell(member, dayInfo) {
     }
 
     return `
-        <div class="p-1 sm:p-1.5 bg-indigo-50/90 rounded-xl border border-indigo-300 shadow-2xs flex items-center min-h-[42px]">
+        <div class="p-1 sm:p-1.5 rounded-xl border transition-all duration-150 flex items-center min-h-[42px] ${isFocused ? 'bg-indigo-100/90 border-indigo-500 ring-2 ring-indigo-400 shadow-sm' : 'bg-indigo-50/90 border-indigo-300 shadow-2xs'}">
             ${slotHtml}
         </div>
     `;
@@ -879,6 +1001,29 @@ function renderCoursePalette() {
     }
 
     let htmlList = `<div class="space-y-3">`;
+
+    // 選択中スタッフの表示バナー（クリックで連動解除も可能）
+    const focusedMember = state.activeFocusedMemberId ? state.members.find(m => m.id === state.activeFocusedMemberId) : null;
+    if (focusedMember) {
+        htmlList += `
+            <div class="px-2.5 py-1.5 bg-indigo-50 border border-indigo-300 rounded-xl text-xs font-bold text-indigo-950 flex items-center justify-between shadow-2xs animate-fade-in">
+                <div class="flex items-center gap-1.5 min-w-0 truncate">
+                    <span class="text-sm">👤</span>
+                    <span class="truncate">選択中: <strong>${focusedMember.name}</strong></span>
+                </div>
+                <button type="button" onclick="setFocusedAssignmentMember(null)" class="text-[10px] text-indigo-600 hover:text-indigo-900 font-bold ml-1 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition shrink-0" title="選択を解除">
+                    ✕ 解除
+                </button>
+            </div>
+        `;
+    } else {
+        htmlList += `
+            <div class="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium text-slate-500 flex items-center gap-1.5 shadow-2xs">
+                <span>💡</span>
+                <span>「＋ドロップ」をクリックすると何日ぶりかが表示されます</span>
+            </div>
+        `;
+    }
 
     // 全充足時の完了バナー
     if (unassignedReqCount === 0) {

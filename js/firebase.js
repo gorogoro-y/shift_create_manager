@@ -206,6 +206,9 @@ function listenToMasterConfig() {
             if (data.courseGroups && Array.isArray(data.courseGroups)) state.courseGroups = data.courseGroups;
             if (data.holidayTypes && Array.isArray(data.holidayTypes)) state.holidayTypes = data.holidayTypes;
             if (data.generatorRules) state.generatorRules = { ...state.generatorRules, ...data.generatorRules };
+            if (data.courseHistoryBase) state.courseHistoryBase = data.courseHistoryBase;
+            if (data.courseHistoryAlertDays !== undefined) state.courseHistoryAlertDays = data.courseHistoryAlertDays;
+            if (data.courseHistoryAlertColor) state.courseHistoryAlertColor = data.courseHistoryAlertColor;
             renderAll(false);
             isSyncingFromCloud = false;
         } else {
@@ -277,6 +280,9 @@ async function saveMasterToCloud(isSilent = false) {
             courseGroups: state.courseGroups || [],
             holidayTypes: state.holidayTypes || [],
             generatorRules: state.generatorRules,
+            courseHistoryBase: state.courseHistoryBase || { baseDate: '2026-10-15', records: {} },
+            courseHistoryAlertDays: state.courseHistoryAlertDays !== undefined ? state.courseHistoryAlertDays : 20,
+            courseHistoryAlertColor: state.courseHistoryAlertColor || '#fef08a',
             updatedAt: new Date().toISOString()
         }, { merge: true });
         

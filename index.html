@@ -83,6 +83,9 @@
                 <button id="tab-btn-4" onclick="switchTab(4)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
                     4. 印刷
                 </button>
+                <button id="tab-btn-5" onclick="switchTab(5)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
+                    5. コース履歴・適性
+                </button>
                 <button id="tab-btn-settings" onclick="switchTab('settings')" class="ml-auto px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold flex items-center gap-1.5 border border-slate-200 bg-white/70 hover:bg-white shadow-2xs" title="各種マスター・スタッフ・コースの設定">
                     <span>⚙️</span><span>設定</span>
                 </button>
@@ -329,6 +332,88 @@
             <!-- 印刷帳票プレビュー / 出力エリア -->
             <div id="print-sheet-wrapper" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-4 print:border-none print:shadow-none print:p-0 print:m-0 print:bg-transparent print:rounded-none">
                 <div id="print-table-container" class="w-full overflow-x-auto p-0.5"></div>
+            </div>
+        </div>
+
+        <!-- タブ5: コース履歴・適性管理 -->
+        <div id="view-mode-5" class="space-y-3 hidden">
+            <!-- 上部ツールバー -->
+            <div class="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- 表示対象日設定（シフト反映日） -->
+                    <div class="flex items-center gap-1.5 bg-indigo-50/80 p-1.5 px-2.5 rounded-lg border border-indigo-200">
+                        <span class="text-xs font-bold text-indigo-900">📅 表示対象日:</span>
+                        <input type="date" id="history-target-date-input" onchange="onCourseHistoryTargetDateChange(this.value)" class="p-1 px-2 border border-indigo-300 rounded font-bold text-xs bg-white text-indigo-900 outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs">
+                        <button type="button" onclick="syncHistoryTargetDateWithToday()" class="px-1.5 py-1 bg-white hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black transition" title="タブ3の配車日（選択日）と同期">配車日</button>
+                    </div>
+
+                    <!-- 基準日設定（スプレッドシート基準日） -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 px-2.5 rounded-lg border border-slate-200" title="スプレッドシートのブランク日数データが記録された基準日">
+                        <span class="text-xs font-bold text-slate-700">📋 基準日:</span>
+                        <input type="date" id="history-base-date-input" onchange="onCourseHistoryBaseDateChange(this.value)" class="p-1 px-2 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+
+                    <!-- 警告日数設定（20日以上） -->
+                    <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 px-2.5 rounded-lg border border-slate-200">
+                        <span class="text-xs font-bold text-slate-700">⚠️ 警告日数:</span>
+                        <input type="number" id="history-alert-days-input" min="1" max="999" value="20" onchange="onCourseHistoryAlertDaysChange(this.value)" class="w-14 p-1 border border-slate-300 rounded font-bold text-xs text-center bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                        <span class="text-xs font-bold text-slate-500">日以上</span>
+                        <span class="text-[11px] text-slate-400 ml-1">色:</span>
+                        <input type="color" id="history-alert-color-input" value="#fef08a" onchange="onCourseHistoryAlertColorChange(this.value)" class="w-7 h-7 p-0.5 border border-slate-300 rounded cursor-pointer" title="警告色を変更">
+                    </div>
+
+                    <!-- 直近乗務強調設定（7日以内） -->
+                    <div class="flex items-center gap-1.5 bg-orange-50/80 p-1.5 px-2.5 rounded-lg border border-orange-200" title="タブ2・タブ3で割当コースが直近乗務の場合に強調表示する日数条件と色">
+                        <span class="text-xs font-bold text-orange-950">🔥 直近乗務:</span>
+                        <input type="number" id="history-recent-days-input" min="1" max="90" value="7" onchange="onCourseHistoryRecentDaysChange(this.value)" class="w-12 p-1 border border-orange-300 rounded font-bold text-xs text-center bg-white text-slate-800 outline-none focus:ring-1 focus:ring-orange-500">
+                        <span class="text-xs font-bold text-orange-850">日以内</span>
+                        <span class="text-[11px] text-orange-600 ml-1">色:</span>
+                        <input type="color" id="history-recent-color-input" value="#f97316" onchange="onCourseHistoryRecentColorChange(this.value)" class="w-7 h-7 p-0.5 border border-orange-300 rounded cursor-pointer" title="直近乗務の強調色を変更">
+                    </div>
+
+                    <!-- スタッフ絞り込み検索 -->
+                    <div class="flex items-center gap-1.5 ml-1 pl-3 border-l border-slate-200">
+                        <span class="text-xs font-bold text-slate-700">🔍 スタッフ検索:</span>
+                        <input type="text" id="history-search-input" oninput="renderCourseHistoryTab()" placeholder="氏名で絞り込み..." class="p-1 px-2.5 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 w-36 sm:w-48">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" onclick="openCourseHistoryImportModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm hover:shadow active:scale-98" title="スプレッドシートからコピーしたデータを貼り付けて一括取り込みます">
+                        <span class="text-sm">📋</span>
+                        <span>スプレッドシート取り込み</span>
+                    </button>
+                    <button type="button" onclick="executeHistoryPrint()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-98">
+                        <span class="text-sm">🖨️</span>
+                        <span>印刷 / PDF出力</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ガイド説明バー -->
+            <div class="no-print bg-slate-50 border border-slate-200 py-1.5 px-3 rounded-lg flex items-center justify-between text-[11px] text-slate-600 flex-wrap gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span>💡 <strong>操作ヒント:</strong> マスをクリックすると、そのコースの<strong>「走行可能」と「走行不可（✕・グレー）」</strong>を直接切り替えられます（設定タブのNGコースと即座に連動）。</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="flex items-center gap-1">
+                        <span class="w-3.5 h-3.5 rounded border border-slate-300 bg-white inline-block"></span>
+                        <span class="text-[10px] text-slate-500 font-bold">通常乗務</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="w-3.5 h-3.5 rounded border border-amber-300 bg-[#fef08a] inline-block text-center text-[9px] font-black text-amber-950 leading-none">20</span>
+                        <span class="text-[10px] text-amber-800 font-bold">20日以上 (90日以上/未経験は -)</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="w-3.5 h-3.5 rounded border border-slate-400 bg-slate-300 inline-block text-center text-[9px] font-black text-slate-700 leading-none">✕</span>
+                        <span class="text-[10px] text-slate-600 font-bold">走行不可（NG）</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- マトリクス表コンテナ -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-3 print:border-none print:shadow-none print:p-0">
+                <div id="course-history-table-container" class="w-full overflow-x-auto"></div>
             </div>
         </div>
 
@@ -1095,6 +1180,29 @@
         </div>
     </div>
 
+    <!-- コース乗務履歴・スプレッドシート取り込みモーダル -->
+    <div id="course-history-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-4">
+            <div class="border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <span>📋</span> <span>コース乗務履歴（ブランク日数）の取り込み</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">スプレッドシートからコピーした表（1行目: コース名、2行目以降: 1列目スタッフ名・各コースの経過日数）をそのまま貼り付けてください。</p>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-xs font-bold text-slate-700">貼り付けエリア (TSV形式)</label>
+                <textarea id="course-history-import-textarea" rows="8" class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="スタッフ名&#9;01コース&#9;02コース&#9;03コース...&#10;山田 太郎&#9;5&#9;12&#9;25...&#10;佐藤 次郎&#9;0&#9;40&#9;ー..."></textarea>
+                <p class="text-[11px] text-slate-400">※未乗務・未経験のマスは空欄または「ー」のままで取り込めます。</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeCourseHistoryImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button type="button" onclick="saveCourseHistoryImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">取り込む</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modular Scripts -->
     <script src="js/state.js"></script>
     <script src="js/firebase.js"></script>
@@ -1103,6 +1211,7 @@
     <script src="js/tab3_assignment.js"></script>
     <script src="js/tab4_print.js"></script>
     <script src="js/tab4_settings.js"></script>
+    <script src="js/tab5_history.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

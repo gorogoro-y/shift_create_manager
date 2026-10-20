@@ -88,7 +88,16 @@ let state = {
     printCutoffDay: 15,
     printBranchTitle: '福岡支店 (ローソンB/C便)',
     printScale: 100,
-    printRowHeight: 5.5
+    printRowHeight: 5.5,
+    courseHistoryBase: {
+        baseDate: '2026-10-15',
+        records: {} // { [memberId]: { [courseId]: number } }
+    },
+    courseHistoryAlertDays: 20,
+    courseHistoryAlertColor: '#fef08a', // 薄黄色
+    courseHistoryRecentDays: 7, // 直近乗務ハイライト（7日以内）
+    courseHistoryRecentColor: '#f97316', // オレンジ
+    activeFocusedMemberId: null
 };
 
 function getMemberRole(member) {
@@ -138,6 +147,21 @@ function loadData() {
             }
             if (state.printRowHeight === undefined || state.printRowHeight === null || isNaN(state.printRowHeight)) {
                 state.printRowHeight = 5.5;
+            }
+            if (!state.courseHistoryBase) {
+                state.courseHistoryBase = { baseDate: '2026-10-15', records: {} };
+            }
+            if (state.courseHistoryAlertDays === undefined || isNaN(state.courseHistoryAlertDays)) {
+                state.courseHistoryAlertDays = 20;
+            }
+            if (state.courseHistoryAlertColor === undefined || !state.courseHistoryAlertColor) {
+                state.courseHistoryAlertColor = '#fef08a';
+            }
+            if (state.courseHistoryRecentDays === undefined || isNaN(state.courseHistoryRecentDays)) {
+                state.courseHistoryRecentDays = 7;
+            }
+            if (!state.courseHistoryRecentColor) {
+                state.courseHistoryRecentColor = '#f97316';
             }
         } catch (e) {
             console.error('Failed to load state', e);
@@ -258,7 +282,7 @@ function changeMonth(delta) {
 
 function switchTab(tabNum) {
     state.activeTab = tabNum;
-    const tabKeys = [1, 2, 3, 4, 'settings'];
+    const tabKeys = [1, 2, 3, 4, 5, 'settings'];
     tabKeys.forEach(key => {
         const view = document.getElementById(`view-mode-${key}`);
         const btn = document.getElementById(`tab-btn-${key}`);
@@ -575,3 +599,127 @@ function getDailyEvent(dateStr) {
     return state.dailyEvents[dateStr] || '';
 }
 window.getDailyEvent = getDailyEvent;
+
+// 2つの日付文字列 (YYYY-MM-DD) の日数差 (dateStrB - dateStrA)
+function getDaysDiff(dateStrA, dateStrB) {
+    if (!dateStrA || !dateStrB) return 0;
+    const tA = new Date(dateStrA + 'T00:00:00Z').getTime();
+    const tB = new Date(dateStrB + 'T00:00:00Z').getTime();
+    return Math.round((tB - tA) / (1000 * 60 * 60 * 24));
+}
+window.getDaysDiff = getDaysDiff;
+
+// スタッフが特定の日付（targetDateStr）において、特定コースを「何日ぶりに走るか（経過日数）」を動的算出
+function getCourseBlankDays(memberId, courseId, targetDateStr = null, includeTargetDate = false) {
+    if (!memberId || !courseId) return null;
+    if (!targetDateStr) {
+        targetDateStr = state.selectedAssignmentDate || `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-01`;
+    }
+
+    const baseDateStr = state.courseHistoryBase?.baseDate || '2026-10-15';
+    const rawBaseDays = state.courseHistoryBase?.records?.[memberId]?.[courseId];
+
+    // 基準日の未乗務日数
+    let hasBaseRecord = false;
+    let numBaseDays = 999;
+    if (rawBaseDays !== undefined && rawBaseDays !== null && rawBaseDays !== '' && rawBaseDays !== '-' && rawBaseDays !== 'ー') {
+        const parsed = Number(rawBaseDays);
+        if (!isNaN(parsed)) {
+            numBaseDays = parsed;
+            hasBaseRecord = true;
+        }
+    }
+
+    // ターゲット日までの間で、対象コースを走った最新日を探す
+    let lastRunDateStr = null;
+
+    const scanAssignments = (assignmentsObj) => {
+        if (!assignmentsObj) return;
+        for (const key in assignmentsObj) {
+            // key形式: YYYY-MM-DD_memberId
+            const sepIdx = key.indexOf('_');
+            if (sepIdx === -1) continue;
+            const dateStr = key.slice(0, sepIdx);
+            const mId = key.slice(sepIdx + 1);
+            if (mId !== memberId) continue;
+
+            const isValidDate = includeTargetDate ? (dateStr <= targetDateStr) : (dateStr < targetDateStr);
+            if (isValidDate) {
+                const ca = assignmentsObj[key];
+                if (!ca) continue;
+                let ranCourse = false;
+                if (!ca.isSplit) {
+                    if (ca.courseId === courseId) ranCourse = true;
+                } else {
+                    if (ca.firstHalf?.courseId === courseId || ca.secondHalf?.courseId === courseId) {
+                        ranCourse = true;
+                    }
+                }
+                if (ranCourse) {
+                    if (!lastRunDateStr || dateStr > lastRunDateStr) {
+                        lastRunDateStr = dateStr;
+                    }
+                }
+            }
+        }
+    };
+
+    scanAssignments(state.courseAssignments);
+    if (state.adjacentCourseAssignments) {
+        for (const mKey in state.adjacentCourseAssignments) {
+            scanAssignments(state.adjacentCourseAssignments[mKey]);
+        }
+    }
+
+    // 1. もし基準日以降（またはターゲット日まで）に乗務実績がある場合
+    if (lastRunDateStr && (lastRunDateStr >= baseDateStr || !hasBaseRecord)) {
+        const diffFromLastRun = getDaysDiff(lastRunDateStr, targetDateStr);
+        return Math.max(0, diffFromLastRun);
+    }
+
+    // 2. 基準日以前の取り込み記録がある場合
+    if (hasBaseRecord) {
+        const diffFromBase = getDaysDiff(baseDateStr, targetDateStr);
+        return Math.max(0, numBaseDays + diffFromBase);
+    }
+
+    // 3. 取り込み記録も乗務実績もない場合（未経験・90日以上ブランク）
+    return 999;
+}
+window.getCourseBlankDays = getCourseBlankDays;
+
+// ブランク日数の表示フォーマット（最大90日、90日以上または実績なしは「-」、20日以上は警告色）
+function getCourseBlankDisplayInfo(memberId, courseId, targetDateStr = null, includeTargetDate = false) {
+    const days = getCourseBlankDays(memberId, courseId, targetDateStr, includeTargetDate);
+    const alertDays = state.courseHistoryAlertDays !== undefined ? Number(state.courseHistoryAlertDays) : 20;
+
+    // 実績なし、または90日以上ブランク
+    if (days === null || days === undefined || days >= 90) {
+        return {
+            text: '-',
+            isAlert: true, // 90日以上または未経験は20日以上の警告対象
+            days: (days !== null && days !== undefined) ? days : 999
+        };
+    }
+
+    const num = Number(days);
+    return {
+        text: String(num),
+        isAlert: num >= alertDays,
+        days: num
+    };
+}
+window.getCourseBlankDisplayInfo = getCourseBlankDisplayInfo;
+
+// 特定の日付（dateStr）において、特定コースが直近乗務（デフォルト7日以内）かどうかを判定
+function isCourseRecentRun(memberId, courseId, dateStr) {
+    if (!memberId || !courseId || !dateStr) return { isRecent: false, days: null };
+    // 当日を含めない直前までの経過日数を取得
+    const days = getCourseBlankDays(memberId, courseId, dateStr, false);
+    const recentThreshold = state.courseHistoryRecentDays !== undefined ? Number(state.courseHistoryRecentDays) : 7;
+    if (days !== null && days !== undefined && days <= recentThreshold) {
+        return { isRecent: true, days: Number(days) };
+    }
+    return { isRecent: false, days: (days !== null && days !== undefined) ? Number(days) : null };
+}
+window.isCourseRecentRun = isCourseRecentRun;
