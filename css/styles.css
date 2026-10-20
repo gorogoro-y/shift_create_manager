@@ -195,19 +195,37 @@ table:not(.print-roster-table) thead th {
         display: none !important;
     }
 
-    /* タブ5印刷時の外枠・角丸解除と罫線統一 */
+    /* タブ5印刷時の外枠・角丸解除と罫線統一、余白ゼロ化 */
+    body.printing-mode-5,
+    body.printing-mode-5 html {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    body.printing-mode-5 #main-container,
     body.printing-mode-5 #view-mode-5,
     body.printing-mode-5 #view-mode-5 > div,
     body.printing-mode-5 #course-history-table-container,
     body.printing-mode-5 #course-history-table-container > div {
         max-height: none !important;
-        overflow: visible !important;
+        min-height: 0 !important;
         height: auto !important;
+        overflow: visible !important;
         border: none !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         padding: 0 !important;
         margin: 0 !important;
+    }
+
+    body.printing-mode-5 #course-history-import-modal,
+    body.printing-mode-5 [id$="-modal"],
+    body.printing-mode-5 .no-print {
+        display: none !important;
     }
 
     body.printing-mode-5 .history-matrix-table {
@@ -219,14 +237,37 @@ table:not(.print-roster-table) thead th {
         font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        margin-bottom: 0 !important;
+    }
+    body.printing-mode-5 .history-matrix-table tr {
+        height: var(--history-row-height, 5.0mm) !important;
+        max-height: var(--history-row-height, 5.0mm) !important;
     }
     body.printing-mode-5 .history-matrix-table th,
     body.printing-mode-5 .history-matrix-table td {
         position: static !important;
         border: 0.8px solid #334155 !important;
         border-radius: 0 !important;
+        height: var(--history-row-height, 5.0mm) !important;
+        max-height: var(--history-row-height, 5.0mm) !important;
         font-size: 7.5pt !important;
-        padding: 1px 0 !important;
+        padding: 0.5px 0 !important;
+        line-height: 1.15 !important;
+        vertical-align: middle !important;
+    }
+    /* 印刷時の名前欄（氏名列）のサイズを半減（約65px） */
+    body.printing-mode-5 .history-matrix-table .history-col-name {
+        width: 65px !important;
+        min-width: 65px !important;
+        max-width: 65px !important;
+        font-size: 7.0pt !important;
+        padding: 0 2px !important;
+        letter-spacing: -0.3px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     #print-sheet-wrapper {

@@ -97,6 +97,7 @@ let state = {
     courseHistoryAlertColor: '#fef08a', // 薄黄色
     courseHistoryRecentDays: 7, // 直近乗務ハイライト（7日以内）
     courseHistoryRecentColor: '#f97316', // オレンジ
+    courseHistoryPrintRowHeight: 5.0, // タブ5印刷時の行の高さ（mm）
     activeFocusedMemberId: null
 };
 
@@ -162,6 +163,9 @@ function loadData() {
             }
             if (!state.courseHistoryRecentColor) {
                 state.courseHistoryRecentColor = '#f97316';
+            }
+            if (state.courseHistoryPrintRowHeight === undefined || isNaN(state.courseHistoryPrintRowHeight)) {
+                state.courseHistoryPrintRowHeight = 5.0;
             }
         } catch (e) {
             console.error('Failed to load state', e);

@@ -11,6 +11,7 @@ function renderCourseHistoryTab() {
     const alertColorInput = document.getElementById('history-alert-color-input');
     const recentDaysInput = document.getElementById('history-recent-days-input');
     const recentColorInput = document.getElementById('history-recent-color-input');
+    const printRowHeightInput = document.getElementById('history-print-row-height-input');
     const searchInput = document.getElementById('history-search-input');
 
     const baseDateStr = state.courseHistoryBase?.baseDate || '2026-10-15';
@@ -19,6 +20,7 @@ function renderCourseHistoryTab() {
     const alertColor = state.courseHistoryAlertColor || '#fef08a';
     const recentDays = state.courseHistoryRecentDays !== undefined ? Number(state.courseHistoryRecentDays) : 7;
     const recentColor = state.courseHistoryRecentColor || '#f97316';
+    const printRowHeight = (state.courseHistoryPrintRowHeight !== undefined && state.courseHistoryPrintRowHeight !== null) ? Number(state.courseHistoryPrintRowHeight) : 5.0;
     const searchKeyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     if (targetDateInput && targetDateInput.value !== targetDateStr) {
@@ -38,6 +40,9 @@ function renderCourseHistoryTab() {
     }
     if (recentColorInput && recentColorInput.value !== recentColor) {
         recentColorInput.value = recentColor;
+    }
+    if (printRowHeightInput && Number(printRowHeightInput.value) !== printRowHeight) {
+        printRowHeightInput.value = printRowHeight.toFixed(1);
     }
 
     // コース一覧（任意区分を除外、順番通り）
@@ -60,10 +65,10 @@ function renderCourseHistoryTab() {
 
     let html = `
         <div class="w-full max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
-            <table class="w-full text-center border-collapse text-xs history-matrix-table shadow-xs">
+            <table class="w-full text-center border-collapse text-xs history-matrix-table shadow-xs" style="--history-row-height: ${printRowHeight.toFixed(1)}mm;">
                 <thead>
                     <tr class="bg-slate-100 text-slate-700 border-b-2 border-slate-300">
-                        <th class="p-2 border border-slate-300 w-36 min-w-[120px] text-left font-extrabold sticky top-0 left-0 bg-slate-100 z-30 shadow-r"></th>
+                        <th class="p-2 border border-slate-300 w-36 min-w-[120px] text-left font-extrabold sticky top-0 left-0 bg-slate-100 z-30 shadow-r history-col-name"></th>
                         ${sortedCourses.map(crs => `
                             <th class="p-1.5 border border-slate-300 min-w-[44px] text-center font-extrabold text-slate-800 sticky top-0 bg-slate-100 z-20" title="${crs.name}">
                                 ${crs.name}
@@ -77,7 +82,7 @@ function renderCourseHistoryTab() {
     // 印刷時用の中間コース名ヘッダー行（上から4人目のリーダーの上に挿入、4人未満なら非表示）
     const midHeaderHtml = `
         <tr class="hidden print:table-row bg-slate-100 text-slate-700 font-extrabold border-y-2 border-slate-400 break-after-avoid">
-            <th class="p-1 px-2 border border-slate-300 text-left font-extrabold text-slate-800"></th>
+            <th class="p-1 px-2 border border-slate-300 text-left font-extrabold text-slate-800 history-col-name"></th>
             ${sortedCourses.map(crs => `
                 <th class="p-1 border border-slate-300 min-w-[44px] text-center font-extrabold text-slate-800" title="${crs.name}">
                     ${crs.name}
@@ -112,7 +117,7 @@ function renderCourseHistoryTab() {
 
             html += `
                 <tr class="border-b border-slate-200 hover:bg-slate-50/80 transition">
-                    <td class="p-1.5 px-2.5 border border-slate-200 text-left font-bold text-slate-900 whitespace-nowrap sticky left-0 bg-white z-10 shadow-r" title="${member.name}">
+                    <td class="p-1.5 px-2.5 border border-slate-200 text-left font-bold text-slate-900 whitespace-nowrap sticky left-0 bg-white z-10 shadow-r history-col-name" title="${member.name}">
                         ${member.name}
                     </td>
             `;
@@ -267,6 +272,20 @@ function onCourseHistoryRecentColorChange(val) {
     }
 }
 
+// 印刷時の行の高さ変更（mm）
+function onCourseHistoryPrintRowHeightChange(val) {
+    let num = parseFloat(val);
+    if (isNaN(num)) num = 5.0;
+    num = Math.max(3.5, Math.min(10.0, num));
+    num = Math.round(num * 10) / 10;
+    state.courseHistoryPrintRowHeight = num;
+    saveData();
+    renderCourseHistoryTab();
+    if (typeof saveMasterToCloud === 'function') {
+        saveMasterToCloud(true);
+    }
+}
+
 // スプレッドシート取り込みモーダル開閉
 function openCourseHistoryImportModal() {
     const textarea = document.getElementById('course-history-import-textarea');
@@ -386,6 +405,21 @@ function saveCourseHistoryImport() {
 // 帳票印刷（横向き）
 function executeHistoryPrint() {
     document.body.classList.add('printing-mode-5');
+
+    // タブ5専用のB4横向き@pageルールを動的に注入（タブ4のB4縦と分離）
+    let printStyle = document.getElementById('tab5-print-style-tag');
+    if (!printStyle) {
+        printStyle = document.createElement('style');
+        printStyle.id = 'tab5-print-style-tag';
+        printStyle.textContent = `
+            @page {
+                size: B4 landscape !important;
+                margin: 4mm 4mm !important;
+            }
+        `;
+        document.head.appendChild(printStyle);
+    }
+
     setTimeout(() => {
         window.print();
     }, 50);
@@ -393,6 +427,10 @@ function executeHistoryPrint() {
 
 window.addEventListener('afterprint', () => {
     document.body.classList.remove('printing-mode-5');
+    const printStyle = document.getElementById('tab5-print-style-tag');
+    if (printStyle) {
+        printStyle.remove();
+    }
 });
 
 // グローバル公開
@@ -405,6 +443,7 @@ window.onCourseHistoryAlertDaysChange = onCourseHistoryAlertDaysChange;
 window.onCourseHistoryAlertColorChange = onCourseHistoryAlertColorChange;
 window.onCourseHistoryRecentDaysChange = onCourseHistoryRecentDaysChange;
 window.onCourseHistoryRecentColorChange = onCourseHistoryRecentColorChange;
+window.onCourseHistoryPrintRowHeightChange = onCourseHistoryPrintRowHeightChange;
 window.openCourseHistoryImportModal = openCourseHistoryImportModal;
 window.closeCourseHistoryImportModal = closeCourseHistoryImportModal;
 window.saveCourseHistoryImport = saveCourseHistoryImport;
