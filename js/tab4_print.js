@@ -160,37 +160,47 @@ function getContrastTextColor(hexColor) {
     return (yiq >= 140) ? '#0f172a' : '#ffffff';
 }
 
-// コース表示名バッジ（文字長に応じた自動フォントサイズ調整で大きく読みやすく枠内に収める）
+// コース表示名バッジ（文字長や分割シフトに応じた自動フォントサイズ・長体・字間調整で枠内に確実に収める）
 function renderCourseBadge(courseName, isCompact = false, customColor = null) {
     if (!courseName) return '';
     const len = courseName.length;
     let sizeClass = 'text-sm sm:text-base';
     const colorStyle = customColor ? `color: ${customColor} !important;` : '';
     const defaultColorClass = customColor ? '' : 'text-slate-950';
-    const longClass = (len >= 5) ? 'print-course-long' : '';
+
+    // 長さおよび分割シフト（/）の判定
+    let lengthClass = '';
+    if (len >= 8) {
+        lengthClass = 'print-course-xxlong';
+    } else if (courseName.includes('/') || len >= 6) {
+        lengthClass = 'print-course-xlong';
+    } else if (len >= 5) {
+        lengthClass = 'print-course-long';
+    }
 
     if (isCompact) {
-        if (len >= 10) {
-            sizeClass = 'text-[8px] sm:text-[9px] tracking-tighter leading-tight';
-        } else if (len >= 7) {
-            sizeClass = 'text-[9px] sm:text-[10px] tracking-tight leading-tight';
+        if (len >= 8) {
+            sizeClass = 'text-[7.5px] tracking-tighter leading-tight';
+        } else if (courseName.includes('/') || len >= 6) {
+            sizeClass = 'text-[8.5px] tracking-tight leading-tight';
         } else if (len >= 5) {
-            sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
+            sizeClass = 'text-[9.5px] tracking-tight leading-tight';
         } else {
             sizeClass = 'text-[11px] sm:text-xs leading-tight';
         }
-        return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+        return `<span class="font-black ${sizeClass} ${defaultColorClass} ${lengthClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
     }
-    if (len >= 10) {
-        sizeClass = 'text-[9px] sm:text-[10px] tracking-tighter leading-tight';
-    } else if (len >= 7) {
-        sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
+
+    if (len >= 8) {
+        sizeClass = 'text-[8px] sm:text-[8.5px] tracking-tighter leading-tight';
+    } else if (courseName.includes('/') || len >= 6) {
+        sizeClass = 'text-[9px] sm:text-[9.5px] tracking-tight leading-tight';
     } else if (len >= 5) {
-        sizeClass = 'text-xs sm:text-[13px] tracking-tight leading-tight';
+        sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
     } else if (len >= 3) {
         sizeClass = 'text-[13px] sm:text-sm leading-tight';
     }
-    return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+    return `<span class="font-black ${sizeClass} ${defaultColorClass} ${lengthClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
 }
 
 // 日付・曜日ヘッダー行のHTML生成（上部および中間地点用）
@@ -362,17 +372,17 @@ function renderPrintTab() {
                     const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
                     const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
 
-                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '6.8' : (lbl.length >= 3 ? '7.4' : '8.2'));
+                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '5.8' : (lbl.length >= 3 ? '6.5' : (lbl.length >= 2 ? '7.0' : '7.6')));
 
                     cellStyle = 'padding: 0 !important;';
                     cellContent = `
                         <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
                             <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${firstLabel}</span>
+                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${firstLabel}</span>
                             </div>
                             <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
                             <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${secondLabel}</span>
+                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${secondLabel}</span>
                             </div>
                         </div>
                     `;
@@ -451,17 +461,17 @@ function renderPrintTab() {
                     const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
                     const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
 
-                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '6.8' : (lbl.length >= 3 ? '7.4' : '8.2'));
+                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '5.8' : (lbl.length >= 3 ? '6.5' : (lbl.length >= 2 ? '7.0' : '7.6')));
 
                     cellStyle = 'padding: 0 !important;';
                     cellContent = `
                         <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
                             <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${firstLabel}</span>
+                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${firstLabel}</span>
                             </div>
                             <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
                             <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${secondLabel}</span>
+                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${secondLabel}</span>
                             </div>
                         </div>
                     `;
@@ -615,6 +625,24 @@ function renderPrintTab() {
                 vertical-align: middle !important;
             }
 
+            /* コース名バッジ（画面プレビュー用） */
+            .print-course-badge.print-course-long {
+                font-size: 11px !important;
+                letter-spacing: -0.03em !important;
+            }
+            .print-course-badge.print-course-xlong {
+                font-size: 9.5px !important;
+                letter-spacing: -0.05em !important;
+                transform: scaleX(0.92);
+                transform-origin: center center;
+            }
+            .print-course-badge.print-course-xxlong {
+                font-size: 8.5px !important;
+                letter-spacing: -0.06em !important;
+                transform: scaleX(0.88);
+                transform-origin: center center;
+            }
+
             /* 思考モード: シフトスタンプ（白文字入り正方形） */
             .print-shift-stamp {
                 width: 14px;
@@ -724,20 +752,38 @@ function renderPrintTab() {
                     padding-left: 1.5px !important;
                     white-space: nowrap !important;
                 }
-                /* コース名バッジ */
+                /* コース名バッジ（通常） */
                 .print-course-badge {
                     font-size: ${memberFontSizePt}pt !important;
                     font-weight: 800 !important;
                     line-height: 1 !important;
-                    display: block !important;
+                    display: inline-block !important;
+                    width: 100% !important;
+                    text-align: center !important;
                     margin: 0 !important;
                     padding: 0 !important;
+                    white-space: nowrap !important;
                 }
-                /* 分割シフト等の長めコース名: 印刷時の文字詰まり・途切れ防止 */
+                /* 5文字（例: 01コース） */
                 .print-course-badge.print-course-long {
-                    font-size: ${(Number(memberFontSizePt) * 0.90).toFixed(1)}pt !important;
-                    letter-spacing: -0.04em !important;
+                    font-size: ${(Math.min(6.8, Math.max(6.0, Number(memberFontSizePt) * 0.82))).toFixed(1)}pt !important;
+                    letter-spacing: -0.03em !important;
                 }
+                /* 分割シフト（/を含む）または6〜7文字（例: ①b/①b, 12便/13便）: 自動縮小＋長体(横92%)＋字間詰め */
+                .print-course-badge.print-course-xlong {
+                    font-size: ${(Math.min(6.0, Math.max(5.4, 5.4 + (rowHeightMm - 4.8) * 0.25))).toFixed(1)}pt !important;
+                    letter-spacing: -0.05em !important;
+                    transform: scaleX(0.92) !important;
+                    transform-origin: center center !important;
+                }
+                /* 8文字以上の超長シフト: 極小フォント＋長体(横88%)＋字間詰め */
+                .print-course-badge.print-course-xxlong {
+                    font-size: ${(Math.min(5.2, Math.max(4.6, 4.6 + (rowHeightMm - 4.8) * 0.20))).toFixed(1)}pt !important;
+                    letter-spacing: -0.06em !important;
+                    transform: scaleX(0.88) !important;
+                    transform-origin: center center !important;
+                }
+
                 /* 思考モード: シフトスタンプ（白文字入り正方形） */
                 .print-shift-stamp {
                     width: ${(Math.min(3.6, Math.max(2.6, 2.6 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}mm !important;
@@ -765,9 +811,28 @@ function renderPrintTab() {
                     font-size: ${(Math.min(7.5, Math.max(6.2, 6.2 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}pt !important;
                     font-weight: 800 !important;
                     line-height: 1 !important;
-                    display: block !important;
+                    display: inline-block !important;
+                    width: 100% !important;
+                    text-align: center !important;
                     margin: 0 !important;
                     padding: 0 !important;
+                    white-space: nowrap !important;
+                }
+                .print-course-badge-compact.print-course-long {
+                    font-size: 6.0pt !important;
+                    letter-spacing: -0.03em !important;
+                }
+                .print-course-badge-compact.print-course-xlong {
+                    font-size: 5.0pt !important;
+                    letter-spacing: -0.05em !important;
+                    transform: scaleX(0.92) !important;
+                    transform-origin: center center !important;
+                }
+                .print-course-badge-compact.print-course-xxlong {
+                    font-size: 4.5pt !important;
+                    letter-spacing: -0.06em !important;
+                    transform: scaleX(0.88) !important;
+                    transform-origin: center center !important;
                 }
                 /* 思考モードスタンプバッジ（レガシー互換） */
                 .print-stamp-badge {

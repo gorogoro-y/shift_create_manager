@@ -183,6 +183,19 @@ table:not(.print-roster-table) thead th {
     .print-split-cell {
         padding: 0 !important;
     }
+    .print-course-badge.print-course-long {
+        letter-spacing: -0.03em !important;
+    }
+    .print-course-badge.print-course-xlong {
+        letter-spacing: -0.05em !important;
+        transform: scaleX(0.92) !important;
+        transform-origin: center center !important;
+    }
+    .print-course-badge.print-course-xxlong {
+        letter-spacing: -0.06em !important;
+        transform: scaleX(0.88) !important;
+        transform-origin: center center !important;
+    }
 
     /* タブ5印刷時の切り替え */
     body.printing-mode-5 #view-mode-4 {
