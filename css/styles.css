@@ -180,21 +180,18 @@ table:not(.print-roster-table) thead th {
         margin: 0 !important;
         width: 100% !important;
     }
-    .print-split-cell {
-        padding: 0 !important;
-    }
     .print-course-badge.print-course-long {
         letter-spacing: -0.03em !important;
     }
-    .print-course-badge.print-course-xlong {
-        letter-spacing: -0.05em !important;
-        transform: scaleX(0.92) !important;
-        transform-origin: center center !important;
-    }
-    .print-course-badge.print-course-xxlong {
-        letter-spacing: -0.06em !important;
-        transform: scaleX(0.88) !important;
-        transform-origin: center center !important;
+    .print-trainee-marker {
+        background-color: #1e3a8a !important;
+        color: #ffffff !important;
+        padding: 0.5px 2.5px !important;
+        border-radius: 1.5px !important;
+        display: inline-block !important;
+        line-height: 1.15 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 
     /* タブ5印刷時の切り替え */

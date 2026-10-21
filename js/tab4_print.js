@@ -160,47 +160,37 @@ function getContrastTextColor(hexColor) {
     return (yiq >= 140) ? '#0f172a' : '#ffffff';
 }
 
-// コース表示名バッジ（文字長や分割シフトに応じた自動フォントサイズ・長体・字間調整で枠内に確実に収める）
+// コース表示名バッジ（文字長に応じた自動フォントサイズ調整で大きく読みやすく枠内に収める）
 function renderCourseBadge(courseName, isCompact = false, customColor = null) {
     if (!courseName) return '';
     const len = courseName.length;
     let sizeClass = 'text-sm sm:text-base';
     const colorStyle = customColor ? `color: ${customColor} !important;` : '';
     const defaultColorClass = customColor ? '' : 'text-slate-950';
-
-    // 長さおよび分割シフト（/）の判定
-    let lengthClass = '';
-    if (len >= 8) {
-        lengthClass = 'print-course-xxlong';
-    } else if (courseName.includes('/') || len >= 6) {
-        lengthClass = 'print-course-xlong';
-    } else if (len >= 5) {
-        lengthClass = 'print-course-long';
-    }
+    const longClass = (len >= 5) ? 'print-course-long' : '';
 
     if (isCompact) {
-        if (len >= 8) {
-            sizeClass = 'text-[7.5px] tracking-tighter leading-tight';
-        } else if (courseName.includes('/') || len >= 6) {
-            sizeClass = 'text-[8.5px] tracking-tight leading-tight';
+        if (len >= 10) {
+            sizeClass = 'text-[8px] sm:text-[9px] tracking-tighter leading-tight';
+        } else if (len >= 7) {
+            sizeClass = 'text-[9px] sm:text-[10px] tracking-tight leading-tight';
         } else if (len >= 5) {
-            sizeClass = 'text-[9.5px] tracking-tight leading-tight';
+            sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
         } else {
             sizeClass = 'text-[11px] sm:text-xs leading-tight';
         }
-        return `<span class="font-black ${sizeClass} ${defaultColorClass} ${lengthClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+        return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge-compact" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
     }
-
-    if (len >= 8) {
-        sizeClass = 'text-[8px] sm:text-[8.5px] tracking-tighter leading-tight';
-    } else if (courseName.includes('/') || len >= 6) {
-        sizeClass = 'text-[9px] sm:text-[9.5px] tracking-tight leading-tight';
-    } else if (len >= 5) {
+    if (len >= 10) {
+        sizeClass = 'text-[9px] sm:text-[10px] tracking-tighter leading-tight';
+    } else if (len >= 7) {
         sizeClass = 'text-[10px] sm:text-[11px] tracking-tight leading-tight';
+    } else if (len >= 5) {
+        sizeClass = 'text-xs sm:text-[13px] tracking-tight leading-tight';
     } else if (len >= 3) {
         sizeClass = 'text-[13px] sm:text-sm leading-tight';
     }
-    return `<span class="font-black ${sizeClass} ${defaultColorClass} ${lengthClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
+    return `<span class="font-black ${sizeClass} ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge" style="${colorStyle}" title="${courseName}">${courseName}</span>`;
 }
 
 // 日付・曜日ヘッダー行のHTML生成（上部および中間地点用）
@@ -308,11 +298,50 @@ function renderPrintTab() {
                 </td>
         `;
 
+        // コース名表示用（終日・分割および同乗マーカー対応）
+        const formatCourseBadgeHtml = (ca, isThinking = false, customColor = null) => {
+            if (!ca) return '';
+            const colorStyle = customColor ? `color: ${customColor} !important;` : '';
+            const defaultColorClass = customColor ? '' : 'text-slate-950';
+
+            if (!ca.isSplit) {
+                if (!ca.courseId) return '';
+                const crs = state.courses.find(c => c.id === ca.courseId);
+                const cName = crs ? crs.name : ca.courseId;
+                const isTrainee = !!ca.isTrainee;
+
+                if (isTrainee) {
+                    const longClass = cName.length >= 5 ? 'print-course-long' : '';
+                    return `<span class="font-black ${defaultColorClass} ${longClass} inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge" style="${colorStyle}"><span class="print-trainee-marker font-black">${cName}</span></span>`;
+                }
+                return renderCourseBadge(cName, false, customColor);
+            } else {
+                const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
+                const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
+                const formatC = (str) => str.replace(/コース$/, '').trim();
+                const firstLabel = firstCrs ? formatC(firstCrs) : '';
+                const secondLabel = secondCrs ? formatC(secondCrs) : '';
+
+                if (!firstLabel && !secondLabel) return '';
+
+                const isFirstTrainee = !!ca.firstHalf?.isTrainee;
+                const isSecondTrainee = !!ca.secondHalf?.isTrainee;
+
+                const firstDisplay = firstLabel || 'ー';
+                const secondDisplay = secondLabel || 'ー';
+
+                const firstHtml = isFirstTrainee ? `<span class="print-trainee-marker font-black">${firstDisplay}</span>` : `<span>${firstDisplay}</span>`;
+                const secondHtml = isSecondTrainee ? `<span class="print-trainee-marker font-black">${secondDisplay}</span>` : `<span>${secondDisplay}</span>`;
+                const slashColor = (customColor === '#ffffff') ? 'text-white/70' : 'text-slate-400';
+
+                return `<span class="font-black ${defaultColorClass} print-course-long inline-block w-full text-center overflow-hidden whitespace-nowrap select-none print-course-badge" style="${colorStyle}">${firstHtml}<span class="${slashColor} font-bold px-0.5">/</span>${secondHtml}</span>`;
+            }
+        };
+
         days.forEach((d, idx) => {
             const cell = getCellData(`${member.id}_${d.dateStr}`);
             const isHoliday = isHolidayValue(cell.shiftId);
             const ca = getCourseAssignment(member.id, d.dateStr);
-            const courseName = getFormattedCourseName(ca);
             const isBeyondCutoff = !isThinking && (d.day > cutoffDay);
             const isLast = (idx === days.length - 1);
             const rightBorderCss = isLast ? 'border-right: 3px solid #0f172a !important;' : '';
@@ -320,14 +349,9 @@ function renderPrintTab() {
 
             let cellContent = '';
             let cellStyle = '';
-            let isCustomSplitCell = false;
 
             const isSplit = !!ca?.isSplit;
-            const isFullTrainee = !isSplit && !!ca?.isTrainee;
-            const isFirstTrainee = isSplit && !!ca?.firstHalf?.isTrainee;
-            const isSecondTrainee = isSplit && !!ca?.secondHalf?.isTrainee;
-            const isBothTrainee = isSplit && isFirstTrainee && isSecondTrainee;
-            const isPartialTrainee = isSplit && (isFirstTrainee !== isSecondTrainee);
+            const hasTrainee = !isSplit ? !!ca?.isTrainee : (!!ca?.firstHalf?.isTrainee || !!ca?.secondHalf?.isTrainee);
 
             if (isThinking) {
                 // === 思考モード ===
@@ -336,14 +360,17 @@ function renderPrintTab() {
                     const shortName = hType ? hType.shortName : cell.shiftId;
                     cellContent = `<span class="font-black text-xs text-slate-800 print-holiday-text">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
-                } else if (isFullTrainee || isBothTrainee) {
-                    // 全日同乗（または分割両方同乗）: 濃い紺色背景に白文字
-                    cellStyle = 'background-color: #1e3a8a !important; color: #ffffff !important;';
-                    if (courseName) {
-                        cellContent = renderCourseBadge(courseName, false, '#ffffff');
+                } else {
+                    const courseHtml = formatCourseBadgeHtml(ca, true, null);
+                    if (courseHtml) {
+                        cellContent = courseHtml;
+                    } else if (hasTrainee) {
+                        cellContent = `<span class="print-trainee-marker font-black">同乗</span>`;
                     } else {
+                        // コース未割当: 左にシフトスタンプ [通/単]、右にカラーマーカー ■ を横並び（中央揃え・1行）で表示
                         const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
                         const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+
                         let badgesHtml = '';
                         if (shiftObj || colorObj) {
                             badgesHtml = `
@@ -353,61 +380,7 @@ function renderPrintTab() {
                                 </div>
                             `;
                         }
-                        cellContent = badgesHtml || `<span class="font-black text-xs text-white">同乗</span>`;
-                    }
-                } else if (isPartialTrainee) {
-                    // 分割シフトで片方のみ同乗: 同乗側のみ濃い紺色・白文字
-                    isCustomSplitCell = true;
-                    const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
-                    const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
-                    const formatC = (str) => str.replace(/コース$/, '').trim();
-                    const firstLabel = firstCrs ? formatC(firstCrs) : 'ー';
-                    const secondLabel = secondCrs ? formatC(secondCrs) : 'ー';
-
-                    const nonTraineeBg = '#ffffff';
-                    const nonTraineeText = '#0f172a';
-
-                    const firstBg = isFirstTrainee ? '#1e3a8a' : nonTraineeBg;
-                    const firstColor = isFirstTrainee ? '#ffffff' : nonTraineeText;
-                    const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
-                    const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
-
-                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '5.8' : (lbl.length >= 3 ? '6.5' : (lbl.length >= 2 ? '7.0' : '7.6')));
-
-                    cellStyle = 'padding: 0 !important;';
-                    cellContent = `
-                        <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
-                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${firstLabel}</span>
-                            </div>
-                            <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
-                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${secondLabel}</span>
-                            </div>
-                        </div>
-                    `;
-                } else if (courseName) {
-                    // コース割当あり（同乗なし）: コース名のみを表示（スタンプ・カラー四角は非表示で高さ統一）
-                    cellContent = renderCourseBadge(courseName, false);
-                } else {
-                    // コース未割当: 左にシフトスタンプ [通/単]、右にカラーマーカー ■ を横並び（中央揃え・1行）で表示
-                    const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
-                    const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
-
-                    let badgesHtml = '';
-                    if (shiftObj || colorObj) {
-                        badgesHtml = `
-                            <div class="flex items-center justify-center gap-1 leading-none select-none">
-                                ${shiftObj ? `<span class="print-shift-stamp" style="background-color: ${shiftObj.color}" title="${shiftObj.name}">${shiftObj.shortName}</span>` : ''}
-                                ${colorObj ? `<span class="print-color-marker" style="background-color: ${colorObj.color}" title="${colorObj.name}"></span>` : ''}
-                            </div>
-                        `;
-                    }
-
-                    if (badgesHtml) {
-                        cellContent = badgesHtml;
-                    } else {
-                        cellContent = `<span class="text-slate-300 text-xs">ー</span>`;
+                        cellContent = badgesHtml || `<span class="text-slate-300 text-xs">ー</span>`;
                     }
                 }
             } else {
@@ -434,49 +407,8 @@ function renderPrintTab() {
                 } else if (isBeyondCutoff) {
                     // カットオフ日以降: コースもカラー塗りつぶしも行わず空欄
                     cellContent = '';
-                } else if (isFullTrainee || isBothTrainee) {
-                    // 全日同乗（または分割両方同乗）: 濃い紺色背景に白文字
-                    cellStyle = 'background-color: #1e3a8a !important; color: #ffffff !important;';
-                    if (courseName) {
-                        cellContent = renderCourseBadge(courseName, false, '#ffffff');
-                    } else {
-                        cellContent = `<span class="font-black text-xs text-white">同乗</span>`;
-                    }
-                } else if (isPartialTrainee) {
-                    // 分割シフトで片方のみ同乗: 同乗側のみ濃い紺色・白文字
-                    isCustomSplitCell = true;
-                    const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
-                    const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
-                    const formatC = (str) => str.replace(/コース$/, '').trim();
-                    const firstLabel = firstCrs ? formatC(firstCrs) : 'ー';
-                    const secondLabel = secondCrs ? formatC(secondCrs) : 'ー';
-
-                    const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
-                    const isPrintFill = !!(colorObj && colorObj.printFill);
-                    const nonTraineeBg = isPrintFill ? colorObj.color : '#ffffff';
-                    const nonTraineeText = isPrintFill ? getContrastTextColor(colorObj.color) : '#0f172a';
-
-                    const firstBg = isFirstTrainee ? '#1e3a8a' : nonTraineeBg;
-                    const firstColor = isFirstTrainee ? '#ffffff' : nonTraineeText;
-                    const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
-                    const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
-
-                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '5.8' : (lbl.length >= 3 ? '6.5' : (lbl.length >= 2 ? '7.0' : '7.6')));
-
-                    cellStyle = 'padding: 0 !important;';
-                    cellContent = `
-                        <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
-                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${firstLabel}</span>
-                            </div>
-                            <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
-                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
-                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; line-height: 1; display: block;">${secondLabel}</span>
-                            </div>
-                        </div>
-                    `;
                 } else {
-                    // 出勤枠（カットオフ日以内・同乗なし）
+                    // 出勤枠（カットオフ日以内）
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
                     const isPrintFill = !!(colorObj && colorObj.printFill);
 
@@ -485,25 +417,31 @@ function renderPrintTab() {
                         const textColor = getContrastTextColor(colorObj.color);
                         cellStyle = `background-color: ${colorObj.color} !important;`;
 
-                        if (courseName) {
-                            // コース割当あり: コース名を表示（文字色は背景コントラスト色）
-                            cellContent = renderCourseBadge(courseName, false, textColor);
+                        const courseHtml = formatCourseBadgeHtml(ca, false, textColor);
+                        if (courseHtml) {
+                            cellContent = courseHtml;
+                        } else if (hasTrainee) {
+                            cellContent = `<span class="print-trainee-marker font-black">同乗</span>`;
                         } else {
                             // コース未割当: カラーマーカーの略称文字（例：「点」「夜」など）を中央に表示
                             const label = colorObj.shortName || colorObj.name || '';
                             cellContent = `<span class="font-black text-xs sm:text-sm inline-block w-full text-center overflow-hidden text-ellipsis whitespace-nowrap select-none print-color-fill-text" style="color: ${textColor} !important;" title="${colorObj.name}">${label}</span>`;
                         }
-                    } else if (courseName) {
-                        // 通常のコース名表示（白背景＋黒文字）
-                        cellContent = renderCourseBadge(courseName);
                     } else {
-                        cellContent = '';
+                        const courseHtml = formatCourseBadgeHtml(ca, false, null);
+                        if (courseHtml) {
+                            cellContent = courseHtml;
+                        } else if (hasTrainee) {
+                            cellContent = `<span class="print-trainee-marker font-black">同乗</span>`;
+                        } else {
+                            cellContent = '';
+                        }
                     }
                 }
             }
 
             rowHtml += `
-                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell ${lastClass} ${isCustomSplitCell ? 'print-split-cell' : ''}" style="${cellStyle} ${rightBorderCss}">
+                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell ${lastClass}" style="${cellStyle} ${rightBorderCss}">
                     ${cellContent}
                 </td>
             `;
@@ -630,17 +568,16 @@ function renderPrintTab() {
                 font-size: 11px !important;
                 letter-spacing: -0.03em !important;
             }
-            .print-course-badge.print-course-xlong {
-                font-size: 9.5px !important;
-                letter-spacing: -0.05em !important;
-                transform: scaleX(0.92);
-                transform-origin: center center;
-            }
-            .print-course-badge.print-course-xxlong {
-                font-size: 8.5px !important;
-                letter-spacing: -0.06em !important;
-                transform: scaleX(0.88);
-                transform-origin: center center;
+            /* 同乗マーカー（文字の上に敷く青帯マーカー・白文字） */
+            .print-trainee-marker {
+                background-color: #1e3a8a !important;
+                color: #ffffff !important;
+                padding: 0.5px 3px !important;
+                border-radius: 2px !important;
+                display: inline-block !important;
+                line-height: 1.15 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             /* 思考モード: シフトスタンプ（白文字入り正方形） */
@@ -742,9 +679,6 @@ function renderPrintTab() {
                     line-height: 1 !important;
                     vertical-align: middle !important;
                 }
-                .print-roster-table tr.print-member-row td.print-split-cell {
-                    padding: 0 !important;
-                }
                 .print-roster-table tr.print-member-row td.print-member-name {
                     font-size: ${memberFontSizePt}pt !important;
                     font-weight: 800 !important;
@@ -757,31 +691,28 @@ function renderPrintTab() {
                     font-size: ${memberFontSizePt}pt !important;
                     font-weight: 800 !important;
                     line-height: 1 !important;
-                    display: inline-block !important;
+                    display: block !important;
                     width: 100% !important;
                     text-align: center !important;
                     margin: 0 !important;
                     padding: 0 !important;
                     white-space: nowrap !important;
                 }
-                /* 5文字（例: 01コース） */
+                /* 分割シフト等の長めコース名 */
                 .print-course-badge.print-course-long {
-                    font-size: ${(Math.min(6.8, Math.max(6.0, Number(memberFontSizePt) * 0.82))).toFixed(1)}pt !important;
+                    font-size: ${(Number(memberFontSizePt) * 0.90).toFixed(1)}pt !important;
                     letter-spacing: -0.03em !important;
                 }
-                /* 分割シフト（/を含む）または6〜7文字（例: ①b/①b, 12便/13便）: 自動縮小＋長体(横92%)＋字間詰め */
-                .print-course-badge.print-course-xlong {
-                    font-size: ${(Math.min(6.0, Math.max(5.4, 5.4 + (rowHeightMm - 4.8) * 0.25))).toFixed(1)}pt !important;
-                    letter-spacing: -0.05em !important;
-                    transform: scaleX(0.92) !important;
-                    transform-origin: center center !important;
-                }
-                /* 8文字以上の超長シフト: 極小フォント＋長体(横88%)＋字間詰め */
-                .print-course-badge.print-course-xxlong {
-                    font-size: ${(Math.min(5.2, Math.max(4.6, 4.6 + (rowHeightMm - 4.8) * 0.20))).toFixed(1)}pt !important;
-                    letter-spacing: -0.06em !important;
-                    transform: scaleX(0.88) !important;
-                    transform-origin: center center !important;
+                /* 同乗マーカー（文字の上に敷く青帯マーカー・白文字） */
+                .print-trainee-marker {
+                    background-color: #1e3a8a !important;
+                    color: #ffffff !important;
+                    padding: 0.5px 2.5px !important;
+                    border-radius: 1.5px !important;
+                    display: inline-block !important;
+                    line-height: 1.15 !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
                 }
 
                 /* 思考モード: シフトスタンプ（白文字入り正方形） */
@@ -811,28 +742,9 @@ function renderPrintTab() {
                     font-size: ${(Math.min(7.5, Math.max(6.2, 6.2 + (rowHeightMm - 4.8) * 0.3))).toFixed(1)}pt !important;
                     font-weight: 800 !important;
                     line-height: 1 !important;
-                    display: inline-block !important;
-                    width: 100% !important;
-                    text-align: center !important;
+                    display: block !important;
                     margin: 0 !important;
                     padding: 0 !important;
-                    white-space: nowrap !important;
-                }
-                .print-course-badge-compact.print-course-long {
-                    font-size: 6.0pt !important;
-                    letter-spacing: -0.03em !important;
-                }
-                .print-course-badge-compact.print-course-xlong {
-                    font-size: 5.0pt !important;
-                    letter-spacing: -0.05em !important;
-                    transform: scaleX(0.92) !important;
-                    transform-origin: center center !important;
-                }
-                .print-course-badge-compact.print-course-xxlong {
-                    font-size: 4.5pt !important;
-                    letter-spacing: -0.06em !important;
-                    transform: scaleX(0.88) !important;
-                    transform-origin: center center !important;
                 }
                 /* 思考モードスタンプバッジ（レガシー互換） */
                 .print-stamp-badge {
