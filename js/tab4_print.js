@@ -285,6 +285,10 @@ function renderPrintTab() {
         midPointIndex = Math.floor(regularMembers.length / 2);
     }
 
+    // 帳票HTMLの構築（高さ・フォントサイズの事前定義）
+    const rowHeightMm = (state.printRowHeight !== undefined && state.printRowHeight !== null) ? Number(state.printRowHeight) : 5.5;
+    const memberFontSizePt = (Math.min(9, Math.max(7.2, 7.2 + (rowHeightMm - 4.8) * 0.35))).toFixed(1);
+
     // 単一スタッフ行の描画ヘルパー
     const renderMemberRow = (member, extraRowClass = '') => {
         let rowHtml = `
@@ -306,6 +310,14 @@ function renderPrintTab() {
 
             let cellContent = '';
             let cellStyle = '';
+            let isCustomSplitCell = false;
+
+            const isSplit = !!ca?.isSplit;
+            const isFullTrainee = !isSplit && !!ca?.isTrainee;
+            const isFirstTrainee = isSplit && !!ca?.firstHalf?.isTrainee;
+            const isSecondTrainee = isSplit && !!ca?.secondHalf?.isTrainee;
+            const isBothTrainee = isSplit && isFirstTrainee && isSecondTrainee;
+            const isPartialTrainee = isSplit && (isFirstTrainee !== isSecondTrainee);
 
             if (isThinking) {
                 // === 思考モード ===
@@ -314,8 +326,58 @@ function renderPrintTab() {
                     const shortName = hType ? hType.shortName : cell.shiftId;
                     cellContent = `<span class="font-black text-xs text-slate-800 print-holiday-text">${shortName}</span>`;
                     cellStyle = 'background-color: #cbd5e1;'; // slate-300
+                } else if (isFullTrainee || isBothTrainee) {
+                    // 全日同乗（または分割両方同乗）: 濃い紺色背景に白文字
+                    cellStyle = 'background-color: #1e3a8a !important; color: #ffffff !important;';
+                    if (courseName) {
+                        cellContent = renderCourseBadge(courseName, false, '#ffffff');
+                    } else {
+                        const shiftObj = state.shiftTypes.find(s => s.id === cell.shiftId);
+                        const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+                        let badgesHtml = '';
+                        if (shiftObj || colorObj) {
+                            badgesHtml = `
+                                <div class="flex items-center justify-center gap-1 leading-none select-none">
+                                    ${shiftObj ? `<span class="print-shift-stamp" style="background-color: ${shiftObj.color}" title="${shiftObj.name}">${shiftObj.shortName}</span>` : ''}
+                                    ${colorObj ? `<span class="print-color-marker" style="background-color: ${colorObj.color}" title="${colorObj.name}"></span>` : ''}
+                                </div>
+                            `;
+                        }
+                        cellContent = badgesHtml || `<span class="font-black text-xs text-white">同乗</span>`;
+                    }
+                } else if (isPartialTrainee) {
+                    // 分割シフトで片方のみ同乗: 同乗側のみ濃い紺色・白文字
+                    isCustomSplitCell = true;
+                    const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
+                    const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
+                    const formatC = (str) => str.replace(/コース$/, '').trim();
+                    const firstLabel = firstCrs ? formatC(firstCrs) : 'ー';
+                    const secondLabel = secondCrs ? formatC(secondCrs) : 'ー';
+
+                    const nonTraineeBg = '#ffffff';
+                    const nonTraineeText = '#0f172a';
+
+                    const firstBg = isFirstTrainee ? '#1e3a8a' : nonTraineeBg;
+                    const firstColor = isFirstTrainee ? '#ffffff' : nonTraineeText;
+                    const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
+                    const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
+
+                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '6.8' : (lbl.length >= 3 ? '7.4' : '8.2'));
+
+                    cellStyle = 'padding: 0 !important;';
+                    cellContent = `
+                        <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
+                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
+                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${firstLabel}</span>
+                            </div>
+                            <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
+                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
+                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${secondLabel}</span>
+                            </div>
+                        </div>
+                    `;
                 } else if (courseName) {
-                    // コース割当あり: コース名のみを表示（スタンプ・カラー四角は非表示で高さ統一）
+                    // コース割当あり（同乗なし）: コース名のみを表示（スタンプ・カラー四角は非表示で高さ統一）
                     cellContent = renderCourseBadge(courseName, false);
                 } else {
                     // コース未割当: 左にシフトスタンプ [通/単]、右にカラーマーカー ■ を横並び（中央揃え・1行）で表示
@@ -362,8 +424,49 @@ function renderPrintTab() {
                 } else if (isBeyondCutoff) {
                     // カットオフ日以降: コースもカラー塗りつぶしも行わず空欄
                     cellContent = '';
+                } else if (isFullTrainee || isBothTrainee) {
+                    // 全日同乗（または分割両方同乗）: 濃い紺色背景に白文字
+                    cellStyle = 'background-color: #1e3a8a !important; color: #ffffff !important;';
+                    if (courseName) {
+                        cellContent = renderCourseBadge(courseName, false, '#ffffff');
+                    } else {
+                        cellContent = `<span class="font-black text-xs text-white">同乗</span>`;
+                    }
+                } else if (isPartialTrainee) {
+                    // 分割シフトで片方のみ同乗: 同乗側のみ濃い紺色・白文字
+                    isCustomSplitCell = true;
+                    const firstCrs = ca.firstHalf?.courseId ? (state.courses.find(c => c.id === ca.firstHalf.courseId)?.name || ca.firstHalf.courseId) : '';
+                    const secondCrs = ca.secondHalf?.courseId ? (state.courses.find(c => c.id === ca.secondHalf.courseId)?.name || ca.secondHalf.courseId) : '';
+                    const formatC = (str) => str.replace(/コース$/, '').trim();
+                    const firstLabel = firstCrs ? formatC(firstCrs) : 'ー';
+                    const secondLabel = secondCrs ? formatC(secondCrs) : 'ー';
+
+                    const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
+                    const isPrintFill = !!(colorObj && colorObj.printFill);
+                    const nonTraineeBg = isPrintFill ? colorObj.color : '#ffffff';
+                    const nonTraineeText = isPrintFill ? getContrastTextColor(colorObj.color) : '#0f172a';
+
+                    const firstBg = isFirstTrainee ? '#1e3a8a' : nonTraineeBg;
+                    const firstColor = isFirstTrainee ? '#ffffff' : nonTraineeText;
+                    const secondBg = isSecondTrainee ? '#1e3a8a' : nonTraineeBg;
+                    const secondColor = isSecondTrainee ? '#ffffff' : nonTraineeText;
+
+                    const getSplitFontPt = (lbl) => (lbl.length >= 4 ? '6.8' : (lbl.length >= 3 ? '7.4' : '8.2'));
+
+                    cellStyle = 'padding: 0 !important;';
+                    cellContent = `
+                        <div style="height: ${rowHeightMm}mm; max-height: ${rowHeightMm}mm; display: flex; align-items: stretch; justify-content: space-between; width: 100%; line-height: 1; box-sizing: border-box; overflow: hidden;">
+                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${firstBg} !important; color: ${firstColor} !important; padding: 0 1px; box-sizing: border-box;" title="前半: ${firstLabel}${isFirstTrainee ? ' (同乗)' : ''}">
+                                <span class="font-black" style="font-size: ${getSplitFontPt(firstLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${firstLabel}</span>
+                            </div>
+                            <span style="font-size: 7pt; font-weight: 800; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0 0.5px; user-select: none; line-height: 1; flex-shrink: 0; background-color: #ffffff;">/</span>
+                            <div style="flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; background-color: ${secondBg} !important; color: ${secondColor} !important; padding: 0 1px; box-sizing: border-box;" title="後半: ${secondLabel}${isSecondTrainee ? ' (同乗)' : ''}">
+                                <span class="font-black" style="font-size: ${getSplitFontPt(secondLabel)}pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; display: block;">${secondLabel}</span>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    // 出勤枠（カットオフ日以内）
+                    // 出勤枠（カットオフ日以内・同乗なし）
                     const colorObj = state.colorTypes.find(c => c.id === cell.colorId);
                     const isPrintFill = !!(colorObj && colorObj.printFill);
 
@@ -390,7 +493,7 @@ function renderPrintTab() {
             }
 
             rowHtml += `
-                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell ${lastClass}" style="${cellStyle} ${rightBorderCss}">
+                <td class="p-0.5 border border-slate-700 text-center align-middle overflow-hidden print-cell ${lastClass} ${isCustomSplitCell ? 'print-split-cell' : ''}" style="${cellStyle} ${rightBorderCss}">
                     ${cellContent}
                 </td>
             `;
@@ -406,8 +509,6 @@ function renderPrintTab() {
 
     // 帳票HTMLの構築
     const scaleFactor = ((state.printScale || 100) / 100).toFixed(2);
-    const rowHeightMm = (state.printRowHeight !== undefined && state.printRowHeight !== null) ? Number(state.printRowHeight) : 5.5;
-    const memberFontSizePt = (Math.min(9, Math.max(7.2, 7.2 + (rowHeightMm - 4.8) * 0.35))).toFixed(1);
 
     // タイトル行のcolspan計算（合計が 1 + days.length になるよう厳密に配分）
     const titleCenterSpan = Math.ceil(days.length / 2);
@@ -463,6 +564,9 @@ function renderPrintTab() {
                 height: ${rowHeightMm}mm !important;
                 line-height: 1 !important;
                 vertical-align: middle !important;
+            }
+            .print-roster-table tr.print-member-row td.print-split-cell {
+                padding: 0 !important;
             }
             .print-roster-table tr.print-member-row td.print-member-name {
                 font-size: ${memberFontSizePt}pt !important;
@@ -609,6 +713,9 @@ function renderPrintTab() {
                     height: ${rowHeightMm}mm !important;
                     line-height: 1 !important;
                     vertical-align: middle !important;
+                }
+                .print-roster-table tr.print-member-row td.print-split-cell {
+                    padding: 0 !important;
                 }
                 .print-roster-table tr.print-member-row td.print-member-name {
                     font-size: ${memberFontSizePt}pt !important;

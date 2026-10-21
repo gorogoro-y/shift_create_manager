@@ -180,6 +180,9 @@ table:not(.print-roster-table) thead th {
         margin: 0 !important;
         width: 100% !important;
     }
+    .print-split-cell {
+        padding: 0 !important;
+    }
 
     /* タブ5印刷時の切り替え */
     body.printing-mode-5 #view-mode-4 {

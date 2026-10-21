@@ -1195,6 +1195,45 @@ function renderCourseAssignmentTab() {
         }
     }
 
+    // 日付別の人数の余り・不足（タブ1、タブ2と同じ計算）
+    const getSurplusShortageForDate = (dateStr) => {
+        const required = state.dailyRequired?.[dateStr] ?? 31;
+        let holidayCount = 0;
+        state.members.forEach(m => {
+            const cell = getCellData(`${m.id}_${dateStr}`);
+            if (isHolidayValue(cell.shiftId)) holidayCount++;
+        });
+
+        const availableCount = state.members.length - holidayCount;
+        const diff = availableCount - required;
+
+        let badgeClass = "bg-emerald-100 text-emerald-800 border-emerald-300";
+        let badgeText = "±0";
+        if (diff < 0) {
+            badgeClass = "bg-rose-100 text-rose-800 border-rose-300";
+            badgeText = `${Math.abs(diff)}不足`;
+        } else if (diff > 0) {
+            badgeClass = "bg-sky-100 text-sky-800 border-sky-300";
+            badgeText = `+${diff}余り`;
+        }
+
+        return {
+            required,
+            availableCount,
+            diff,
+            badgeClass,
+            badgeText
+        };
+    };
+
+    const dayDiffBadge = document.getElementById('assignment-day-diff-badge');
+    if (dayDiffBadge) {
+        const todaySurplus = getSurplusShortageForDate(state.selectedAssignmentDate);
+        dayDiffBadge.innerText = todaySurplus.badgeText;
+        dayDiffBadge.className = `px-2.5 py-1 rounded-lg text-xs font-black border shadow-2xs ${todaySurplus.badgeClass}`;
+        dayDiffBadge.title = `出勤可能: ${todaySurplus.availableCount}名 / 目標必要: ${todaySurplus.required}名`;
+    }
+
     // 上部ツールバー（シフト絞り込み・スタッフ属性絞り込み）の更新
     renderAssignmentFilterToolbar();
 
@@ -1229,7 +1268,7 @@ function renderCourseAssignmentTab() {
         };
     };
 
-    // 1. ヘッダー行の生成（全日に「あと何人」バッジ表示）
+    // 1. ヘッダー行の生成（全日に「余り/不足」および「あと何人」バッジ表示）
     if (tableHead) {
         let theadHtml = `
             <tr class="border-b border-slate-200 text-slate-700 bg-slate-50 sticky top-0 z-20">
@@ -1246,6 +1285,7 @@ function renderCourseAssignmentTab() {
                 : '';
 
             const progress = getProgressForDate(d.dateStr);
+            const surplusInfo = getSurplusShortageForDate(d.dateStr);
 
             if (isSelected) {
                 let badgeHtml = '';
@@ -1269,15 +1309,20 @@ function renderCourseAssignmentTab() {
 
                 theadHtml += `
                     <th id="th-day-${d.dateStr}" class="p-2 bg-indigo-100/90 text-slate-800 border-x-2 border-indigo-400 w-[350px] min-w-[350px] max-w-[350px] align-top shadow-2xs">
+                        <div class="flex items-center justify-between gap-1 mb-1.5">
+                            <span class="px-1.5 py-0.5 border rounded text-[10px] font-black ${surplusInfo.badgeClass} shadow-2xs" title="出勤可能: ${surplusInfo.availableCount}名 / 目標必要: ${surplusInfo.required}名">
+                                ${surplusInfo.badgeText}
+                            </span>
+                            ${badgeHtml}
+                        </div>
                         <div class="flex items-center justify-between gap-1 mb-1">
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="text-xs font-black ${dayColor}">${d.day}日 (${d.dayOfWeek})</span>
                                 ${eventTag}
                             </div>
-                            ${badgeHtml}
-                        </div>
-                        <div class="text-[10px] text-indigo-700 font-extrabold bg-white/80 py-0.5 px-1.5 rounded border border-indigo-200 text-center shadow-2xs">
-                            ⚡ 割当編集中
+                            <div class="text-[10px] text-indigo-700 font-extrabold bg-white/80 py-0.5 px-2 rounded border border-indigo-200 text-center shadow-2xs">
+                                ⚡ 割当編集中
+                            </div>
                         </div>
                     </th>
                 `;
@@ -1298,7 +1343,12 @@ function renderCourseAssignmentTab() {
                 theadHtml += `
                     <th id="th-day-${d.dateStr}" class="p-1 text-center cursor-pointer hover:bg-indigo-50/60 transition border-r border-slate-200 w-[62px] min-w-[62px] max-w-[62px] align-top"
                         onclick="onAssignmentDateChange('${d.dateStr}')"
-                        title="${d.dateStr} (${d.dayOfWeek})${eventVal ? ' ' + eventVal : ''} [クリックしてこの日を開く]">
+                        title="${d.dateStr} (${d.dayOfWeek})${eventVal ? ' ' + eventVal : ''} (${surplusInfo.badgeText} [出勤可能${surplusInfo.availableCount}名/必要${surplusInfo.required}名]) [クリックしてこの日を開く]">
+                        <div class="mb-1">
+                            <span class="px-1 py-0.5 border rounded text-[9px] font-black ${surplusInfo.badgeClass} inline-block leading-tight shadow-2xs">
+                                ${surplusInfo.badgeText}
+                            </span>
+                        </div>
                         ${eventTag}
                         <div class="text-xs font-black ${dayColor} leading-tight">${d.day}</div>
                         <div class="text-[10px] font-bold ${d.isSunday ? 'text-rose-600' : (d.isSaturday ? 'text-sky-600' : 'text-slate-400')} leading-tight">(${d.dayOfWeek})</div>
