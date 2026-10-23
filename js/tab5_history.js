@@ -64,7 +64,7 @@ function renderCourseHistoryTab() {
     const totalCourses = sortedCourses.length;
 
     let html = `
-        <div class="w-full max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
+        <div id="course-history-scroll-wrapper" class="w-full max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
             <table class="w-full text-center border-collapse text-xs history-matrix-table shadow-xs" style="--history-row-height: ${printRowHeight.toFixed(1)}mm;">
                 <thead>
                     <tr class="bg-slate-100 text-slate-700 border-b-2 border-slate-300">
@@ -167,7 +167,29 @@ function renderCourseHistoryTab() {
         </div>
     `;
 
+    // スクロール位置の記憶（更新前の縦・横スクロール位置を保持）
+    const prevScrollDiv = container.querySelector('#course-history-scroll-wrapper');
+    const prevScrollTop = prevScrollDiv ? prevScrollDiv.scrollTop : 0;
+    const prevScrollLeft = prevScrollDiv ? prevScrollDiv.scrollLeft : 0;
+    const containerScrollLeft = container.scrollLeft;
+
     container.innerHTML = html;
+
+    // スクロール位置の即時復元
+    const newScrollDiv = container.querySelector('#course-history-scroll-wrapper');
+    if (newScrollDiv) {
+        newScrollDiv.scrollTop = prevScrollTop;
+        newScrollDiv.scrollLeft = prevScrollLeft;
+    }
+    if (container) {
+        container.scrollLeft = containerScrollLeft;
+    }
+    requestAnimationFrame(() => {
+        if (newScrollDiv) {
+            newScrollDiv.scrollTop = prevScrollTop;
+            newScrollDiv.scrollLeft = prevScrollLeft;
+        }
+    });
 }
 
 // コースの走行可否（NG）をワンクリックでトグル切替
