@@ -51,13 +51,21 @@ function renderCourseHistoryTab() {
         .sort((a, b) => (a.order || 0) - (b.order || 0));
 
     // スタッフ絞り込み（同乗・待機区分は非表示・集計外）
-    let displayMembers = (state.members || []).filter(m => {
+    const targetMembers = (state.members || []).filter(m => {
         const role = getMemberRole(m);
         return role !== 'training_only' && role !== 'standby';
     });
+    let displayMembers = targetMembers;
     if (searchKeyword) {
-        displayMembers = displayMembers.filter(m => (m.name || '').toLowerCase().includes(searchKeyword));
+        displayMembers = targetMembers.filter(m => (m.name || '').toLowerCase().includes(searchKeyword));
     }
+
+    // コース別・メンバー別の走行不可数集計（表示対象スタッフ・必須コースが対象）
+    const requiredCourseIdSet = new Set(sortedCourses.map(c => c.id));
+    const courseNgCounts = {};
+    sortedCourses.forEach(crs => {
+        courseNgCounts[crs.id] = targetMembers.filter(m => (m.ngCourses || []).includes(crs.id)).length;
+    });
 
     // 集計カウント
     const totalMembers = displayMembers.length;
@@ -66,12 +74,22 @@ function renderCourseHistoryTab() {
     let html = `
         <div id="course-history-scroll-wrapper" class="w-full max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
             <table class="w-full text-center border-collapse text-xs history-matrix-table shadow-xs" style="--history-row-height: ${printRowHeight.toFixed(1)}mm;">
-                <thead>
-                    <tr class="bg-slate-100 text-slate-700 border-b-2 border-slate-300">
-                        <th class="p-2 border border-slate-300 w-36 min-w-[120px] text-left font-extrabold sticky top-0 left-0 bg-slate-100 z-30 shadow-r history-col-name"></th>
+                <thead class="sticky top-0 z-20">
+                    <tr class="bg-slate-100 text-slate-700 border-b border-slate-300">
+                        <th class="p-1.5 px-2 border border-slate-300 w-[88px] min-w-[88px] max-w-[88px] text-left font-extrabold sticky left-0 bg-slate-100 z-30 history-col-name"></th>
+                        <th class="p-1 border border-slate-300 w-[40px] min-w-[40px] max-w-[40px] text-center font-extrabold sticky left-[88px] bg-slate-100 z-30 shadow-r history-col-ng"></th>
                         ${sortedCourses.map(crs => `
-                            <th class="p-1.5 border border-slate-300 min-w-[44px] text-center font-extrabold text-slate-800 sticky top-0 bg-slate-100 z-20" title="${crs.name}">
+                            <th class="p-1.5 border border-slate-300 min-w-[44px] text-center font-extrabold text-slate-800 bg-slate-100" title="${crs.name}">
                                 ${crs.name}
+                            </th>
+                        `).join('')}
+                    </tr>
+                    <tr class="bg-rose-50 text-rose-800 border-b-2 border-slate-300 history-ng-count-row">
+                        <th class="p-1 px-2 border border-slate-300 w-[88px] min-w-[88px] max-w-[88px] text-left font-extrabold sticky left-0 bg-rose-50 z-30 history-col-name"></th>
+                        <th class="p-1 border border-slate-300 w-[40px] min-w-[40px] max-w-[40px] text-center font-extrabold text-[11px] text-rose-800 sticky left-[88px] bg-rose-50 z-30 shadow-r history-col-ng" title="各コース・各スタッフの走行不可数">不可</th>
+                        ${sortedCourses.map(crs => `
+                            <th class="p-1 border border-slate-300 text-center font-black text-[11px] bg-rose-50 ${courseNgCounts[crs.id] > 0 ? 'text-rose-700' : 'text-slate-400'}" title="${crs.name} 走行不可: ${courseNgCounts[crs.id]}名">
+                                ${courseNgCounts[crs.id]}
                             </th>
                         `).join('')}
                     </tr>
@@ -83,6 +101,7 @@ function renderCourseHistoryTab() {
     const midHeaderHtml = `
         <tr class="hidden print:table-row bg-slate-100 text-slate-700 font-extrabold border-y-2 border-slate-400 break-after-avoid">
             <th class="p-1 px-2 border border-slate-300 text-left font-extrabold text-slate-800 history-col-name"></th>
+            <th class="p-1 border border-slate-300 text-center font-extrabold text-slate-800 history-col-ng"></th>
             ${sortedCourses.map(crs => `
                 <th class="p-1 border border-slate-300 min-w-[44px] text-center font-extrabold text-slate-800" title="${crs.name}">
                     ${crs.name}
@@ -94,7 +113,7 @@ function renderCourseHistoryTab() {
     if (displayMembers.length === 0) {
         html += `
             <tr>
-                <td colspan="${1 + sortedCourses.length}" class="p-8 text-center text-slate-400 font-bold">
+                <td colspan="${2 + sortedCourses.length}" class="p-8 text-center text-slate-400 font-bold">
                     表示対象のスタッフデータがありません
                 </td>
             </tr>
@@ -114,11 +133,15 @@ function renderCourseHistoryTab() {
             }
 
             const ngCourses = member.ngCourses || [];
+            const memberNgCount = ngCourses.filter(cid => requiredCourseIdSet.has(cid)).length;
 
             html += `
                 <tr class="border-b border-slate-200 hover:bg-slate-50/80 transition">
-                    <td class="p-1.5 px-2.5 border border-slate-200 text-left font-bold text-slate-900 whitespace-nowrap sticky left-0 bg-white z-10 shadow-r history-col-name" title="${member.name}">
+                    <td class="p-1.5 px-2 border border-slate-200 w-[88px] min-w-[88px] max-w-[88px] text-left font-bold text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis sticky left-0 bg-white z-10 history-col-name" title="${member.name}">
                         ${member.name}
+                    </td>
+                    <td class="p-1 border border-slate-200 w-[40px] min-w-[40px] max-w-[40px] text-center font-black text-xs sticky left-[88px] bg-rose-50/70 z-10 shadow-r history-col-ng ${memberNgCount > 0 ? 'text-rose-700' : 'text-slate-400'}" title="${member.name} 走行不可: ${memberNgCount}コース">
+                        ${memberNgCount}
                     </td>
             `;
 

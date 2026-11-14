@@ -270,17 +270,33 @@ table:not(.print-roster-table) thead th {
         line-height: 1.15 !important;
         vertical-align: middle !important;
     }
-    /* 印刷時の名前欄（氏名列）のサイズを半減（約65px） */
+    /* 印刷時の名前欄（氏名列）をさらにスリム化し、右隣の走行不可数列を確保 */
     body.printing-mode-5 .history-matrix-table .history-col-name {
-        width: 65px !important;
-        min-width: 65px !important;
-        max-width: 65px !important;
+        width: 56px !important;
+        min-width: 56px !important;
+        max-width: 56px !important;
         font-size: 7.0pt !important;
         padding: 0 2px !important;
         letter-spacing: -0.3px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+    }
+    body.printing-mode-5 .history-matrix-table .history-col-ng {
+        width: 22px !important;
+        min-width: 22px !important;
+        max-width: 22px !important;
+        font-size: 6.5pt !important;
+        padding: 0 !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+    }
+    body.printing-mode-5 .history-matrix-table tr.history-ng-count-row,
+    body.printing-mode-5 .history-matrix-table tr.history-ng-count-row th {
+        height: 4.0mm !important;
+        max-height: 4.0mm !important;
+        font-size: 6.5pt !important;
+        padding: 0 !important;
     }
 
     #print-sheet-wrapper {
