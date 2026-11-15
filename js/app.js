@@ -120,6 +120,9 @@ window.logoutGoogle = logoutGoogle;
 
 window.onload = function() {
     loadData();
+    if (typeof updateViewportLock === 'function') {
+        updateViewportLock(state.activeTab || 1);
+    }
     renderAll();
     initFirebase();
 };

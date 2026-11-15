@@ -72,7 +72,7 @@ function renderCourseHistoryTab() {
     const totalCourses = sortedCourses.length;
 
     let html = `
-        <div id="course-history-scroll-wrapper" class="w-full max-h-[calc(100vh-230px)] overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
+        <div id="course-history-scroll-wrapper" class="force-horizontal-scroll w-full flex-1 min-h-0 overflow-auto rounded-lg border border-slate-200 print:max-h-none print:overflow-visible print:rounded-none print:border-none">
             <table class="w-full text-center border-collapse text-xs history-matrix-table shadow-xs" style="--history-row-height: ${printRowHeight.toFixed(1)}mm;">
                 <thead class="sticky top-0 z-20">
                     <tr class="bg-slate-100 text-slate-700 border-b border-slate-300">

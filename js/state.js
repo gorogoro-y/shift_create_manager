@@ -284,8 +284,18 @@ function changeMonth(delta) {
     }
 }
 
+function updateViewportLock(tabNum) {
+    const lockedTabs = [1, 2, 3, 5];
+    if (lockedTabs.includes(tabNum)) {
+        document.body.classList.add('app-viewport-locked');
+    } else {
+        document.body.classList.remove('app-viewport-locked');
+    }
+}
+
 function switchTab(tabNum) {
     state.activeTab = tabNum;
+    updateViewportLock(tabNum);
     const tabKeys = [1, 2, 3, 4, 5, 'settings'];
     tabKeys.forEach(key => {
         const view = document.getElementById(`view-mode-${key}`);

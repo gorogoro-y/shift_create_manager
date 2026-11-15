@@ -2,6 +2,27 @@ body, button, input, select, textarea, table {
     font-family: 'BIZ UDPGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
 
+/* タブ1・2・3・5表示時はブラウザ画面高に大枠を固定し、外枠のスクロールを防ぐ */
+@media screen {
+    body.app-viewport-locked {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    body.app-viewport-locked #main-container {
+        flex: 1 1 0%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+}
+
+div[id^="view-mode-"].hidden {
+    display: none !important;
+}
+
 .sticky-col-left {
     position: sticky;
     left: 0;
