@@ -17,6 +17,9 @@ function renderAll(triggerSave = true) {
     if (typeof renderCourseHistoryTab === 'function') {
         renderCourseHistoryTab();
     }
+    if (typeof renderWorkTimeTab === 'function') {
+        renderWorkTimeTab();
+    }
     renderMode4();
     updatePinnedStats();
 }
@@ -60,6 +63,15 @@ window.saveHolidayType = saveHolidayType;
 window.deleteHolidayType = deleteHolidayType;
 window.renderHolidayStampsBar = renderHolidayStampsBar;
 window.getPreviousMonthConsecutiveWorkdays = getPreviousMonthConsecutiveWorkdays;
+window.setTab1Mode = setTab1Mode;
+window.setTab1GenRange = setTab1GenRange;
+window.executeTab1HolidayGenerate = executeTab1HolidayGenerate;
+window.clearTab1GeneratedHolidays = clearTab1GeneratedHolidays;
+window.undoTab1HolidayGenerate = undoTab1HolidayGenerate;
+window.openHolidayRuleImportModal = openHolidayRuleImportModal;
+window.closeHolidayRuleImportModal = closeHolidayRuleImportModal;
+window.executeHolidayRuleImport = executeHolidayRuleImport;
+window.onMemberHolidayRuleTypeChange = onMemberHolidayRuleTypeChange;
 window.selectTool = selectTool;
 window.clearMemberShifts = clearMemberShifts;
 window.toggleShiftStamp = toggleShiftStamp;
@@ -91,10 +103,11 @@ window.setStaffFilter = setStaffFilter;
 window.setAssignmentStaffFilter = setAssignmentStaffFilter;
 window.saveAllToCloud = saveAllToCloud;
 
-window.openGeneratorModal = openGeneratorModal;
-window.closeGeneratorModal = closeGeneratorModal;
-window.setGeneratorRange = setGeneratorRange;
-window.executeShiftGeneration = executeShiftGeneration;
+window.setTab2Mode = setTab2Mode;
+window.setTab2GenRange = setTab2GenRange;
+window.executeTab2ShiftGenerate = executeTab2ShiftGenerate;
+window.clearTab2GeneratedShifts = clearTab2GeneratedShifts;
+window.undoTab2ShiftGenerate = undoTab2ShiftGenerate;
 window.openRuleConfigModal = openRuleConfigModal;
 window.closeRuleConfigModal = closeRuleConfigModal;
 window.saveRuleConfig = saveRuleConfig;
@@ -117,6 +130,20 @@ window.clearCourseAssignment = clearCourseAssignment;
 
 window.loginWithGoogle = loginWithGoogle;
 window.logoutGoogle = logoutGoogle;
+window.setWorkTimeSplitMode = setWorkTimeSplitMode;
+window.renderWorkTimeTab = renderWorkTimeTab;
+window.openWorkTimeCellModal = openWorkTimeCellModal;
+window.closeWorkTimeCellModal = closeWorkTimeCellModal;
+window.saveWorkTimeCell = saveWorkTimeCell;
+window.clearWorkTimeCell = clearWorkTimeCell;
+window.openCourseWorkTimeModal = openCourseWorkTimeModal;
+window.closeCourseWorkTimeModal = closeCourseWorkTimeModal;
+window.applyCourseWorkTimePaste = applyCourseWorkTimePaste;
+window.saveCourseWorkTimeInputs = saveCourseWorkTimeInputs;
+window.openActualWorkTimeImportModal = openActualWorkTimeImportModal;
+window.closeActualWorkTimeImportModal = closeActualWorkTimeImportModal;
+window.executeActualWorkTimeImport = executeActualWorkTimeImport;
+window.isMemberOverRestraintLimit = isMemberOverRestraintLimit;
 
 window.onload = function() {
     loadData();

@@ -7,7 +7,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=20261023">
+    <link rel="stylesheet" href="css/styles.css?v=20261117">
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col font-sans antialiased app-viewport-locked">
 
@@ -86,6 +86,9 @@
                 <button id="tab-btn-5" onclick="switchTab(5)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
                     5. コース履歴・適性
                 </button>
+                <button id="tab-btn-6" onclick="switchTab(6)" class="px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold">
+                    6. 労働・拘束集計
+                </button>
                 <button id="tab-btn-settings" onclick="switchTab('settings')" class="ml-auto px-3 sm:px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition font-bold flex items-center gap-1.5 border border-slate-200 bg-white/70 hover:bg-white shadow-2xs" title="各種マスター・スタッフ・コースの設定">
                     <span>⚙️</span><span>設定</span>
                 </button>
@@ -94,11 +97,54 @@
 
         <!-- タブ1: メンバー休み設定 -->
         <div id="view-mode-1" class="flex-1 min-h-0 flex flex-col gap-2.5 sm:gap-3 overflow-hidden">
-            <div class="shrink-0 bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+            <div class="shrink-0 bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-3">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <div id="holiday-stamps-bar" class="flex items-center gap-2 flex-wrap"></div>
+                    <!-- モード切替ボタン（通常モード / ジェネレートモード） -->
+                    <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
+                        <button type="button" id="tab1-mode-btn-normal" onclick="setTab1Mode('normal')" class="px-2.5 py-1.5 rounded-lg bg-white text-indigo-600 shadow-xs transition">
+                            通常モード
+                        </button>
+                        <button type="button" id="tab1-mode-btn-generate" onclick="setTab1Mode('generate')" class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+                            <span>⚡</span><span>ジェネレートモード</span>
+                        </button>
+                    </div>
+
+                    <!-- 通常モード用スタンプバー -->
+                    <div id="tab1-normal-bar" class="flex items-center gap-2 flex-wrap">
+                        <div id="holiday-stamps-bar" class="flex items-center gap-2 flex-wrap"></div>
+                    </div>
+
+                    <!-- ジェネレートモード用コントロールバー -->
+                    <div id="tab1-generate-bar" class="hidden flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-lg text-xs">
+                            <span class="font-bold text-slate-500 px-1">期間:</span>
+                            <button type="button" onclick="setTab1GenRange('full')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">全日</button>
+                            <button type="button" onclick="setTab1GenRange('first')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">前半</button>
+                            <button type="button" onclick="setTab1GenRange('second')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">後半</button>
+                            <input type="number" id="tab1-gen-start-day" min="1" max="31" value="1" class="w-11 px-1 py-0.5 border border-slate-300 rounded text-center font-bold bg-white">
+                            <span class="text-slate-400 font-bold">〜</span>
+                            <input type="number" id="tab1-gen-end-day" min="1" max="31" value="31" class="w-11 px-1 py-0.5 border border-slate-300 rounded text-center font-bold bg-white">
+                            <span class="text-slate-500 font-bold pr-1">日</span>
+                        </div>
+
+                        <button type="button" onclick="executeTab1HolidayGenerate()" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-xs transition flex items-center gap-1 active:scale-95">
+                            <span>⚡</span><span>自動ジェネレート</span>
+                        </button>
+
+                        <button type="button" id="tab1-gen-undo-btn" onclick="undoTab1HolidayGenerate()" disabled class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1" title="直前のジェネレート／クリアを取り消して元に戻します">
+                            <span>↩</span><span>元に戻す</span>
+                        </button>
+
+                        <button type="button" onclick="clearTab1GeneratedHolidays()" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1" title="指定期間内の自動生成された「休」のみクリアします（通常モードの休みは保護）">
+                            <span>🗑️</span><span>生成分クリア</span>
+                        </button>
+
+                        <button type="button" onclick="openHolidayRuleImportModal()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1" title="Excelからスタッフごとの休み間隔・曜日指定を一括取り込みます">
+                            <span>📋</span><span>間隔Excel取込</span>
+                        </button>
+                    </div>
                     
-                    <div class="flex items-center gap-1.5 ml-2 pl-3 border-l border-slate-200 bg-slate-50 p-1 rounded-lg">
+                    <div class="flex items-center gap-1.5 ml-1 pl-2.5 border-l border-slate-200 bg-slate-50 p-1 rounded-lg">
                         <span class="text-[10px] text-slate-400 font-bold">スクロール:</span>
                         <button onclick="scrollToPosition('matrix-container-1', 'start')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="1日側へ移動">◀ 1日〜</button>
                         <button onclick="scrollToPosition('matrix-container-1', 'mid')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="16日側へ移動">16日〜</button>
@@ -106,7 +152,7 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3">
+                <div id="tab1-required-bar" class="flex items-center gap-3">
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg text-xs">
                         <span class="font-bold text-slate-600">デフォルト必要人数:</span>
                         <input type="number" id="default-required-input" min="0" value="31" class="w-12 px-1 py-0.5 border rounded text-center font-bold bg-white">
@@ -123,48 +169,81 @@
 
         <!-- タブ2: 属性設定 -->
         <div id="view-mode-2" class="flex-1 min-h-0 flex flex-col gap-2.5 sm:gap-3 overflow-hidden hidden">
-            <!-- スタッフ属性絞り込みフィルター & ジェネレーター実行バー -->
+            <!-- スタッフ属性絞り込みフィルター & モード切替・ジェネレートバー -->
             <div class="shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2.5">
-                <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- モード切替ボタン（通常モード / ジェネレートモード） -->
+                    <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold shrink-0">
+                        <button type="button" id="tab2-mode-btn-normal" onclick="setTab2Mode('normal')" class="px-2.5 py-1.5 rounded-lg bg-white text-indigo-600 shadow-xs transition">
+                            通常モード
+                        </button>
+                        <button type="button" id="tab2-mode-btn-generate" onclick="setTab2Mode('generate')" class="px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+                            <span>⚡</span><span>ジェネレートモード</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap" id="attribute-filter-container"></div>
+                </div>
                 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- ジェネレートモード用コントロールバー -->
+                    <div id="tab2-generate-bar" class="hidden flex items-center gap-2 flex-wrap">
+                        <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 p-1 rounded-lg text-xs">
+                            <span class="font-bold text-slate-500 px-1">期間:</span>
+                            <button type="button" onclick="setTab2GenRange('full')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">全日</button>
+                            <button type="button" onclick="setTab2GenRange('first')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">前半</button>
+                            <button type="button" onclick="setTab2GenRange('second')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 rounded font-bold transition">後半</button>
+                            <input type="number" id="tab2-gen-start-day" min="1" max="31" value="1" class="w-11 px-1 py-0.5 border border-slate-300 rounded text-center font-bold bg-white">
+                            <span class="text-slate-400 font-bold">〜</span>
+                            <input type="number" id="tab2-gen-end-day" min="1" max="31" value="31" class="w-11 px-1 py-0.5 border border-slate-300 rounded text-center font-bold bg-white">
+                            <span class="text-slate-500 font-bold pr-1">日</span>
+                        </div>
+
+                        <button type="button" onclick="executeTab2ShiftGenerate()" class="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-xs transition flex items-center gap-1 active:scale-95">
+                            <span>⚡</span><span>自動ジェネレート</span>
+                        </button>
+
+                        <button type="button" id="tab2-gen-undo-btn" onclick="undoTab2ShiftGenerate()" disabled class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1" title="直前のジェネレート／クリアを取り消して元に戻します">
+                            <span>↩</span><span>元に戻す</span>
+                        </button>
+
+                        <button type="button" onclick="clearTab2GeneratedShifts()" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1" title="指定期間内の自動生成されたシフトのみクリアします（通常モードのシフト・ピン留めは保護）">
+                            <span>🗑️</span><span>生成分クリア</span>
+                        </button>
+
+                        <button type="button" onclick="openRuleConfigModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1" title="自動ジェネレートのルール設定">
+                            <span>⚙️</span>
+                            <span class="hidden sm:inline">ルール設定</span>
+                        </button>
+                    </div>
+
                     <div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
                         <span class="text-[10px] text-slate-400 font-bold">スクロール:</span>
                         <button onclick="scrollToPosition('matrix-container-2', 'start')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="1日側へ移動">◀ 1日〜</button>
                         <button onclick="scrollToPosition('matrix-container-2', 'mid')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="16日側へ移動">16日〜</button>
                         <button onclick="scrollToPosition('matrix-container-2', 'end')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs" title="月末側へ移動">末日 ▶</button>
                     </div>
-
-                    <button onclick="openGeneratorModal()" class="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-lg text-xs font-black shadow-sm transition flex items-center gap-1.5 transform active:scale-95">
-                        <span>⚡</span>
-                        <span>シフト自動ジェネレート</span>
-                    </button>
-                    <button onclick="openRuleConfigModal()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1" title="自動ジェネレートのルール設定">
-                        <span>⚙️</span>
-                        <span class="hidden sm:inline">ルール設定</span>
-                    </button>
                 </div>
             </div>
 
-            <div class="shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 sm:p-3 space-y-2">
-                <!-- シフト属性スタンプ ＋ ピン留めツール -->
-                <div class="flex items-center gap-2 flex-wrap" id="shift-stamp-container"></div>
-
-                <!-- カラー属性スタンプ -->
-                <div class="flex items-center gap-2 flex-wrap pt-1.5 border-t border-slate-100" id="color-stamp-container"></div>
-
-                <div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-1.5">
-                        <span>💡</span>
-                        <span>「📌 ピン留め」を選択してマスをクリックすると保護ロック（📌）され、自動ジェネレートで上書きされなくなります。各スタッフ名の横の「クリア」でピン留め・休み以外を一括解除できます。</span>
-                    </div>
-                    <div id="pinned-stats-info" class="font-bold text-indigo-700"></div>
+            <!-- メインエリア: 左側シフト表 ＆ 右側スタンプ・カラーパレット（左右2分割） -->
+            <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-3 items-stretch w-full overflow-hidden">
+                <!-- 左側: マトリクス表 2 (常時スクロールバーを保持・画面下部まで最大表示) -->
+                <div class="flex-1 min-w-0 min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="force-horizontal-scroll w-full flex-1 min-h-0" id="matrix-container-2"></div>
                 </div>
-            </div>
 
-            <!-- マトリクス表 2 (常時スクロールバーを保持・画面下部まで最大表示) -->
-            <div class="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                <div class="force-horizontal-scroll w-full flex-1 min-h-0" id="matrix-container-2"></div>
+                <!-- 右側: シフトスタンプ & カラーマーカーパレット（幅約300px・常時表示・独自縦スクロール） -->
+                <div class="w-full md:w-72 xl:w-80 shrink-0 h-56 md:h-auto md:self-stretch min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col gap-3 overflow-y-auto">
+                    <!-- シフト属性スタンプ ＋ ピン留めツール -->
+                    <div class="flex flex-col gap-2" id="shift-stamp-container"></div>
+
+                    <!-- カラー属性スタンプ -->
+                    <div class="flex flex-col gap-2 pt-2.5 border-t border-slate-200" id="color-stamp-container"></div>
+
+                    <!-- ピン留め保護件数 -->
+                    <div id="pinned-stats-info" class="mt-auto pt-2 border-t border-slate-100 text-[11px] font-bold text-indigo-700"></div>
+                </div>
             </div>
         </div>
 
@@ -404,6 +483,47 @@
             <!-- マトリクス表コンテナ -->
             <div class="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-3 flex flex-col print:block print:border-none print:shadow-none print:p-0 print:overflow-visible">
                 <div id="course-history-table-container" class="w-full flex-1 min-h-0 flex flex-col print:block"></div>
+            </div>
+        </div>
+
+        <!-- タブ6: 労働時間・拘束時間 予測＆実績集計 -->
+        <div id="view-mode-6" class="flex-1 min-h-0 flex flex-col gap-2.5 sm:gap-3 overflow-hidden hidden">
+            <div class="shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 px-2.5 rounded-lg border border-slate-200 text-xs">
+                        <span class="font-bold text-slate-700">🔀 分割シフト計算:</span>
+                        <select id="worktime-split-mode-select" onchange="setWorkTimeSplitMode(this.value)" class="p-1 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="sum">前後半の合計</option>
+                            <option value="first">前半のみ</option>
+                            <option value="second">後半のみ</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        <span class="text-[10px] text-slate-400 font-bold">スクロール:</span>
+                        <button onclick="scrollToPosition('worktime-scroll-wrapper', 'start')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs">◀ 1日〜</button>
+                        <button onclick="scrollToPosition('worktime-scroll-wrapper', 'mid')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs">16日〜</button>
+                        <button onclick="scrollToPosition('worktime-scroll-wrapper', 'end')" class="px-2 py-0.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200 text-slate-700 rounded text-xs font-bold transition shadow-2xs">末日 ▶</button>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+                        <span class="text-xs font-bold text-slate-700">🔍 検索:</span>
+                        <input type="text" id="worktime-search-input" oninput="renderWorkTimeTab()" placeholder="氏名で絞り込み..." class="p-1 px-2.5 border border-slate-300 rounded font-bold text-xs bg-white text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 w-36 sm:w-44">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" onclick="openCourseWorkTimeModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <span>⏱️</span><span>コース予測値設定・Excel貼付</span>
+                    </button>
+                    <button type="button" onclick="openActualWorkTimeImportModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <span>📋</span><span>実績値Excel貼付</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-2 sm:p-3 flex flex-col">
+                <div id="worktime-table-container" class="w-full flex-1 min-h-0 flex flex-col"></div>
             </div>
         </div>
 
@@ -787,6 +907,37 @@
                     <div id="member-edit-attributes-container" class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"></div>
                 </div>
 
+                <div class="border-t pt-3 space-y-2">
+                    <label class="block text-xs font-bold text-slate-600">休みルール設定（タブ1 ジェネレート用）</label>
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                            <input type="radio" name="member-holiday-rule-type" value="none" onchange="onMemberHolidayRuleTypeChange()" class="text-indigo-600" checked>
+                            <span>未設定</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                            <input type="radio" name="member-holiday-rule-type" value="interval" onchange="onMemberHolidayRuleTypeChange()" class="text-indigo-600">
+                            <span>間隔指定（〇日勤務で休み）</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                            <input type="radio" name="member-holiday-rule-type" value="weekdays" onchange="onMemberHolidayRuleTypeChange()" class="text-indigo-600">
+                            <span>曜日指定</span>
+                        </label>
+                    </div>
+                    <div id="member-holiday-rule-interval-box" class="hidden flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs">
+                        <input type="number" id="member-edit-holiday-interval" min="1" max="30" value="4" class="w-16 p-1.5 border border-slate-300 rounded-lg text-center font-bold bg-white">
+                        <span class="font-bold text-slate-600">日勤務して1日休み（例: 4日 → 4日勤務の翌日が休み）</span>
+                    </div>
+                    <div id="member-holiday-rule-weekdays-box" class="hidden flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs">
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-rose-600"><input type="checkbox" value="0" class="member-holiday-weekday-cb">日</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-slate-700"><input type="checkbox" value="1" class="member-holiday-weekday-cb">月</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-slate-700"><input type="checkbox" value="2" class="member-holiday-weekday-cb">火</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-slate-700"><input type="checkbox" value="3" class="member-holiday-weekday-cb">水</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-slate-700"><input type="checkbox" value="4" class="member-holiday-weekday-cb">木</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-slate-700"><input type="checkbox" value="5" class="member-holiday-weekday-cb">金</label>
+                        <label class="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 bg-white cursor-pointer font-bold text-sky-600"><input type="checkbox" value="6" class="member-holiday-weekday-cb">土</label>
+                    </div>
+                </div>
+
                 <div class="border-t pt-3">
                     <div class="flex items-center justify-between mb-1">
                         <label class="block text-xs font-bold text-slate-600">担当不可コース（NGコース指定）</label>
@@ -806,80 +957,6 @@
                     <button onclick="closeMemberEditModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
                     <button onclick="saveMemberEdit()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">保存</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- シフト自動ジェネレートモーダル -->
-    <div id="generator-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-slate-100">
-            <div class="flex items-center justify-between border-b pb-3">
-                <div class="flex items-center gap-2">
-                    <div class="bg-indigo-600 text-white p-1.5 rounded-lg text-sm">⚡</div>
-                    <div>
-                        <h3 class="font-black text-slate-800 text-base">シフト自動ジェネレート</h3>
-                        <p class="text-[11px] text-slate-500">生成する期間を指定してください</p>
-                    </div>
-                </div>
-                <button onclick="closeGeneratorModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="text-xs font-bold text-slate-600">クイック期間選択</label>
-                <div class="grid grid-cols-3 gap-2">
-                    <button onclick="setGeneratorRange('full')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
-                        当月全日 (1〜末日)
-                    </button>
-                    <button onclick="setGeneratorRange('first_half')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
-                        前半 (1〜15日)
-                    </button>
-                    <button onclick="setGeneratorRange('second_half')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 border border-slate-200 rounded-xl text-xs font-bold transition text-center">
-                        後半 (16〜末日)
-                    </button>
-                </div>
-            </div>
-
-            <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">開始日</label>
-                        <input type="date" id="generator-start-date" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">終了日</label>
-                        <input type="date" id="generator-end-date" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-
-                <div class="pt-2 text-[11px] text-slate-500 space-y-1">
-                    <p class="flex items-center gap-1.5">
-                        <span class="text-rose-600 font-bold">●</span> 休みマス（休・指・有）はスキップされます
-                    </p>
-                    <p class="flex items-center gap-1.5">
-                        <span class="text-indigo-600 font-bold">📌</span> ピン留めされたマスは上書きされず保護されます
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-1">
-                <label class="text-xs font-bold text-slate-600">生成の対象スタッフ</label>
-                <div class="flex items-center gap-3 text-xs">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
-                        <input type="radio" name="generator-target-scope" value="all" checked class="text-indigo-600">
-                        <span>全スタッフ (<span id="gen-scope-all-count">0</span>名)</span>
-                    </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer" id="gen-scope-filtered-label">
-                        <input type="radio" name="generator-target-scope" value="filtered" class="text-indigo-600">
-                        <span>絞り込み中のスタッフのみ</span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button onclick="closeGeneratorModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
-                <button onclick="executeShiftGeneration()" class="px-5 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5">
-                    <span>⚡</span> <span>この期間で生成実行</span>
-                </button>
             </div>
         </div>
     </div>
@@ -1193,15 +1270,151 @@
         </div>
     </div>
 
+    <!-- 休み間隔・曜日指定 Excelコピペ取り込みモーダル -->
+    <div id="holiday-rule-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+            <div class="border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <span>📋</span> <span>休み間隔・曜日指定のExcel一括取込</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">Excel等から「スタッフ名」と「休みルール（日数または曜日）」の2列をコピーして貼り付けてください。</p>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="block text-xs font-bold text-slate-700">貼り付けエリア（タブ区切り / カンマ区切り対応）</label>
+                <textarea id="holiday-rule-import-textarea" rows="8" class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="山田 太郎&#9;4&#10;佐藤 花子&#9;日&#10;鈴木 一郎&#9;水・日&#10;高橋 次郎&#9;5日&#10;田中 三郎&#9;なし"></textarea>
+                <div class="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 space-y-0.5">
+                    <div>・<strong>間隔指定</strong>: <code>4</code> や <code>4日</code>（4日勤務して翌日が休み）</div>
+                    <div>・<strong>曜日指定</strong>: <code>日</code>、<code>水・日</code>、<code>月,木</code>、<code>毎週日曜</code> など</div>
+                    <div>・<strong>解除</strong>: <code>なし</code> や <code>クリア</code>、空欄</div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeHolidayRuleImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button type="button" onclick="executeHolidayRuleImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">取り込む</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブ6: セル実績編集モーダル -->
+    <div id="worktime-cell-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="border-b pb-3">
+                <h3 class="font-bold text-base text-slate-800" id="wt-cell-title">実績時間の入力</h3>
+                <p class="text-xs text-indigo-700 font-bold mt-1" id="wt-cell-pred-info"></p>
+            </div>
+            <input type="hidden" id="wt-cell-member-id">
+            <input type="hidden" id="wt-cell-date-str">
+
+            <div id="wt-cell-split-box" class="hidden space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <label class="block text-xs font-bold text-slate-700">🔀 分割シフトの予測値に使用するコース</label>
+                <div id="wt-cell-split-options" class="space-y-1"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">実労働時間 (例: 8:30:00)</label>
+                    <input type="text" id="wt-cell-work-input" placeholder="8:30:00" class="w-full p-2 border border-slate-300 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">実拘束時間 (例: 10:00:00)</label>
+                    <input type="text" id="wt-cell-restraint-input" placeholder="10:00:00" class="w-full p-2 border border-slate-300 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-500">※空欄で保存するとその項目の実績値が消去され、コース予測値に戻ります。</p>
+
+            <div class="flex justify-between items-center pt-2 border-t">
+                <button type="button" onclick="clearWorkTimeCell()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold">実績クリア</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeWorkTimeCellModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                    <button type="button" onclick="saveWorkTimeCell()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブ6: コース平均時間（予測値）設定＆Excel貼付モーダル -->
+    <div id="course-worktime-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="border-b pb-3 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800">⏱️ コース別 平均労働・拘束時間（予測値）</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">スプレッドシートから「コース名 / 平均労働時間 / 平均拘束時間」の3列を貼り付けるか、下表で直接編集できます。</p>
+                </div>
+                <button type="button" onclick="closeCourseWorkTimeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-slate-700">スプレッドシート貼付（例: <code>01コース&#9;8:30:00&#9;10:00:00</code>）</label>
+                    <button type="button" onclick="applyCourseWorkTimePaste()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold">貼付データを反映</button>
+                </div>
+                <textarea id="course-worktime-import-textarea" rows="3" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="01コース&#9;8:30:00&#9;10:15:00&#10;02コース&#9;7:45:00&#9;9:30:00"></textarea>
+            </div>
+
+            <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-center border-collapse text-xs">
+                    <thead class="sticky top-0 bg-slate-100 text-slate-700 border-b border-slate-300">
+                        <tr>
+                            <th class="p-2 text-left">コース名</th>
+                            <th class="p-2">平均労働時間</th>
+                            <th class="p-2">平均拘束時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="course-worktime-table-body"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeCourseWorkTimeModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">閉じる</button>
+                <button type="button" onclick="saveCourseWorkTimeInputs()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">一覧の変更を保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブ6: 実績値マトリクス Excel貼付モーダル -->
+    <div id="actual-worktime-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-4">
+            <div class="border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-800">📋 実績時間マトリクス Excel貼付</h3>
+                <p class="text-xs text-slate-500 mt-1">スプレッドシートから「縦：スタッフ名、横：1日〜末日」の表をコピーして貼り付けてください。</p>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <span class="font-bold text-slate-700">取り込む項目:</span>
+                <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-800">
+                    <input type="radio" name="actual-import-type" value="work" checked class="text-emerald-600">
+                    <span>実績 労働時間</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer font-bold text-amber-800">
+                    <input type="radio" name="actual-import-type" value="restraint" class="text-amber-600">
+                    <span>実績 拘束時間</span>
+                </label>
+            </div>
+
+            <div class="space-y-1">
+                <textarea id="actual-worktime-import-textarea" rows="8" class="w-full p-3 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="スタッフ名&#9;1&#9;2&#9;3&#9;4...&#10;山田 太郎&#9;8:30:00&#9;8:45:15&#9;&#9;9:00:00..."></textarea>
+                <p class="text-[11px] text-slate-500">※「8:30:00」「8:30」「8.5」形式に対応。空欄セルは上書きしません（実績を消したい場合は「-」を入力）。</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeActualWorkTimeImportModal()" class="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                <button type="button" onclick="executeActualWorkTimeImport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">取り込む</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modular Scripts -->
-    <script src="js/state.js?v=20261023"></script>
-    <script src="js/firebase.js?v=20261023"></script>
-    <script src="js/tab1_holiday.js?v=20261023"></script>
-    <script src="js/tab2_shift.js?v=20261023"></script>
-    <script src="js/tab3_assignment.js?v=20261023"></script>
-    <script src="js/tab4_print.js?v=20261023"></script>
-    <script src="js/tab4_settings.js?v=20261023"></script>
-    <script src="js/tab5_history.js?v=20261023"></script>
-    <script src="js/app.js?v=20261023"></script>
+    <script src="js/state.js?v=20261117"></script>
+    <script src="js/firebase.js?v=20261117"></script>
+    <script src="js/tab1_holiday.js?v=20261117"></script>
+    <script src="js/tab2_shift.js?v=20261117"></script>
+    <script src="js/tab3_assignment.js?v=20261117"></script>
+    <script src="js/tab4_print.js?v=20261117"></script>
+    <script src="js/tab4_settings.js?v=20261117"></script>
+    <script src="js/tab5_history.js?v=20261117"></script>
+    <script src="js/tab6_worktime.js?v=20261117"></script>
+    <script src="js/app.js?v=20261117"></script>
 </body>
 </html>

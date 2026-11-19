@@ -30,6 +30,11 @@ div[id^="view-mode-"].hidden {
     z-index: 20;
 }
 
+.sticky-col-left.member-over-restraint-cell {
+    background-color: #ffe4e6 !important;
+    color: #be123c !important;
+}
+
 .sticky-col-header {
     position: sticky;
     top: 0;

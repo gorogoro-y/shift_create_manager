@@ -77,7 +77,11 @@ let state = {
     },
     dailyRequired: {},
     dailyEvents: {},
+    actualWorkTimes: {},
+    workTimeSplitMode: 'sum',
     selectedStamp: '休',
+    tab1Mode: 'normal',
+    tab2Mode: 'normal',
     selectedTool: { category: 'shift', id: 't1' },
     activeTab: 1,
     activeStaffFilter: null,
@@ -117,6 +121,7 @@ function saveData() {
         localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
         localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
         localStorage.setItem(`shift_app_events_${monthDocId}`, JSON.stringify(state.dailyEvents || {}));
+        localStorage.setItem(`shift_app_worktimes_${monthDocId}`, JSON.stringify(state.actualWorkTimes || {}));
         if (!state.adjacentSchedules) state.adjacentSchedules = {};
         state.adjacentSchedules[monthDocId] = JSON.parse(JSON.stringify(state.schedule));
     } catch (e) {
@@ -131,6 +136,8 @@ function loadData() {
             const parsed = JSON.parse(saved);
             state = { ...state, ...parsed };
             if (!state.dailyEvents) state.dailyEvents = {};
+            if (!state.actualWorkTimes) state.actualWorkTimes = {};
+            if (!state.workTimeSplitMode) state.workTimeSplitMode = 'sum';
             if (!state.courses || state.courses.length === 0) {
                 initDefaultCourses();
             }
@@ -275,6 +282,8 @@ function changeMonth(delta) {
     if (cachedEvents) {
         state.dailyEvents = { ...(state.dailyEvents || {}), ...JSON.parse(cachedEvents) };
     }
+    const cachedWorkTimes = localStorage.getItem(`shift_app_worktimes_${newMonthDocId}`);
+    state.actualWorkTimes = cachedWorkTimes ? JSON.parse(cachedWorkTimes) : {};
 
     fetchAdjacentMonthSchedules();
     if (isCloudConnected) {
@@ -285,7 +294,7 @@ function changeMonth(delta) {
 }
 
 function updateViewportLock(tabNum) {
-    const lockedTabs = [1, 2, 3, 5];
+    const lockedTabs = [1, 2, 3, 5, 6];
     if (lockedTabs.includes(tabNum)) {
         document.body.classList.add('app-viewport-locked');
     } else {
@@ -296,7 +305,7 @@ function updateViewportLock(tabNum) {
 function switchTab(tabNum) {
     state.activeTab = tabNum;
     updateViewportLock(tabNum);
-    const tabKeys = [1, 2, 3, 4, 5, 'settings'];
+    const tabKeys = [1, 2, 3, 4, 5, 6, 'settings'];
     tabKeys.forEach(key => {
         const view = document.getElementById(`view-mode-${key}`);
         const btn = document.getElementById(`tab-btn-${key}`);
@@ -339,18 +348,24 @@ function isHolidayValue(val) {
 
 function getCellData(key) {
     const raw = state.schedule[key];
-    if (!raw) return { shiftId: '', colorId: '', isPinned: false };
+    if (!raw) return { shiftId: '', colorId: '', isPinned: false, isGeneratedHoliday: false, isGeneratedShift: false };
     if (typeof raw === 'object' && raw !== null) {
-        return { shiftId: raw.shiftId || '', colorId: raw.colorId || '', isPinned: !!raw.isPinned };
+        return {
+            shiftId: raw.shiftId || '',
+            colorId: raw.colorId || '',
+            isPinned: !!raw.isPinned,
+            isGeneratedHoliday: !!raw.isGeneratedHoliday,
+            isGeneratedShift: !!raw.isGeneratedShift
+        };
     }
     if (isHolidayValue(raw)) {
-        return { shiftId: raw, colorId: '', isPinned: false };
+        return { shiftId: raw, colorId: '', isPinned: false, isGeneratedHoliday: false, isGeneratedShift: false };
     }
     const isShift = state.shiftTypes.some(s => s.id === raw);
-    if (isShift) return { shiftId: raw, colorId: '', isPinned: false };
+    if (isShift) return { shiftId: raw, colorId: '', isPinned: false, isGeneratedHoliday: false, isGeneratedShift: false };
     const isColor = state.colorTypes.some(c => c.id === raw);
-    if (isColor) return { shiftId: '', colorId: raw, isPinned: false };
-    return { shiftId: raw, colorId: '', isPinned: false };
+    if (isColor) return { shiftId: '', colorId: raw, isPinned: false, isGeneratedHoliday: false, isGeneratedShift: false };
+    return { shiftId: raw, colorId: '', isPinned: false, isGeneratedHoliday: false, isGeneratedShift: false };
 }
 
 function getCellDataForAnyDate(memberId, dateStr) {
@@ -575,6 +590,8 @@ function importData(event) {
         try {
             state = JSON.parse(e.target.result);
             if (!state.dailyEvents) state.dailyEvents = {};
+            if (!state.actualWorkTimes) state.actualWorkTimes = {};
+            if (!state.workTimeSplitMode) state.workTimeSplitMode = 'sum';
             currentFileHandle = null;
             updateFileStatusUI();
             renderAll();

@@ -238,11 +238,13 @@ function listenToCurrentMonthShift() {
             const cloudDailyRequired = data.dailyRequired ? (typeof data.dailyRequired === 'string' ? JSON.parse(data.dailyRequired) : data.dailyRequired) : {};
             const cloudDailyEvents = data.dailyEvents ? (typeof data.dailyEvents === 'string' ? JSON.parse(data.dailyEvents) : data.dailyEvents) : {};
             const cloudCourseAssignments = data.courseAssignments ? (typeof data.courseAssignments === 'string' ? JSON.parse(data.courseAssignments) : data.courseAssignments) : {};
+            const cloudActualWorkTimes = data.actualWorkTimes ? (typeof data.actualWorkTimes === 'string' ? JSON.parse(data.actualWorkTimes) : data.actualWorkTimes) : {};
 
             state.schedule = { ...cloudSchedule };
             state.dailyRequired = { ...cloudDailyRequired };
             state.dailyEvents = { ...cloudDailyEvents };
             state.courseAssignments = { ...cloudCourseAssignments };
+            state.actualWorkTimes = { ...cloudActualWorkTimes };
 
             updateCloudStatus('同期完了', 'success');
         } else {
@@ -250,12 +252,14 @@ function listenToCurrentMonthShift() {
             state.dailyRequired = {};
             state.dailyEvents = {};
             state.courseAssignments = {};
+            state.actualWorkTimes = {};
             updateCloudStatus('新規月 (未保存)', 'normal');
         }
         
         localStorage.setItem(`shift_app_month_${monthDocId}`, JSON.stringify(state.schedule));
         localStorage.setItem(`shift_app_courses_${monthDocId}`, JSON.stringify(state.courseAssignments));
         localStorage.setItem(`shift_app_events_${monthDocId}`, JSON.stringify(state.dailyEvents));
+        localStorage.setItem(`shift_app_worktimes_${monthDocId}`, JSON.stringify(state.actualWorkTimes));
         renderAll(false);
         isSyncingFromCloud = false;
 
@@ -451,6 +455,7 @@ async function saveCurrentMonthShiftToCloud(isSilent = false) {
             dailyRequired: state.dailyRequired,
             dailyEvents: state.dailyEvents || {},
             courseAssignments: state.courseAssignments,
+            actualWorkTimes: state.actualWorkTimes || {},
             updatedAt: new Date().toISOString()
         }, { merge: true });
 

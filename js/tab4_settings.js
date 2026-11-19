@@ -516,7 +516,32 @@ function openMemberEditModal(memberId = null) {
         `;
     }).join('');
 
+    // 休みルール設定の反映
+    const rule = member ? member.holidayRule : null;
+    const ruleType = rule && rule.type ? rule.type : 'none';
+    document.querySelectorAll('input[name="member-holiday-rule-type"]').forEach(r => {
+        r.checked = (r.value === ruleType);
+    });
+    const intervalInput = document.getElementById('member-edit-holiday-interval');
+    if (intervalInput) {
+        intervalInput.value = (rule && rule.type === 'interval' && rule.days) ? rule.days : 4;
+    }
+    const selectedWeekdays = (rule && rule.type === 'weekdays' && Array.isArray(rule.weekdays)) ? rule.weekdays : [];
+    document.querySelectorAll('.member-holiday-weekday-cb').forEach(cb => {
+        cb.checked = selectedWeekdays.includes(parseInt(cb.value, 10));
+    });
+    onMemberHolidayRuleTypeChange();
+
     document.getElementById('member-edit-modal').classList.remove('hidden');
+}
+
+function onMemberHolidayRuleTypeChange() {
+    const selected = document.querySelector('input[name="member-holiday-rule-type"]:checked');
+    const ruleType = selected ? selected.value : 'none';
+    const intervalBox = document.getElementById('member-holiday-rule-interval-box');
+    const weekdaysBox = document.getElementById('member-holiday-rule-weekdays-box');
+    if (intervalBox) intervalBox.classList.toggle('hidden', ruleType !== 'interval');
+    if (weekdaysBox) weekdaysBox.classList.toggle('hidden', ruleType !== 'weekdays');
 }
 
 function closeMemberEditModal() {
@@ -540,6 +565,21 @@ function saveMemberEdit() {
     const ngCbs = document.querySelectorAll('.member-ng-checkbox:checked');
     const selectedNGs = Array.from(ngCbs).map(cb => cb.value);
 
+    const ruleTypeEl = document.querySelector('input[name="member-holiday-rule-type"]:checked');
+    const ruleType = ruleTypeEl ? ruleTypeEl.value : 'none';
+    let holidayRule = null;
+    if (ruleType === 'interval') {
+        const daysVal = parseInt(document.getElementById('member-edit-holiday-interval').value, 10);
+        if (!isNaN(daysVal) && daysVal >= 1) {
+            holidayRule = { type: 'interval', days: daysVal };
+        }
+    } else if (ruleType === 'weekdays') {
+        const wds = Array.from(document.querySelectorAll('.member-holiday-weekday-cb:checked')).map(cb => parseInt(cb.value, 10));
+        if (wds.length > 0) {
+            holidayRule = { type: 'weekdays', weekdays: wds };
+        }
+    }
+
     if (memberId) {
         const member = state.members.find(m => m.id === memberId);
         if (member) {
@@ -547,6 +587,7 @@ function saveMemberEdit() {
             member.role = selectedRole;
             member.attributes = selectedAttrs;
             member.ngCourses = selectedNGs;
+            member.holidayRule = holidayRule;
         }
     } else {
         state.members.push({
@@ -554,7 +595,8 @@ function saveMemberEdit() {
             name: newName,
             role: selectedRole,
             attributes: selectedAttrs,
-            ngCourses: selectedNGs
+            ngCourses: selectedNGs,
+            holidayRule: holidayRule
         });
     }
 

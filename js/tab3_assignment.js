@@ -1399,11 +1399,14 @@ function renderCourseAssignmentTab() {
     let tbodyHtml = '';
     displayMembers.forEach(member => {
         const memberBadges = getMemberBadgesHTML(member);
+        const isOverRestraint = typeof isMemberOverRestraintLimit === 'function' && isMemberOverRestraintLimit(member.id);
         tbodyHtml += `
             <tr class="border-b border-slate-200 hover:bg-slate-50 transition">
-                <td class="px-2.5 py-1.5 font-bold text-slate-800 sticky-col-left shadow-2xs border-r border-slate-200 bg-white">
+                <td class="px-2.5 py-1.5 font-bold sticky-col-left shadow-2xs border-r border-slate-200 ${isOverRestraint ? 'member-over-restraint-cell' : 'text-slate-800 bg-white'}">
                     <div class="flex flex-col cursor-pointer" onclick="openMemberEditModal('${member.id}')" title="クリックして属性・NGコースを編集">
-                        <span class="truncate text-xs sm:text-sm hover:text-indigo-600 font-extrabold leading-tight">${member.name}</span>
+                        <div class="flex items-center gap-1 min-w-0">
+                            <span class="truncate text-xs sm:text-sm hover:text-indigo-600 font-extrabold leading-tight ${isOverRestraint ? 'text-rose-700' : ''}">${member.name}</span>
+                        </div>
                         <div class="flex items-center gap-1 mt-0.5 overflow-hidden">
                             ${memberBadges || '<span class="text-[9px] text-slate-300 font-normal">属性なし</span>'}
                         </div>
