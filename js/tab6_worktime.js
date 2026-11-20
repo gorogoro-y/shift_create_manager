@@ -448,6 +448,7 @@ function saveWorkTimeCell() {
 
     if (!state.actualWorkTimes) state.actualWorkTimes = {};
     const key = `${memberId}_${dateStr}`;
+    let syncVal = null;
     if (workSec === null && restraintSec === null && (!splitChoice || splitChoice === 'sum')) {
         delete state.actualWorkTimes[key];
     } else {
@@ -456,24 +457,34 @@ function saveWorkTimeCell() {
             entry.splitChoice = splitChoice;
         }
         state.actualWorkTimes[key] = entry;
+        syncVal = entry;
     }
 
     closeWorkTimeCellModal();
     saveData();
     renderWorkTimeTab();
-    if (typeof saveShiftToCloud === 'function') saveShiftToCloud(true);
+    if (typeof syncActualWorkTimesToCloud === 'function') {
+        syncActualWorkTimesToCloud({ [key]: syncVal });
+    } else if (typeof saveCurrentMonthShiftToCloud === 'function') {
+        saveCurrentMonthShiftToCloud(true);
+    }
 }
 
 function clearWorkTimeCell() {
     const memberId = document.getElementById('wt-cell-member-id').value;
     const dateStr = document.getElementById('wt-cell-date-str').value;
+    const key = `${memberId}_${dateStr}`;
     if (state.actualWorkTimes) {
-        delete state.actualWorkTimes[`${memberId}_${dateStr}`];
+        delete state.actualWorkTimes[key];
     }
     closeWorkTimeCellModal();
     saveData();
     renderWorkTimeTab();
-    if (typeof saveShiftToCloud === 'function') saveShiftToCloud(true);
+    if (typeof syncActualWorkTimesToCloud === 'function') {
+        syncActualWorkTimesToCloud({ [key]: null });
+    } else if (typeof saveCurrentMonthShiftToCloud === 'function') {
+        saveCurrentMonthShiftToCloud(true);
+    }
 }
 
 // ==========================================
@@ -621,6 +632,7 @@ function executeActualWorkTimeImport() {
 
     let updatedCells = 0;
     const unmatched = [];
+    const cloudUpdates = {};
 
     for (let r = startRow; r < lines.length; r++) {
         const cols = lines[r].split('\t');
@@ -656,8 +668,10 @@ function executeActualWorkTimeImport() {
 
             if (prev.workSec === null && prev.restraintSec === null) {
                 delete state.actualWorkTimes[key];
+                cloudUpdates[key] = null;
             } else {
                 state.actualWorkTimes[key] = prev;
+                cloudUpdates[key] = prev;
             }
             updatedCells++;
         }
@@ -666,7 +680,11 @@ function executeActualWorkTimeImport() {
     closeActualWorkTimeImportModal();
     saveData();
     renderWorkTimeTab();
-    if (typeof saveShiftToCloud === 'function') saveShiftToCloud(true);
+    if (typeof syncActualWorkTimesToCloud === 'function') {
+        syncActualWorkTimesToCloud(cloudUpdates);
+    } else if (typeof saveCurrentMonthShiftToCloud === 'function') {
+        saveCurrentMonthShiftToCloud(true);
+    }
 
     const label = targetType === 'work' ? '労働時間' : '拘束時間';
     let msg = `${label}の実績データを ${updatedCells} マス取り込みました。`;

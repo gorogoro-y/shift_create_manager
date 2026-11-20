@@ -466,6 +466,40 @@ async function saveCurrentMonthShiftToCloud(isSilent = false) {
     }
 }
 
+// タブ6: 実績労働・拘束時間および分割選択のクラウド同期
+async function syncActualWorkTimesToCloud(updates) {
+    if (!isCloudConnected || !currentUser || !db || isSyncingFromCloud) return;
+    if (!updates || Object.keys(updates).length === 0) return;
+
+    try {
+        updateCloudStatus('同期中...', 'syncing');
+        const monthDocId = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}`;
+        const shiftRef = doc(db, 'artifacts', appId, 'public', 'data', 'shifts', monthDocId);
+
+        const payload = {};
+        for (const [k, v] of Object.entries(updates)) {
+            if (v === null || v === undefined) {
+                payload[`actualWorkTimes.${k}`] = deleteField();
+            } else {
+                payload[`actualWorkTimes.${k}`] = v;
+            }
+        }
+        payload.updatedAt = new Date().toISOString();
+
+        try {
+            await updateDoc(shiftRef, payload);
+        } catch (updateErr) {
+            // 月ドキュメントが未作成の場合は丸ごと作成保存
+            await saveCurrentMonthShiftToCloud(true);
+        }
+
+        updateCloudStatus('同期完了', 'success');
+    } catch (err) {
+        console.error('Actual work times sync error:', err);
+        updateCloudStatus('同期エラー', 'error');
+    }
+}
+
 async function saveAllToCloud() {
     if (!isCloudConnected) {
         saveData();
